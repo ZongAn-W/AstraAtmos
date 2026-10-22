@@ -102,6 +102,14 @@ test('personal data distinguishes raw source from generated caches', () => {
   assert.match(myDataTab, /mcd_3h/);
 });
 
+test('personal data deletion uses the long-press confirm instead of a modal', () => {
+  assert.match(myDataTab, /HoldToDeleteButton/);
+  assert.match(myDataTab, /size="compact"/);
+  assert.match(myDataTab, /onDelete=\{\(\) => handleDeleteConfirm\(viewingUpload\.id\)\}/);
+  assert.doesNotMatch(myDataTab, /ConfirmDialog/);
+  assert.doesNotMatch(myDataTab, /confirmDelete/);
+});
+
 test('admin inline workspace uses compact panel sizing', () => {
   assert.match(adminReviewPanel, /adminWorkspaceMinHeight/);
   assert.doesNotMatch(adminReviewPanel, /minHeight:\s*640/);

@@ -4,6 +4,9 @@
 .predict-sidebar__saved-horizon { margin: 6px 0 0; color: var(--text-primary); font-size: calc(var(--type-control) * var(--font-scale, 1)); font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
 .predict-sidebar__action { width: 100%; }
 .predict-sidebar__actions { display: grid; gap: 10px; }
+/* 收缩成圆形加载时居中，避免贴左 */
+.predict-sidebar__actions .morph-submit.morph-submit--loading,
+.predict-sidebar__actions .morph-submit.morph-submit--success { justify-self: center; }
 .predict-sidebar__disabled-reason { margin: -2px 0 0; font-size: calc(var(--type-helper) * var(--font-scale, 1)); line-height: 1.5; color: var(--text-secondary); letter-spacing: 0; }
 .prediction-model-selection { scroll-margin-top: 90px; }
 .prediction-model-selection:focus-visible { outline: 2px solid var(--brand-ice); outline-offset: 3px; }

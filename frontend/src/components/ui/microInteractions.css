@@ -1,0 +1,460 @@
+/* 微交互组件：提交三连变 / 果冻开关 / 长按确认删除
+   动效原则：优先使用 transform/opacity，配合余韵型缓动与挤压回弹。 */
+
+.morph-submit__sr,
+.hold-delete__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 全站统一的余韵曲线：末段轻微越过目标再落回 */
+:root {
+  /* 变量写在组件内联样式里，这里仅作为兜底默认值 */
+  --micro-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --micro-spring: cubic-bezier(0.34, 1.42, 0.64, 1);
+}
+
+/* ── 1. 提交三连变 ─────────────────────────────
+   点击后收缩为圆形加载，完成变绿打勾，再恢复原状；收缩 300ms。 */
+.morph-submit {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height);
+  width: auto;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--brand-orange);
+  color: var(--surface-0);
+  font-size: calc(var(--type-control) * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  transform: translateZ(0);
+  /* 恢复原状时走余韵曲线，宽度与圆角一起回弹 */
+  transition:
+    width var(--morph-shrink-ms, 300ms) var(--micro-spring),
+    border-radius var(--morph-shrink-ms, 300ms) var(--micro-spring),
+    padding var(--morph-shrink-ms, 300ms) var(--micro-spring),
+    background-color 240ms ease,
+    color 200ms ease,
+    box-shadow 240ms ease,
+    transform 120ms ease;
+}
+
+.morph-submit::after {
+  /* 顶部高光，让纯色块更接近有质感的按钮 */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 58%);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+.morph-submit:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brand-orange) 86%, var(--text-primary));
+  box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--brand-orange) 70%, transparent);
+}
+
+.morph-submit:active:not(:disabled) {
+  transform: scale(0.965);
+  transition-duration: 90ms;
+}
+
+.morph-submit:focus-visible {
+  outline: 2px solid var(--brand-ice);
+  outline-offset: 3px;
+}
+
+/* 收缩/成功阶段改用更利落的 ease-out，避免回弹曲线让收缩显得拖沓。
+   两个类名提高优先级，确保全宽按钮（如预测页）也能收缩成圆形。 */
+.morph-submit.morph-submit--loading,
+.morph-submit.morph-submit--success {
+  width: var(--control-height);
+  padding: 0;
+  border-radius: 50%;
+  transition-timing-function: var(--micro-ease-out);
+}
+
+.morph-submit--loading {
+  background: var(--surface-3);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.morph-submit--success {
+  background: var(--status-success);
+  color: var(--surface-0);
+  box-shadow: 0 8px 22px -10px color-mix(in srgb, var(--status-success) 75%, transparent);
+  animation: morph-submit-pop 460ms var(--micro-spring);
+}
+
+.morph-submit--loading::after,
+.morph-submit--success::after {
+  opacity: 0;
+}
+
+@keyframes morph-submit-pop {
+  0% { transform: scale(0.9); }
+  52% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+
+.morph-submit__label {
+  transition: opacity 110ms ease, transform 180ms var(--micro-ease-out);
+  white-space: nowrap;
+}
+
+.morph-submit--loading .morph-submit__label,
+.morph-submit--success .morph-submit__label {
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+/* 加载器：圆环旋转 + 虚线呼吸，比单纯旋转更细腻 */
+.morph-submit__loader {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.morph-submit--loading .morph-submit__loader {
+  opacity: 1;
+}
+
+.morph-submit__spinner {
+  width: 20px;
+  height: 20px;
+  animation: morph-submit-spin 900ms linear infinite;
+}
+
+.morph-submit__spinner-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text-primary) 20%, transparent);
+  stroke-width: 2.4;
+}
+
+.morph-submit__spinner-arc {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 56.5;
+  stroke-dashoffset: 40;
+  animation: morph-submit-dash 1300ms ease-in-out infinite;
+}
+
+@keyframes morph-submit-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes morph-submit-dash {
+  0% { stroke-dashoffset: 40; }
+  50% { stroke-dashoffset: 12; }
+  100% { stroke-dashoffset: 40; }
+}
+
+/* 对勾：描边逐步画出，比整块弹出更有落定感 */
+.morph-submit__check {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 21px;
+  height: 21px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.morph-submit__check path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+}
+
+.morph-submit--success .morph-submit__check {
+  opacity: 1;
+}
+
+.morph-submit--success .morph-submit__check path {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 280ms cubic-bezier(0.65, 0, 0.35, 1) 70ms;
+}
+
+/* ── 2. 果冻开关 ─────────────────────────────
+   滑块滑动时横向拉长并压扁，到终点回弹；底色灰转绿；350ms 弹簧曲线。 */
+.jelly-toggle {
+  position: relative;
+  display: inline-block;
+  width: var(--jelly-width, 52px);
+  height: var(--jelly-height, 26px);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line-strong) 82%, var(--surface-2));
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transform: translateZ(0);
+  transition:
+    background-color var(--jelly-ms, 350ms) var(--jelly-spring, ease),
+    box-shadow var(--jelly-ms, 350ms) var(--jelly-spring, ease);
+}
+
+.jelly-toggle[data-checked="true"] {
+  background: var(--status-success);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.14),
+    0 0 0 3px color-mix(in srgb, var(--status-success) 16%, transparent),
+    0 6px 16px -8px color-mix(in srgb, var(--status-success) 80%, transparent);
+}
+
+.jelly-toggle[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.jelly-toggle:focus-visible {
+  outline: 2px solid var(--brand-ice);
+  outline-offset: 3px;
+}
+
+.jelly-toggle__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  height: var(--jelly-thumb, 20px);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff, color-mix(in srgb, var(--surface-2) 88%, #ffffff));
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.32),
+    0 3px 8px -3px rgba(0, 0, 0, 0.36);
+  transform-origin: center center;
+  will-change: transform, width;
+  transition:
+    width var(--jelly-ms, 350ms) var(--jelly-spring, ease),
+    transform var(--jelly-ms, 350ms) var(--jelly-spring, ease),
+    box-shadow var(--jelly-ms, 350ms) var(--jelly-spring, ease);
+}
+
+.jelly-toggle[data-checked="true"] .jelly-toggle__thumb {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.22),
+    0 4px 10px -3px rgba(0, 0, 0, 0.3);
+}
+
+/* 拖动中跟随指针，不加过渡，否则拉长与压扁会被插值抹平 */
+.jelly-toggle[data-dragging="true"] .jelly-toggle__thumb {
+  transition: none;
+}
+
+/* ── 3. 长按确认删除 ─────────────────────────
+   按住外圈 1.5s 填满才删除，中途松手归零，完成后变对勾。 */
+.hold-delete {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: var(--hold-size, 88px);
+  height: var(--hold-size, 88px);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--status-danger);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 220ms var(--micro-spring), color 200ms ease;
+}
+
+.hold-delete:hover {
+  transform: scale(1.03);
+}
+
+.hold-delete--holding {
+  transform: scale(1.055);
+  transition: transform 200ms var(--micro-ease-out), color 200ms ease;
+}
+
+.hold-delete:focus-visible {
+  outline: 2px solid var(--brand-ice);
+  outline-offset: 4px;
+}
+
+.hold-delete__ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.hold-delete__track {
+  fill: none;
+  stroke: var(--line-default);
+  stroke-width: var(--hold-stroke, 4);
+}
+
+.hold-delete__fill {
+  fill: none;
+  stroke: var(--status-danger);
+  stroke-width: var(--hold-stroke, 4);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--status-danger) 45%, transparent));
+}
+
+.hold-delete--done .hold-delete__fill {
+  stroke: var(--status-success);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--status-success) 50%, transparent));
+  transition: stroke 220ms ease, filter 220ms ease;
+}
+
+/* 完成瞬间的扩散涟漪 */
+.hold-delete__ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--status-success);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hold-delete--done .hold-delete__ripple {
+  animation: hold-delete-ripple 560ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes hold-delete-ripple {
+  0% { transform: scale(0.86); opacity: 0.55; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+.hold-delete__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.2;
+  transition: opacity 160ms ease;
+}
+
+.hold-delete__label {
+  font-size: calc(var(--type-label) * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.hold-delete__hint {
+  font-size: calc(var(--type-micro) * var(--font-scale));
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hold-delete__check {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 30px;
+  height: 30px;
+  color: var(--status-success);
+  opacity: 0;
+}
+
+.hold-delete__check path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+}
+
+.hold-delete--done .hold-delete__check {
+  opacity: 1;
+}
+
+.hold-delete--done .hold-delete__check path {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 300ms cubic-bezier(0.65, 0, 0.35, 1) 60ms;
+}
+
+.hold-delete--done .hold-delete__content {
+  opacity: 0;
+}
+
+/* 列表行内的紧凑尺寸：不放大、对勾更小，避免撑破行高 */
+.hold-delete--compact:hover,
+.hold-delete--compact.hold-delete--holding {
+  transform: none;
+}
+
+.hold-delete--compact .hold-delete__label {
+  font-size: calc(var(--type-micro) * var(--font-scale));
+  line-height: 1.1;
+}
+
+.hold-delete--compact .hold-delete__check {
+  width: 17px;
+  height: 17px;
+}
+
+/* 尊重 prefers-reduced-motion：去掉位移与形变，仅保留状态切换 */
+@media (prefers-reduced-motion: reduce) {
+  .morph-submit,
+  .morph-submit__label,
+  .morph-submit__loader,
+  .morph-submit__check,
+  .morph-submit__check path,
+  .jelly-toggle,
+  .jelly-toggle__thumb,
+  .hold-delete,
+  .hold-delete__content,
+  .hold-delete__check path {
+    transition: none !important;
+  }
+
+  .morph-submit,
+  .morph-submit--success {
+    animation: none !important;
+  }
+
+  .hold-delete--done .hold-delete__ripple {
+    animation: none !important;
+    opacity: 0;
+  }
+
+  /* 加载指示属于状态反馈，保留最轻量的旋转 */
+  .morph-submit__spinner {
+    animation: morph-submit-spin 1200ms linear infinite !important;
+  }
+
+  .morph-submit__spinner-arc {
+    animation: none !important;
+  }
+}

@@ -4,6 +4,7 @@ import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownR
 import C from '../../constants/colors';
 import { useT } from '../../i18n';
 import { Button, Panel } from '../../components/ui/Controls';
+import MorphSubmitButton from '../../components/ui/MorphSubmitButton';
 import { fmtNum } from '../../utils/fmt';
 import { useSettings } from '../../contexts/SettingsContext';
 import { buildTrainedModelParameterItems } from './trainedModelSelection';
@@ -30,20 +31,6 @@ function SectionTitle({ title, subtitle }) {
         </div>
       ) : null}
     </div>
-  );
-}
-
-function ActionButton({ children, secondary = false, disabled = false, onClick, describedBy }) {
-  return (
-    <Button
-      onClick={onClick}
-      disabled={disabled}
-      aria-describedby={describedBy}
-      variant={secondary ? 'secondary' : 'primary'}
-      className={`predict-sidebar__action${disabled ? ' is-disabled' : ''}`}
-    >
-      {children}
-    </Button>
   );
 }
 
@@ -669,18 +656,19 @@ export default function PredictSidebar({
         </div>}
 
         <div className="predict-sidebar__actions">
-          <ActionButton
-            onClick={handlePredict}
-            describedBy={disabledReason ? 'prediction-run-disabled-reason' : undefined}
+          <MorphSubmitButton
+            label={isCompareMode
+              ? (isZh ? '开始对比' : 'Start comparison')
+              : t('predict.runBtn')}
+            loadingLabel={t('predict.runningBtn')}
+            successLabel={isZh ? '已提交' : 'Submitted'}
+            onAction={handlePredict}
             disabled={loading || runDisabled
               || invalidPredictionHorizon
               || (isCompareMode && !compareSelection.canCompare)}
-            accent={isCompareMode ? C.green : C.mars}
-          >
-            {loading ? (
-              t('predict.runningBtn')
-            ) : isCompareMode ? (isZh ? '开始对比' : 'Start comparison') : t('predict.runBtn')}
-          </ActionButton>
+            className="predict-sidebar__action"
+            aria-describedby={disabledReason ? 'prediction-run-disabled-reason' : undefined}
+          />
           {disabledReason ? <p id="prediction-run-disabled-reason" className="predict-sidebar__disabled-reason" role="status">
             {disabledReason}
           </p> : null}

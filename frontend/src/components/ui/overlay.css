@@ -156,6 +156,9 @@
 .av-segment small { display: block; margin-top: 2px; font-size: calc(var(--type-micro) * var(--font-scale, 1)); line-height: 1.4; color: var(--text-secondary); }
 .av-checkbox { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; color: var(--text-secondary); font-size: calc(var(--type-label) * var(--font-scale, 1)); line-height: 1.5; cursor: pointer; }
 .av-checkbox input { width: 18px; height: 18px; flex: 0 0 18px; margin: 0; accent-color: var(--line-active); }
+.av-checkbox--switch { gap: 12px; cursor: default; }
+.av-checkbox__text { cursor: pointer; user-select: none; }
+.av-checkbox__text:hover { color: var(--text-primary); }
 .av-auth label { display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: calc(var(--type-label) * var(--font-scale, 1)); font-weight: 600; letter-spacing: 0; line-height: 1.4; }
 .av-auth input { width: 100%; min-width: 0; min-height: var(--control-height, 40px); padding: 10px 12px; border: 1px solid var(--line-default); border-radius: var(--radius-control); background: var(--surface-2); color: var(--text-primary); font-family: inherit; font-size: calc(var(--type-control) * var(--font-scale, 1)); }
 .av-auth input:focus { border-color: var(--line-active); }

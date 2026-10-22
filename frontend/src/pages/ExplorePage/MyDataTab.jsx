@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useToast } from '../../contexts/ToastContext';
 import GlowCard from '../../components/GlowCard';
-import ConfirmDialog from '../../components/ConfirmDialog';
+import HoldToDeleteButton from '../../components/ui/HoldToDeleteButton';
 import ContributeModal from '../../components/ContributeModal';
 import ContributeHistoryPanel from '../../components/ContributeHistoryPanel';
 import {
@@ -856,13 +856,13 @@ function PersonalCoreDetail({
             onClick={onContribute}
             disabled={viewActionLoading || viewingUpload.is_public || !viewingCtx.contributionCondition.ok}
           />
-          <ActionBtn
+          <HoldToDeleteButton
+            size="compact"
             label={t('explore.myData.deleteBtn')}
-            borderColor="rgba(199,91,57,0.5)"
-            textColor={C.mars}
-            onClick={onDelete}
-            disabled={viewActionLoading}
-            loading={viewActionLoading}
+            hint={t('explore.myData.deleteHoldHint')}
+            doneLabel={t('explore.myData.deleteSuccess')}
+            onConfirm={onDelete}
+            persist={viewActionLoading}
           />
         </div>
       </div>
@@ -1213,7 +1213,6 @@ export default function MyDataTab({ reviewSignal = 0 }) {
     error: null,
   });
   const [viewLs, setViewLs] = useState(90);
-  const [confirmDelete, setConfirmDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
   const [contributeOpen, setContributeOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -1486,9 +1485,8 @@ export default function MyDataTab({ reviewSignal = 0 }) {
     e.target.value = '';
   }, [handleFile]);
 
-  const handleDeleteConfirm = async () => {
-    const id = confirmDelete;
-    setConfirmDelete(null);
+  const handleDeleteConfirm = async (id) => {
+    if (id == null) return;
     setActionLoading((prev) => ({ ...prev, [id]: true }));
     try {
       await deleteUpload(id);
@@ -1767,7 +1765,7 @@ export default function MyDataTab({ reviewSignal = 0 }) {
               viewingSignal={viewingSignal}
               viewActionLoading={viewActionLoading}
               onContribute={() => setContributeOpen(true)}
-              onDelete={() => setConfirmDelete(viewingUpload.id)}
+              onDelete={() => handleDeleteConfirm(viewingUpload.id)}
               advancedOpen={advancedOpen}
               onToggleAdvanced={() => setAdvancedOpen((value) => !value)}
               viewData={viewData}
@@ -1777,18 +1775,6 @@ export default function MyDataTab({ reviewSignal = 0 }) {
           )}
         </GlowCard>
       </div>
-
-      {confirmDelete != null && (
-        <ConfirmDialog
-          title={t('explore.myData.confirmDeleteTitle')}
-          message={t('explore.myData.confirmDeleteMsg')}
-          confirmLabel={t('explore.myData.confirmDeleteBtn')}
-          cancelLabel={t('explore.myData.cancelBtn')}
-          confirmColor={C.mars}
-          onConfirm={handleDeleteConfirm}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      )}
 
       <>
         <ContributeModal
