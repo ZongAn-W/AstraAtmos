@@ -383,7 +383,7 @@ test('the Earth uploaded gate blocks missing, unverified and incompatible models
     getEarthUploadedSelectionBlocker({
       modelSource: 'uploaded', uploadedModelId: 'm1',
       compatibility: { dataset_id: EARTH_DATASET_ID, status: 'available', compatible: true, reasons: [],
-        datasets: { earth_merra2_3hourly_v1: { schema: 'aresvision_earth_3hourly_uploaded_model_v1' } } },
+        datasets: { earth_merra2_3hourly_v1: { schema: 'astraatmos_earth_3hourly_uploaded_model_v1' } } },
     }),
     null,
   );

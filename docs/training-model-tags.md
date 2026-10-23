@@ -42,6 +42,6 @@ SQLite 标签写操作在权限校验前显式开启写事务，防止并发删�
 
 ## 验证入口
 
-- 后端：从 `AresVision_backend/backend/` 运行 `python -m pytest tests/test_training_tags.py`，覆盖持久化、权限、事务、训练启动、清理及缓存身份不变。
+- 后端：从 `AstraAtmos_backend/backend/` 运行 `python -m pytest tests/test_training_tags.py`，覆盖持久化、权限、事务、训练启动、清理及缓存身份不变。
 - 前端：从 `frontend/` 运行 `node --test` 和 `npm run build`；标签筛选与请求顺序测试位于 `src/components/TrainingTags/`，API 契约测试位于 `src/services/api.trainingTags.test.js`。
 - 界面检查应包含：多标签交集、未分组、搜索组合、批量操作、编辑与删除、刷新、预测选择保留、账号切换，以及中英文和明暗主题。可使用测试任务与模拟训练启动完成检查，无需训练真实模型。

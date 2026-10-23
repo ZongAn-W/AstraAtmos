@@ -51,7 +51,7 @@
 | `README.md` | 修改 | 更新“模型训练”功能描述、模块入口和当前功能边界，说明实验中心是现有训练能力的前端重组 |
 | `docs/experiment-center.md` | 新建 | 用户流程、阶段含义、现有能力迁移、未开放边界和验证入口 |
 
-不修改 `AresVision_backend/backend/routers/training.py`、训练 schema、数据库模型或训练子进程。若预测页无法接收“比较预选”而需要后端变更，应先保留“加入模型比较”按钮为导航到预测页并说明当前选择，不能在本计划中顺手扩展预测协议。
+不修改 `AstraAtmos_backend/backend/routers/training.py`、训练 schema、数据库模型或训练子进程。若预测页无法接收“比较预选”而需要后端变更，应先保留“加入模型比较”按钮为导航到预测页并说明当前选择，不能在本计划中顺手扩展预测协议。
 
 ## 3. 实施任务
 
@@ -126,7 +126,7 @@ test('摘要优先使用任务名称、架构、数据集和指标', () => {
 
 - [ ] **Step 2: 运行测试确认失败。**
 
-Run from `D:\_Aresvision\Aresvision\frontend`:
+Run from `frontend`:
 
 ```powershell
 node --test src/pages/ModelTrainingPage/experimentCenterModel.test.js
@@ -308,7 +308,7 @@ npm run build
 - [ ] **Step 3: 运行前端单元测试和构建。**
 
 ```powershell
-Set-Location 'D:\_Aresvision\Aresvision\frontend'
+Set-Location 'frontend'
 node --test
 npm run build
 ```
@@ -318,7 +318,7 @@ Expected: all existing and new Node tests pass; Vite production build succeeds w
 - [ ] **Step 4: 运行结构检查和 diff 检查。**
 
 ```powershell
-Set-Location 'D:\_Aresvision\Aresvision'
+Set-Location 'AstraAtmos'
 git diff --check
 rg -n "startTrainingTask|fetchLogs|setInterval|new WebSocket" frontend/src/pages/ModelTrainingPage/Experiment*.jsx
 git status --short
@@ -333,7 +333,7 @@ Expected: API/轮询调用只保留在页面控制器或 `TrainingContext`；新
 3. `completed && model_available`：结果指标、配置、用于预测和去模型比较可用。
 4. `failed` 或完成但无权重：结果页显示原因，禁止预测，复制配置仍可用。
 
-同时检查 1440×900、1024×768、768×900、390×844，深色/浅色主题，中英文，键盘 Tab 和日志自动滚动。若启动本地服务进行浏览器验收，必须按项目约定使用 `D:\Anaconda\envs\AresVision\python.exe` 启动后端，并验证 `/health`、前端首页和 `/api/datasets`；仅做前端静态构建时不需要启动后端。
+同时检查 1440×900、1024×768、768×900、390×844，深色/浅色主题，中英文，键盘 Tab 和日志自动滚动。若启动本地服务进行浏览器验收，必须按项目约定使用 `$env:CONDA_PREFIX\python.exe` 启动后端，并验证 `/health`、前端首页和 `/api/datasets`；仅做前端静态构建时不需要启动后端。
 
 ## 4. 完成定义
 

@@ -7,7 +7,7 @@ import {
 import { getModelStructureConfig } from './trainingParamSanitizers.js';
 import { earthMetricUnit } from '../../utils/earthMetricMeta.js';
 
-export const MATRIX_COLUMN_STORAGE_PREFIX = 'aresvision_experiment_matrix_columns';
+export const MATRIX_COLUMN_STORAGE_PREFIX = 'astraatmos_experiment_matrix_columns';
 
 const RESERVED_HYPERPARAMETERS = new Set([
   'model_architecture', 'model_source', 'training_dataset', 'selected_channels',

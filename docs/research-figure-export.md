@@ -42,7 +42,7 @@ Earth 页面与比较新增 MSE/MAPE/SMAPE，但现有导出 schema 只接受 RM
 
 入口：`GET /api/predict/research-export/capabilities`，`POST /api/predict/research-export/preview`，`POST /api/predict/research-export/download`。全部使用现有 Bearer 认证。
 
-预测/PFI 响应新增 `export_ref`，比较接口在每个 `items[].metrics.export_ref` 返回。引用是服务器生成的随机快照 ID 及其完整条件（行星、任务、分析、起点、horizon、变量）；不包含 JWT 或服务器路径。请求传引用、`kind`、零基 `step`、`metric`、`options`、`bundle`。Schema 位于 [research_export.py](../AresVision_backend/backend/schemas/research_export.py)，字段明确白名单并拒绝多余参数；不接受数组、文件路径、Python/MATLAB 代码。
+预测/PFI 响应新增 `export_ref`，比较接口在每个 `items[].metrics.export_ref` 返回。引用是服务器生成的随机快照 ID 及其完整条件（行星、任务、分析、起点、horizon、变量）；不包含 JWT 或服务器路径。请求传引用、`kind`、零基 `step`、`metric`、`options`、`bundle`。Schema 位于 [research_export.py](../AstraAtmos_backend/backend/schemas/research_export.py)，字段明确白名单并拒绝多余参数；不接受数组、文件路径、Python/MATLAB 代码。
 
 按钮在结果仍在加载或缺少导出引用时禁用；切换条件后旧结果不作为可导出结果。Mars `/predict/run` 必须在手工整理响应时透传 `export_ref`，`/predict/metrics` 的响应 Schema 也须保留该字段，否则页面有图但没有导出引用。旧页面缓存需重新获取一次当前条件的结果；切回页面可能继续恢复浏览器内存中的旧缓存。用户再次点击「开始预测／开始对比」时，缺少引用的 PFI／比较结果会重新取回，不因条件相同直接跳过请求。已有引用过期、被淘汰或服务重启不会直接令按钮变灰，而是在预览/下载时返回明确错误。
 
@@ -68,7 +68,7 @@ MATLAB 重建保持数据、坐标、色阶与图类型；MATLAB 字体、版本
 
 ## 验证与复现
 
-从后端目录使用工作区规定的 AresVision conda 解释器执行 `-m pytest tests/test_research_export.py`，临时目录指定仓库外的新英文路径。该文件覆盖换算、共同/对称色阶、坐标顺序、残差方向、坏数据拒绝、权限与条件、过期、白名单、尺寸/DPI、SVG 真文字与局部栅格化、PDF MediaBox、MAT 回读和无敏感路径。
+从后端目录使用工作区规定的 工作区约定的 Conda 解释器执行 `-m pytest tests/test_research_export.py`，临时目录指定仓库外的新英文路径。该文件覆盖换算、共同/对称色阶、坐标顺序、残差方向、坏数据拒绝、权限与条件、过期、白名单、尺寸/DPI、SVG 真文字与局部栅格化、PDF MediaBox、MAT 回读和无敏感路径。
 
 `tests/test_earth_3hourly_prediction_routes.py` 的已有合成 24 步响应增加第 24 步科研导出验证，明确禁止导出再次推理，逐项核对 MAT 的 DU 值、纬度与 UTC 目标时间。前端纯函数测试为 `researchExportModel.test.js`；构建从 `frontend/` 执行 `npm run build`。
 

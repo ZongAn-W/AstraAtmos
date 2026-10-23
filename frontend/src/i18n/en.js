@@ -1517,7 +1517,7 @@ const en = {
       'Earth diagnostic charts have no research export yet, and the MATLAB rebuild script is an editable entry point that has not been pixel-verified across versions.',
       'The platform promises no prediction accuracy, RAG knowledge base, live satellite feed or VR capability; real results depend on data quality, training configuration and model weights.',
       '"MCD 6.1" follows the project\'s existing version label; neither the code nor the data manifests record that version, and Mars source data is marked only by Mars year (MY).',
-      'AresVision (智绘赤星) is the original product name; directories, repository URL, start scripts, environment variables and storage keys keep it for compatibility, and renaming needs no data migration.',
+      'AstraAtmos is the product name used consistently by the app, documentation and runtime identifiers.',
     ],
     footerNote:
       'This page describes what is implemented today; planned or closed areas are marked as such in the list above.',

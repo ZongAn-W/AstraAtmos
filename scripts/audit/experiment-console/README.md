@@ -21,7 +21,7 @@
 3. **生产静态服务在跑**：在仓库根目录执行 `node scripts/serve-prod.mjs`（`ROOT=frontend/dist`、`PORT=5173`、`API_PORT=8000`），
    或任何等价地把 `frontend/dist` 与 `/api` 代理到后端的静态服务。
 4. **无头浏览器**：启动带远程调试端口的 Edge/Chrome，例如
-   `msedge --headless=new --remote-debugging-port=9333 --user-data-dir=%TEMP%\aresvision-audit`。
+   `msedge --headless=new --remote-debugging-port=9333 --user-data-dir=%TEMP%\astraatmos-audit`。
 
 ## 执行
 
@@ -122,7 +122,7 @@ node scripts\audit\experiment-console\verify-directory-empty.mjs --label empty
 
 ## 注意
 
-- **只对本地开发库运行。** `seed-probe-profile.mjs` 会直接写 `data/aresvision.db` 并创建账号，
+- **只对本地开发库运行。** `seed-probe-profile.mjs` 会直接写 `data/astraatmos.db` 并创建账号，
   `cleanup` 会删除该账号及其模型、任务、标签与日志。
 - 探针模型源码（`.probe-surface-net.py`）与登录 JWT（`.probe-profile.json`）都已加入 `.gitignore`，
   不要提交或外传；`shots/` 下的截图与字号读数同样不入库。

@@ -67,8 +67,8 @@ async (page) => {
   await page.routeWebSocket('**/ws/**',()=>{});
   await page.addInitScript(()=>{
     if(!localStorage.getItem('shared_prediction_fixture')) {
-      localStorage.setItem('aresvision_token','synthetic-isolated-browser-only');
-      localStorage.setItem('aresvision_settings',JSON.stringify({language:'zh',theme:'dark',colormap:'viridis',precision:4,units:{ozone:'DU'}}));
+      localStorage.setItem('astraatmos_token','synthetic-isolated-browser-only');
+      localStorage.setItem('astraatmos_settings',JSON.stringify({language:'zh',theme:'dark',colormap:'viridis',precision:4,units:{ozone:'DU'}}));
       localStorage.setItem('shared_prediction_fixture','1');
     }
   });
@@ -171,7 +171,7 @@ async (page) => {
   held=true;await run.click();await page.waitForTimeout(100);
   await page.evaluate(()=>window.location.hash='#/predict?mode=trained');await mars.waitFor();held=false;release();await page.waitForTimeout(250);
   check(await earth.count()===0,'late Earth response after route switch rejected');
-  await page.evaluate(()=>{const settings=JSON.parse(localStorage.getItem('aresvision_settings'));settings.theme='light';settings.colormap='plasma';settings.precision=6;localStorage.setItem('aresvision_settings',JSON.stringify(settings));});
+  await page.evaluate(()=>{const settings=JSON.parse(localStorage.getItem('astraatmos_settings'));settings.theme='light';settings.colormap='plasma';settings.precision=6;localStorage.setItem('astraatmos_settings',JSON.stringify(settings));});
   await page.goto('http://127.0.0.1:5173/#/predict?mode=earth');await page.reload();await run.waitFor();
   await page.waitForFunction(()=>!document.querySelector('input[data-prediction-origin="earth"]').disabled);await run.click();await earth.locator('.prediction-earth-field').first().waitFor();
   check(await page.locator('html').getAttribute('data-theme')==='light','light theme rendered');
@@ -179,7 +179,7 @@ async (page) => {
   await display.scrollIntoViewIfNeeded();await page.screenshot({path:'output/playwright/shared-earth-light-desktop.png'});
   await page.setViewportSize({width:390,height:844});await display.scrollIntoViewIfNeeded();await page.waitForTimeout(250);
   check(await page.evaluate(()=>document.documentElement.scrollWidth<=390),'390px light theme no overflow');await page.screenshot({path:'output/playwright/shared-earth-light-390.png'});
-  await page.evaluate(()=>window.dispatchEvent(new Event('aresvision:logout')));
+  await page.evaluate(()=>window.dispatchEvent(new Event('astraatmos:logout')));
   await page.waitForFunction(()=>document.querySelectorAll('.prediction-earth-field').length===0);
   check(await page.locator('.prediction-earth-field').count()===0,'logout clears private prediction');
   await page.getByRole('button', { name: '地球', exact: true }).click(); await earth.waitFor();

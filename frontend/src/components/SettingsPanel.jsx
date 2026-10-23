@@ -443,7 +443,7 @@ export default function SettingsPanel({ open, onClose }) {
           <button
             onClick={() => {
               if (window.confirm(t('settings.resetConfirm'))) {
-                localStorage.removeItem('aresvision_settings');
+                localStorage.removeItem('astraatmos_settings');
                 window.location.reload();
               }
             }}

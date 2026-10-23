@@ -50,7 +50,7 @@ async function readError(response) {
 }
 
 function requireAuthHeaders() {
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('aresvision_token') : null;
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('astraatmos_token') : null;
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;

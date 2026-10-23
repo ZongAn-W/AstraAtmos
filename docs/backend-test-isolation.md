@@ -16,7 +16,7 @@
 
 ## 组合运行
 
-在 `AresVision_backend/backend/` 使用工作区指定的 AresVision conda 解释器运行 pytest，启用 `--asyncio-mode=auto`，禁用 pytest 缓存，并为每次执行指定仓库外**新的**英文 `--basetemp`。重复使用已有目录会触发 pytest 清理，因此不得复用临时路径。
+在 `AstraAtmos_backend/backend/` 使用工作区指定的 工作区约定的 Conda 解释器运行 pytest，启用 `--asyncio-mode=auto`，禁用 pytest 缓存，并为每次执行指定仓库外**新的**英文 `--basetemp`。重复使用已有目录会触发 pytest 清理，因此不得复用临时路径。
 
 以下是传给该解释器的参数；最后的临时目录需由运行者换成新的绝对路径：
 

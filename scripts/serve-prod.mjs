@@ -1,5 +1,5 @@
 /**
- * AresVision 生产静态服务器 + /api 反向代理 + gzip 压缩
+ * AstraAtmos 生产静态服务器 + /api 反向代理 + gzip 压缩
  *
  * 用途：替代 `npm run dev`，走隧道时快得多。
  *   - dev 模式：浏览器要下载上千个模块（每个一次 HTTP 请求），走隧道极慢
@@ -14,7 +14,7 @@ import { stat, readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { gzipSync, brotliCompressSync, constants as zlibConstants } from 'node:zlib';
 
-const ROOT = resolve(process.env.ROOT || 'D:/_Aresvision/Aresvision/frontend/dist');
+const ROOT = resolve(process.env.ROOT || 'frontend/dist');
 const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || '0.0.0.0';
 const API_HOST = process.env.API_HOST || '127.0.0.1';
@@ -170,8 +170,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`[aresvision] root   : ${ROOT}`);
-  console.log(`[aresvision] listen : http://${HOST}:${PORT}`);
-  console.log(`[aresvision] /api   -> http://${API_HOST}:${API_PORT}`);
-  console.log(`[aresvision] gzip/br: enabled (cached in memory)`);
+  console.log(`[astraatmos] root   : ${ROOT}`);
+  console.log(`[astraatmos] listen : http://${HOST}:${PORT}`);
+  console.log(`[astraatmos] /api   -> http://${API_HOST}:${API_PORT}`);
+  console.log(`[astraatmos] gzip/br: enabled (cached in memory)`);
 });

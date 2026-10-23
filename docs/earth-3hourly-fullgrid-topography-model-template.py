@@ -15,7 +15,7 @@ MODEL_SPEC = {
     },
     "datasets": {
         "earth_merra2_3hourly_v1": {
-            "schema": "aresvision_earth_3hourly_fullgrid_model_v2",
+            "schema": "astraatmos_earth_3hourly_fullgrid_model_v2",
             "frequency_hours": 3, "step_unit": "hour", "step": 3, "time_zone": "UTC",
             "window": list(range(1, 241)), "horizon": list(range(1, 241)), "grid": [[240, 480]],
             "target": "TO3", "target_unit": "DU",

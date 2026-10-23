@@ -45,7 +45,7 @@ async (page) => {
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
   });
   await page.routeWebSocket('**/ws/**', () => {});
-  await page.addInitScript(() => localStorage.setItem('aresvision_token','isolated-status-fixture'));
+  await page.addInitScript(() => localStorage.setItem('astraatmos_token','isolated-status-fixture'));
   await page.setViewportSize({width:1440,height:1000});
   await page.goto(`${base}/?status-audit=${Date.now()}#/training`);
   await page.getByRole('button',{name:'status-probe',exact:true}).waitFor();

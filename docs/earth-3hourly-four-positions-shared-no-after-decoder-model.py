@@ -44,7 +44,7 @@ MODEL_SPEC = {
     },
     "datasets": {
         "earth_merra2_3hourly_v1": {
-            "schema": "aresvision_earth_3hourly_uploaded_model_v1",
+            "schema": "astraatmos_earth_3hourly_uploaded_model_v1",
             "frequency_hours": 3,
             "step_unit": "hour",
             "step": 3,

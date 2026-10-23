@@ -128,7 +128,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=22)
     parser.add_argument("--source-dir", type=Path, default=default_source)
     parser.add_argument("--remote-dir", default="/home/ubuntu/Data/MCD_Output_global_10m_ls_lst")
-    parser.add_argument("--password-env", default="ARESVISION_SSH_PASSWORD")
+    parser.add_argument("--password-env", default="ASTRAATMOS_SSH_PASSWORD")
     parser.add_argument("--years", nargs="*", type=int)
     parser.add_argument("--buffer-size", type=int, default=1024 * 1024)
     parser.add_argument("--log-interval", type=float, default=10.0)

@@ -12,21 +12,21 @@
 
 ## File Map
 
-- Create `AresVision_backend/backend/tests/test_data_align.py`: focused regression coverage for a single Ls wrap.
-- Modify `AresVision_backend/backend/tests/test_mcd_overview_builder.py`: regression coverage for overview ozone interpolation across a wrap.
-- Modify `AresVision_backend/backend/core/data_align.py`: detect wraps against immutable source values.
-- Generate `AresVision_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY27_overview.nc`: staged MY27 artifact.
-- Generate `AresVision_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY28_overview.nc`: staged MY28 artifact.
-- Replace `AresVision_backend/backend/data/mcd_overview/MCD_MY27_overview.nc`: installed generated MY27 data.
-- Replace `AresVision_backend/backend/data/mcd_overview/MCD_MY28_overview.nc`: installed generated MY28 data.
+- Create `AstraAtmos_backend/backend/tests/test_data_align.py`: focused regression coverage for a single Ls wrap.
+- Modify `AstraAtmos_backend/backend/tests/test_mcd_overview_builder.py`: regression coverage for overview ozone interpolation across a wrap.
+- Modify `AstraAtmos_backend/backend/core/data_align.py`: detect wraps against immutable source values.
+- Generate `AstraAtmos_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY27_overview.nc`: staged MY27 artifact.
+- Generate `AstraAtmos_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY28_overview.nc`: staged MY28 artifact.
+- Replace `AstraAtmos_backend/backend/data/mcd_overview/MCD_MY27_overview.nc`: installed generated MY27 data.
+- Replace `AstraAtmos_backend/backend/data/mcd_overview/MCD_MY28_overview.nc`: installed generated MY28 data.
 
 The four NetCDF paths are ignored generated data and will not be committed.
 
 ### Task 1: Add Failing Ls Wrap Regressions
 
 **Files:**
-- Create: `AresVision_backend/backend/tests/test_data_align.py`
-- Modify: `AresVision_backend/backend/tests/test_mcd_overview_builder.py`
+- Create: `AstraAtmos_backend/backend/tests/test_data_align.py`
+- Modify: `AstraAtmos_backend/backend/tests/test_mcd_overview_builder.py`
 
 - [ ] **Step 1: Write the focused helper regression**
 
@@ -74,9 +74,9 @@ def test_interpolate_reference_ozone_preserves_samples_after_ls_wrap():
 Run from the repository root:
 
 ```powershell
-& 'D:\_Aresvision\venvs\aresvision-oom-notifications\Scripts\python.exe' -m pytest `
-  AresVision_backend/backend/tests/test_data_align.py `
-  AresVision_backend/backend/tests/test_mcd_overview_builder.py::test_interpolate_reference_ozone_preserves_samples_after_ls_wrap `
+& '<工作区>\venvs\astraatmos-oom-notifications\Scripts\python.exe' -m pytest `
+  AstraAtmos_backend/backend/tests/test_data_align.py `
+  AstraAtmos_backend/backend/tests/test_mcd_overview_builder.py::test_interpolate_reference_ozone_preserves_samples_after_ls_wrap `
   -q
 ```
 
@@ -85,9 +85,9 @@ Expected: both tests fail because values after the first wrapped sample receive 
 ### Task 2: Correct Shared Ls Unwrapping
 
 **Files:**
-- Modify: `AresVision_backend/backend/core/data_align.py`
-- Test: `AresVision_backend/backend/tests/test_data_align.py`
-- Test: `AresVision_backend/backend/tests/test_mcd_overview_builder.py`
+- Modify: `AstraAtmos_backend/backend/core/data_align.py`
+- Test: `AstraAtmos_backend/backend/tests/test_data_align.py`
+- Test: `AstraAtmos_backend/backend/tests/test_mcd_overview_builder.py`
 
 - [ ] **Step 1: Implement the minimal source/output separation**
 
@@ -111,9 +111,9 @@ Wrap detection now compares two unmodified source values, while the output accum
 Run:
 
 ```powershell
-& 'D:\_Aresvision\venvs\aresvision-oom-notifications\Scripts\python.exe' -m pytest `
-  AresVision_backend/backend/tests/test_data_align.py `
-  AresVision_backend/backend/tests/test_mcd_overview_builder.py::test_interpolate_reference_ozone_preserves_samples_after_ls_wrap `
+& '<工作区>\venvs\astraatmos-oom-notifications\Scripts\python.exe' -m pytest `
+  AstraAtmos_backend/backend/tests/test_data_align.py `
+  AstraAtmos_backend/backend/tests/test_mcd_overview_builder.py::test_interpolate_reference_ozone_preserves_samples_after_ls_wrap `
   -q
 ```
 
@@ -124,8 +124,8 @@ Expected: `2 passed`.
 Run:
 
 ```powershell
-& 'D:\_Aresvision\venvs\aresvision-oom-notifications\Scripts\python.exe' -m pytest `
-  AresVision_backend/backend/tests/test_mcd_overview_builder.py -q
+& '<工作区>\venvs\astraatmos-oom-notifications\Scripts\python.exe' -m pytest `
+  AstraAtmos_backend/backend/tests/test_mcd_overview_builder.py -q
 ```
 
 Expected: zero failures.
@@ -134,30 +134,30 @@ Expected: zero failures.
 
 ```powershell
 git add -- `
-  AresVision_backend/backend/core/data_align.py `
-  AresVision_backend/backend/tests/test_data_align.py `
-  AresVision_backend/backend/tests/test_mcd_overview_builder.py
+  AstraAtmos_backend/backend/core/data_align.py `
+  AstraAtmos_backend/backend/tests/test_data_align.py `
+  AstraAtmos_backend/backend/tests/test_mcd_overview_builder.py
 git commit -m "fix: preserve Ls samples after year wrap"
 ```
 
 ### Task 3: Rebuild and Validate MY27/MY28 in Staging
 
 **Files:**
-- Read: `AresVision_backend/backend/data/MCD_Output_global_10m_ls_lst/MCD_MY27_global_3h_5deg_10m_ls_lst.nc`
-- Read: `AresVision_backend/backend/data/MCD_Output_global_10m_ls_lst/MCD_MY28_global_3h_5deg_10m_ls_lst.nc`
-- Generate: `AresVision_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY27_overview.nc`
-- Generate: `AresVision_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY28_overview.nc`
+- Read: `AstraAtmos_backend/backend/data/MCD_Output_global_10m_ls_lst/MCD_MY27_global_3h_5deg_10m_ls_lst.nc`
+- Read: `AstraAtmos_backend/backend/data/MCD_Output_global_10m_ls_lst/MCD_MY28_global_3h_5deg_10m_ls_lst.nc`
+- Generate: `AstraAtmos_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY27_overview.nc`
+- Generate: `AstraAtmos_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY28_overview.nc`
 
 - [ ] **Step 1: Generate both staged files with the direct reference builder**
 
 Run:
 
 ```powershell
-& 'D:\_Aresvision\venvs\aresvision-oom-notifications\Scripts\python.exe' `
-  AresVision_backend/backend/scripts/build_mcd_overview_dataset.py `
+& '<工作区>\venvs\astraatmos-oom-notifications\Scripts\python.exe' `
+  AstraAtmos_backend/backend/scripts/build_mcd_overview_dataset.py `
   --years 27 28 `
-  --reference-dir AresVision_backend/backend/data/MCD_Output_global_10m_ls_lst `
-  --output-dir AresVision_backend/backend/data/mcd_overview_staging_ls_fix `
+  --reference-dir AstraAtmos_backend/backend/data/MCD_Output_global_10m_ls_lst `
+  --output-dir AstraAtmos_backend/backend/data/mcd_overview_staging_ls_fix `
   --mode reference
 ```
 
@@ -174,7 +174,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
-root = Path("AresVision_backend/backend/data/mcd_overview_staging_ls_fix")
+root = Path("AstraAtmos_backend/backend/data/mcd_overview_staging_ls_fix")
 required = {
     "Ls", "o3col", "Pressure", "Temperature", "U_Wind", "V_Wind",
     "Dust_Optical_Depth", "Solar_Flux_DN", "lat", "lon",
@@ -201,7 +201,7 @@ for year in (27, 28):
         assert float(np.nanstd(np.nanmean(temperature, axis=(1, 2)))) > 1.0
         assert float(np.nanstd(np.nanmean(solar, axis=(1, 2)))) > 1.0
         print(year, dict(ds.sizes), f"median_seasonal_range={median_range:.4f} um-atm")
-'@ | & 'D:\_Aresvision\venvs\aresvision-oom-notifications\Scripts\python.exe' -
+'@ | & '<工作区>\venvs\astraatmos-oom-notifications\Scripts\python.exe' -
 ```
 
 Expected: MY27 and MY28 print valid dimensions and median seasonal ranges above `1.0 um-atm`. If either assertion fails, stop before replacing installed files.
@@ -209,8 +209,8 @@ Expected: MY27 and MY28 print valid dimensions and median seasonal ranges above 
 ### Task 4: Install Artifacts and Verify the Overview Contract
 
 **Files:**
-- Replace: `AresVision_backend/backend/data/mcd_overview/MCD_MY27_overview.nc`
-- Replace: `AresVision_backend/backend/data/mcd_overview/MCD_MY28_overview.nc`
+- Replace: `AstraAtmos_backend/backend/data/mcd_overview/MCD_MY27_overview.nc`
+- Replace: `AstraAtmos_backend/backend/data/mcd_overview/MCD_MY28_overview.nc`
 
 - [ ] **Step 1: Resolve and verify the four exact paths**
 
@@ -218,10 +218,10 @@ Run:
 
 ```powershell
 $repoRoot = (Resolve-Path '.').Path
-$stage27 = (Resolve-Path 'AresVision_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY27_overview.nc').Path
-$stage28 = (Resolve-Path 'AresVision_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY28_overview.nc').Path
-$target27 = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'AresVision_backend/backend/data/mcd_overview/MCD_MY27_overview.nc'))
-$target28 = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'AresVision_backend/backend/data/mcd_overview/MCD_MY28_overview.nc'))
+$stage27 = (Resolve-Path 'AstraAtmos_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY27_overview.nc').Path
+$stage28 = (Resolve-Path 'AstraAtmos_backend/backend/data/mcd_overview_staging_ls_fix/MCD_MY28_overview.nc').Path
+$target27 = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'AstraAtmos_backend/backend/data/mcd_overview/MCD_MY27_overview.nc'))
+$target28 = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'AstraAtmos_backend/backend/data/mcd_overview/MCD_MY28_overview.nc'))
 foreach ($path in @($stage27, $stage28, $target27, $target28)) {
     if (-not $path.StartsWith($repoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Path is outside repository: $path"
@@ -230,7 +230,7 @@ foreach ($path in @($stage27, $stage28, $target27, $target28)) {
 }
 ```
 
-Expected: all four absolute paths are inside `D:\_Aresvision\Aresvision`.
+Expected: all four absolute paths are inside `AstraAtmos`.
 
 - [ ] **Step 2: Replace each installed artifact explicitly**
 
@@ -238,12 +238,12 @@ Run one move per exact file:
 
 ```powershell
 Move-Item `
-  -LiteralPath 'D:\_Aresvision\Aresvision\AresVision_backend\backend\data\mcd_overview_staging_ls_fix\MCD_MY27_overview.nc' `
-  -Destination 'D:\_Aresvision\Aresvision\AresVision_backend\backend\data\mcd_overview\MCD_MY27_overview.nc' `
+  -LiteralPath 'AstraAtmos_backend\backend\data\mcd_overview_staging_ls_fix\MCD_MY27_overview.nc' `
+  -Destination 'AstraAtmos_backend\backend\data\mcd_overview\MCD_MY27_overview.nc' `
   -Force
 Move-Item `
-  -LiteralPath 'D:\_Aresvision\Aresvision\AresVision_backend\backend\data\mcd_overview_staging_ls_fix\MCD_MY28_overview.nc' `
-  -Destination 'D:\_Aresvision\Aresvision\AresVision_backend\backend\data\mcd_overview\MCD_MY28_overview.nc' `
+  -LiteralPath 'AstraAtmos_backend\backend\data\mcd_overview_staging_ls_fix\MCD_MY28_overview.nc' `
+  -Destination 'AstraAtmos_backend\backend\data\mcd_overview\MCD_MY28_overview.nc' `
   -Force
 ```
 
@@ -261,7 +261,7 @@ import sys
 import numpy as np
 import xarray as xr
 
-backend = Path("AresVision_backend/backend").resolve()
+backend = Path("AstraAtmos_backend/backend").resolve()
 sys.path.insert(0, str(backend))
 from services.analysis_service import AnalysisService
 
@@ -291,7 +291,7 @@ for year in (27, 28):
     assert matrix.shape[1] == len(payload["x"])
     assert median_range > 1.0, (year, median_range)
     print(year, matrix.shape, f"api_median_seasonal_range={median_range:.4f} um-atm")
-'@ | & 'D:\_Aresvision\venvs\aresvision-oom-notifications\Scripts\python.exe' -
+'@ | & '<工作区>\venvs\astraatmos-oom-notifications\Scripts\python.exe' -
 ```
 
 Expected: both service matrices have matching axes and a median seasonal range above `1.0 um-atm`.
@@ -301,12 +301,12 @@ Expected: both service matrices have matching axes and a median seasonal range a
 Run:
 
 ```powershell
-& 'D:\_Aresvision\venvs\aresvision-oom-notifications\Scripts\python.exe' -m pytest `
-  AresVision_backend/backend/tests/test_data_align.py `
-  AresVision_backend/backend/tests/test_mcd_overview_builder.py `
-  AresVision_backend/backend/tests/test_mcd_overview_service.py `
-  AresVision_backend/backend/tests/test_analysis_overview_routes.py `
-  AresVision_backend/backend/tests/test_analysis_point_probe.py `
+& '<工作区>\venvs\astraatmos-oom-notifications\Scripts\python.exe' -m pytest `
+  AstraAtmos_backend/backend/tests/test_data_align.py `
+  AstraAtmos_backend/backend/tests/test_mcd_overview_builder.py `
+  AstraAtmos_backend/backend/tests/test_mcd_overview_service.py `
+  AstraAtmos_backend/backend/tests/test_analysis_overview_routes.py `
+  AstraAtmos_backend/backend/tests/test_analysis_point_probe.py `
   -q
 ```
 

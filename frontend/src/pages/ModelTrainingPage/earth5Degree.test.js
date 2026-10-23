@@ -5,7 +5,7 @@ import { sanitizeTrainingDataset } from './trainingParamSanitizers.js';
 import { getEarthCadence, getEarthTrainingModelOptions } from '../PredictPage/earthPredictModel.js';
 
 const datasetId = 'earth_merra2_3hourly_5deg_v1';
-const schema = 'aresvision_earth_3hourly_5deg_model_v1';
+const schema = 'astraatmos_earth_3hourly_5deg_model_v1';
 test('5 degree Earth preserves UTC cadence, windows and input variables', () => {
   assert.equal(sanitizeTrainingDataset(datasetId, { allowEarth: true }), datasetId);
   const profile = getEarthTrainingProfile(datasetId);
@@ -25,5 +25,5 @@ test('uploaded compatibility is specific to the 5 degree dataset and schema', ()
   const selection = { datasetId, modelSource: 'uploaded', uploadedModelId: 'model', windowValue: 7, horizon: 1, compatibility: compatible };
   assert.equal(getEarthUploadedSelectionBlocker(selection), null);
   assert.ok(getEarthUploadedSelectionBlocker({ ...selection, compatibility: { ...compatible, dataset_id: 'earth_merra2_3hourly_v1' } }));
-  assert.ok(getEarthUploadedSelectionBlocker({ ...selection, compatibility: { ...compatible, contract_schema: 'aresvision_earth_3hourly_fullgrid_model_v2' } }));
+  assert.ok(getEarthUploadedSelectionBlocker({ ...selection, compatibility: { ...compatible, contract_schema: 'astraatmos_earth_3hourly_fullgrid_model_v2' } }));
 });

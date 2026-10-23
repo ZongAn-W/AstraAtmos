@@ -154,8 +154,8 @@ async function openConfigure({ token = TOKEN, settings = { language: 'zh', theme
   await call('Page.navigate', { url: `${BASE}/` });
   await new Promise((r) => setTimeout(r, 1200));
   await evaluate(`
-    localStorage.setItem('aresvision_settings', JSON.stringify(${JSON.stringify(settings)}));
-    ${token ? `localStorage.setItem('aresvision_token', ${JSON.stringify(token)});` : "localStorage.removeItem('aresvision_token');"}
+    localStorage.setItem('astraatmos_settings', JSON.stringify(${JSON.stringify(settings)}));
+    ${token ? `localStorage.setItem('astraatmos_token', ${JSON.stringify(token)});` : "localStorage.removeItem('astraatmos_token');"}
     return true;
   `);
   await call('Page.reload', { ignoreCache: true });

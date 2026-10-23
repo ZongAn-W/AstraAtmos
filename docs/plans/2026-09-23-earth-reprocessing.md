@@ -6,7 +6,7 @@
 
 ## Implemented contract
 
-- 输入：`E:\AAOzone\data\MERRA2\raw` 下 SLV 的 `TO3/U10M/V10M/T2M` 与 RAD 的 `SWGDN`。
+- 输入：`<数据根目录>\data\MERRA2\raw` 下 SLV 的 `TO3/U10M/V10M/T2M` 与 RAD 的 `SWGDN`。
 - 时间：2020-01-01 至 2021-12-31，每日 24 个 00:30…23:30 UTC 小时中心。
 - 空间：全球 5°×5°、36×72；中心纬度 −87.5…87.5、经度 −177.5…177.5，单元边界为 ±90°/±180°。
 - 算法：逐日完整小时的 float64 均值，再按源/目标球面单元重叠面积加权；经度按周期接缝处理；发布字段 float32。
@@ -16,7 +16,7 @@
 
 ## 实现入口
 
-- `AresVision_backend/backend/scripts/preprocess_earth_reanalysis.py`：生产预处理器和合成数据测试入口。
+- `AstraAtmos_backend/backend/scripts/preprocess_earth_reanalysis.py`：生产预处理器和合成数据测试入口。
 - `services/earth_dataset_metadata.py`：manifest、cell bounds、全球覆盖和发布指纹校验。
 - `services/dataset_registry.py`：v1/v2 独立注册、默认 v2、只读快照。
 - `services/earth_overview_service.py`：v2 球面单元面积均值、极区/接缝点位边界。
@@ -24,7 +24,7 @@
 
 ## 产物与验证
 
-v2 产物位于 `AresVision_backend/backend/data/earth/merra2_daily_v2/`，包含 NetCDF、manifest 和 `verification/preprocess_report.json`。manifest 固定数据 SHA-256，报告记录 731 天×5 变量的源值计数和面积守恒误差。
+v2 产物位于 `AstraAtmos_backend/backend/data/earth/merra2_daily_v2/`，包含 NetCDF、manifest 和 `verification/preprocess_report.json`。manifest 固定数据 SHA-256，报告记录 731 天×5 变量的源值计数和面积守恒误差。
 
 已执行：
 
@@ -53,13 +53,13 @@ v2 NetCDF 为 29,207,992 字节（约 27.86 MiB）；v1 仍为 17,214,767 字节
 - 浏览器已核对默认 v2、36×72、5°、全球边界、731 天及五变量物理单位；全套历史 43 项浏览器交互结果属于 v1，不将其作为 v2 全量验收。
 - 收尾浏览器检查发现并修正了加载提示残留：当前场请求结算后立即清除 loading，过期响应不更改状态。该局部修复不改变 API、数据或功能边界。
 
-本轮命令从后端目录执行，Python 使用 AresVision conda 环境；每组测试创建新的英文临时目录：
+本轮命令从后端目录执行，Python 使用 工作区约定的 Conda 环境；每组测试创建新的英文临时目录：
 
 ```powershell
 $preprocessTemp = Join-Path (Resolve-Path ..\..\..) ('.earth-preprocess-' + [guid]::NewGuid().ToString('N'))
-conda run -n AresVision python -m pytest tests/test_preprocess_earth_reanalysis.py -q --basetemp "$preprocessTemp"
+& "$env:CONDA_PREFIX\python.exe" -m pytest tests/test_preprocess_earth_reanalysis.py -q --basetemp "$preprocessTemp"
 $regressionTemp = Join-Path (Resolve-Path ..\..\..) ('.earth-regression-' + [guid]::NewGuid().ToString('N'))
-conda run -n AresVision python -m pytest tests/test_dataset_identity.py tests/test_dataset_registry.py tests/test_dataset_routes.py tests/test_earth_dataset.py tests/test_earth_overview_service.py tests/test_earth_overview_routes.py tests/test_training_dataset_identity.py tests/test_training_dataset_identity_migration.py -q --basetemp "$regressionTemp"
+& "$env:CONDA_PREFIX\python.exe" -m pytest tests/test_dataset_identity.py tests/test_dataset_registry.py tests/test_dataset_routes.py tests/test_earth_dataset.py tests/test_earth_overview_service.py tests/test_earth_overview_routes.py tests/test_training_dataset_identity.py tests/test_training_dataset_identity_migration.py -q --basetemp "$regressionTemp"
 ```
 
 前端目录执行 `node --test --test-reporter=dot` 和 `npm run build -- --emptyOutDir false`；保留既有构建文件。根目录执行 `git diff --check` 并检查文档链接与表格。没有提交、reset、stash 或删除原始数据/旧发布包。

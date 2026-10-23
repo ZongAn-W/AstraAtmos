@@ -2,7 +2,7 @@
 
 需要一次输入完整全球图时使用独立的[全图 v2 说明与模板](earth-3hourly-fullgrid-model.md)。v1 仍固定 24×48；v2 固定 240×480、batch 1–64（默认 1，可运行大小取决于模型与显存），训练/预测/诊断按各自冻结契约运行，不把旧权重自动升级。
 
-本模板仅适用于 `earth_merra2_3hourly_v1`，独立于日频 `earth_merra2` 声明及 Mars 模板。下载 [Python 模板](earth-3hourly-uploaded-model-template.py)，导出 `MODEL_SPEC` 和 `build_model(config)`。三小时声明的 schema 为 `aresvision_earth_3hourly_uploaded_model_v1`，声明字段必须完整、类型和值必须与模板一致；不接受旧 Earth 标签自动升级。需要共享地形门控、季节坐标和 ConvLSTM/SimVP 结构时，可下载[四位置共享门控模板](earth-3hourly-four-positions-shared-no-after-decoder-model.py)；该模板仍使用 v1 的 24×48 空间块。
+本模板仅适用于 `earth_merra2_3hourly_v1`，独立于日频 `earth_merra2` 声明及 Mars 模板。下载 [Python 模板](earth-3hourly-uploaded-model-template.py)，导出 `MODEL_SPEC` 和 `build_model(config)`。三小时声明的 schema 为 `astraatmos_earth_3hourly_uploaded_model_v1`，声明字段必须完整、类型和值必须与模板一致；不接受旧 Earth 标签自动升级。需要共享地形门控、季节坐标和 ConvLSTM/SimVP 结构时，可下载[四位置共享门控模板](earth-3hourly-four-positions-shared-no-after-decoder-model.py)；该模板仍使用 v1 的 24×48 空间块。
 
 ## 数据与调用
 
@@ -77,7 +77,7 @@ def forward(self, x, topography):
 
 上传、重新校验、16 种气象通道组合、eval 独立性和 backward 探针均使用已配置资产，并在 v1 探针中覆盖不同空间块；不会以零场代替缺失资产。只有声明地形的模型要求资源存在，旧模型和应用启动不依赖该资源。训练任务与 checkpoint 冻结声明及资产内容身份；严格重载比较当前地形、目标网格及处理算法，资产缺失、替换或身份不完整明确拒绝。旧 checkpoint 不补写地形字段，`ls` 的 `season_algorithm` 继续独立冻结；官方 DLinear 不自动接收地形。
 
-可上传示例：[v1 仅地形模型](earth-3hourly-topography-model-template.py)、[v2 季节坐标与地形模型](earth-3hourly-fullgrid-topography-model-template.py)、[v1 四位置共享门控模型](earth-3hourly-four-positions-shared-no-after-decoder-model.py)。这些示例在前向计算中消费地形；共享门控模板还消费服务器派生的季节坐标。原始无地形模板继续可用。配置 `ARESVISION_EARTH_TOPOGRAPHY_PATH`、来源、离线构建、海洋及冰盖策略、EGM2008 垂直基准、摘要覆盖范围与验证命令见 [Earth 静态地形资产](earth-topography-asset.md)。该能力是模型输入，不代表三维球面已实现真实地形起伏，也不证明预测精度提高。
+可上传示例：[v1 仅地形模型](earth-3hourly-topography-model-template.py)、[v2 季节坐标与地形模型](earth-3hourly-fullgrid-topography-model-template.py)、[v1 四位置共享门控模型](earth-3hourly-four-positions-shared-no-after-decoder-model.py)。这些示例在前向计算中消费地形；共享门控模板还消费服务器派生的季节坐标。原始无地形模板继续可用。配置 `ASTRAATMOS_EARTH_TOPOGRAPHY_PATH`、来源、离线构建、海洋及冰盖策略、EGM2008 垂直基准、摘要覆盖范围与验证命令见 [Earth 静态地形资产](earth-topography-asset.md)。该能力是模型输入，不代表三维球面已实现真实地形起伏，也不证明预测精度提高。
 
 ## 校验和错误
 
@@ -109,7 +109,7 @@ v1 分块上传和手动重新校验优先使用模型声明支持的短窗口 2
 
 ## 任务与 Checkpoint
 
-创建任务先核对归属、valid 状态、保存报告中具体 dataset/schema 的兼容证据、源码 SHA-256、参数 schema 和合法 batch 范围，再固定包 ID、版本、源码、契约 schema、自定义参数及服务器数据身份并排队；不额外执行模型 dry-run。重启队列后仍使用同一份源码。实际训练继续检查输出类型/形状/有限 float32 和全部梯度有限性。三小时 checkpoint schema 为 `aresvision_earth_forecast_checkpoint_3hourly_v1`；上传模型 implementation 为 `aresvision_earth_3hourly_uploaded_runner_v1`，同时保存独立模型契约版本、全球网格、空间块、通道/单位、步长、任务划分策略/请求比例/实际索引与 UTC 边界/步数及窗口数和 normalization；新策略缺失或不一致时拒绝，旧任务不迁移。
+创建任务先核对归属、valid 状态、保存报告中具体 dataset/schema 的兼容证据、源码 SHA-256、参数 schema 和合法 batch 范围，再固定包 ID、版本、源码、契约 schema、自定义参数及服务器数据身份并排队；不额外执行模型 dry-run。重启队列后仍使用同一份源码。实际训练继续检查输出类型/形状/有限 float32 和全部梯度有限性。三小时 checkpoint schema 为 `astraatmos_earth_forecast_checkpoint_3hourly_v1`；上传模型 implementation 为 `astraatmos_earth_3hourly_uploaded_runner_v1`，同时保存独立模型契约版本、全球网格、空间块、通道/单位、步长、任务划分策略/请求比例/实际索引与 UTC 边界/步数及窗口数和 normalization；新策略缺失或不一致时拒绝，旧任务不迁移。
 
 重载核对任务与数据集身份、嵌入源码摘要、声明、参数 schema 和 build config，再以 `strict=True` 加载 state dict，并对加载实际权重后的模型重复 eval 批次一致性检查。旧 checkpoint 不改写，但实际模型违反此检查时拒绝发布、诊断或回测。runner 在发布前检查重载与前向一致性；任务完成门禁另调度 30 秒超时的独立 CPU 进程复查权重及前向，超时或失败不能标记 completed。原源码文件不可用时使用摘要匹配的嵌入副本，并在预测 context 报告原文件状态。日频及 Mars checkpoint 不能通过三小时 schema/identity 检查。
 

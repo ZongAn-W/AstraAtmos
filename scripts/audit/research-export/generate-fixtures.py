@@ -10,7 +10,7 @@ import sys
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO / "AresVision_backend" / "backend"))
+sys.path.insert(0, str(REPO / "AstraAtmos_backend" / "backend"))
 from schemas.research_export import ResearchExportRequest
 from services.research_export_sources import ExportSourceStore
 from services.research_figure import prepare_figure, render_figure, build_bundle

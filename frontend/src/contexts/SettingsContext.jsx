@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { DEFAULT_FONT_SCALE, FONT_SCALE_VAR, normalizeFontScale } from '../utils/fontScale';
 import { DEFAULT_TRAINING_DEFAULTS, normalizeTrainingDefaults } from '../utils/trainingDefaults';
 
-const STORAGE_KEY = 'aresvision_settings';
+const STORAGE_KEY = 'astraatmos_settings';
 
 export const DEFAULT_SETTINGS = {
   language: 'zh',       // 'zh' | 'en'

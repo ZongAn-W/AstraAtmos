@@ -21,8 +21,8 @@ See [asset construction and validation](earth-topography-asset.md).
 
 | Property | Full-Grid Contract |
 | --- | --- |
-| Schema | `aresvision_earth_3hourly_fullgrid_model_v2` |
-| Implementation | `aresvision_earth_3hourly_fullgrid_runner_v2` |
+| Schema | `astraatmos_earth_3hourly_fullgrid_model_v2` |
+| Implementation | `astraatmos_earth_3hourly_fullgrid_runner_v2` |
 | Input | finite float32 `[B,window,C,240,480]` |
 | Output | finite float32 `[B,horizon,1,240,480]`, same input device |
 | Channels | TO3 first, then selected U10M, V10M, T2M, SWGDN in order |
@@ -97,7 +97,7 @@ check, not a full training or forecast-accuracy result. Grouped backend regressi
 runs cover 209 unique tests, including deadline extension/termination, large
 reports, composed declarations, responsive upload/revalidation, ownership,
 downloads and cached training admission. Run the relevant tests from
-`AresVision_backend/backend/` with the configured AresVision interpreter and
+`AstraAtmos_backend/backend/` with the configured AstraAtmos interpreter and
 `-m pytest --asyncio-mode=auto`; the async service tests need this option.
 
 An available upload report covers its declared short windows, not an arbitrary

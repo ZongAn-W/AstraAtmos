@@ -22,7 +22,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-BACKEND = Path(__file__).resolve().parents[2] / "AresVision_backend" / "backend"
+BACKEND = Path(__file__).resolve().parents[2] / "AstraAtmos_backend" / "backend"
 sys.path.insert(0, str(BACKEND))
 
 BASE = "http://127.0.0.1:8000/api"

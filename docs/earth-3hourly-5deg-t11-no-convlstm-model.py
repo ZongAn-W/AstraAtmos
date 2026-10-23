@@ -18,7 +18,7 @@ Input is normalized Earth three-hour history [B,window,C,36,72], historical sola
 longitude [B,window], and matching ETOPO terrain [B,1,36,72] in physical metres.
 Output is normalized TO3 [B,horizon,1,36,72], without spatial tiling or recurrence.
 The independent dataset is earth_merra2_3hourly_5deg_v1 and the contract is
-aresvision_earth_3hourly_5deg_model_v1. T11 defaults are spatial 64, temporal 128,
+astraatmos_earth_3hourly_5deg_model_v1. T11 defaults are spatial 64, temporal 128,
 two temporal blocks, dropout 0.1, gate hidden 32 and initial gate strength 1.0.
 Use five channels, 20->20, batch 32, 20 epochs, seed 11, learning rate 0.001,
 patience 5 and a 70/15/15 split to compare against T11.
@@ -60,7 +60,7 @@ MODEL_SPEC = {
     },
     "datasets": {
         "earth_merra2_3hourly_5deg_v1": {
-            "schema": "aresvision_earth_3hourly_5deg_model_v1",
+            "schema": "astraatmos_earth_3hourly_5deg_model_v1",
             "frequency_hours": 3,
             "step_unit": "hour",
             "step": 3,
@@ -475,7 +475,7 @@ def build_model(config):
     values = dict(config)
     expected_contract = {
         "dataset_id": "earth_merra2_3hourly_5deg_v1",
-        "contract_schema": "aresvision_earth_3hourly_5deg_model_v1",
+        "contract_schema": "astraatmos_earth_3hourly_5deg_model_v1",
         "height": 36,
         "width": 72,
         "global_grid_shape": [36, 72],

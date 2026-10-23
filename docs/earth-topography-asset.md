@@ -49,18 +49,18 @@ size/mtime replacement), grid shifts, NoData, or non-finite values fail closed.
 ## Build and validate
 
 Raw source files belong outside the checkout. The current reproducibility cache
-used for the verified build is `D:\_Aresvision\earth-terrain-cache` (not a
-runtime dependency). From `AresVision_backend/backend`:
+used for the verified build is `<workspace>\earth-terrain-cache`（`<workspace>` 替换为仓库父级工作区目录） (not a
+runtime dependency). From `AstraAtmos_backend/backend`:
 
 ```powershell
-& 'D:\Anaconda\envs\AresVision\python.exe' scripts\build_earth_topography_asset.py `
-  --source D:\_Aresvision\earth-terrain-cache\ETOPO_2022_v1_60s_N90W180_surface.nc `
-  --land-mask D:\_Aresvision\earth-terrain-cache\gshhs_i_2.3.7.b `
+& "$env:CONDA_PREFIX\python.exe" scripts\build_earth_topography_asset.py `
+  --source <workspace>\earth-terrain-cache\ETOPO_2022_v1_60s_N90W180_surface.nc `
+  --land-mask <workspace>\earth-terrain-cache\gshhs_i_2.3.7.b `
   --resolution 60 `
   --source-sha256 74bbc5c23e85188d93f0beba8116babf69e1a8f160e8dc9f053bf8df01b197b6 `
   --land-mask-sha256 7d44bf4e16efe6056ff9d147ac0af189bbf0c16a31608426ef63ff8a91c418db `
   --output data\assets\earth_etopo2022_surface_0p75deg.nc
-& 'D:\Anaconda\envs\AresVision\python.exe' scripts\build_earth_topography_asset.py `
+& "$env:CONDA_PREFIX\python.exe" scripts\build_earth_topography_asset.py `
   --validate-only --output data\assets\earth_etopo2022_surface_0p75deg.nc
 ```
 
@@ -71,7 +71,7 @@ is retained if validation or publication fails. A stale `*.build.lock` names
 one exact file and must be investigated before removal.
 
 The runtime API is in
-`AresVision_backend/backend/services/earth_topography.py`:
+`AstraAtmos_backend/backend/services/earth_topography.py`:
 
 * `load_earth_topography(...)` returns `EarthTopographyAsset` with read-only
   arrays, `identity`, coordinates and bounds. Omitting coordinates resolves
@@ -82,7 +82,7 @@ The runtime API is in
   latitude/longitude slice per sample; v2 omits slices for a full-grid copy.
 
 The same NetCDF process lock used by MOLA is held for every source or asset
-read. The path is configured by `ARESVISION_EARTH_TOPOGRAPHY_PATH`; missing
+read. The path is configured by `ASTRAATMOS_EARTH_TOPOGRAPHY_PATH`; missing
 assets do not affect models that do not declare terrain.
 
 ## Use and citation
@@ -125,4 +125,4 @@ renderer or claim predictive accuracy improvement.
 
 ## Independent 5 degree training asset
 
-The 36×72 training release uses a separate `earth_etopo2022_surface_5deg.nc` asset and `ARESVISION_EARTH_TOPOGRAPHY_5DEG_PATH`. Build from the same reviewed ETOPO/GSHHG inputs with `--target-release` pointing to the actual 5° release and a separate `--output`; runtime selects it only for that release/grid. Source policies, content and grid identity checks remain identical. See [the 5° dataset](earth-merra2-5deg.md).
+The 36×72 training release uses a separate `earth_etopo2022_surface_5deg.nc` asset and `ASTRAATMOS_EARTH_TOPOGRAPHY_5DEG_PATH`. Build from the same reviewed ETOPO/GSHHG inputs with `--target-release` pointing to the actual 5° release and a separate `--output`; runtime selects it only for that release/grid. Source policies, content and grid identity checks remain identical. See [the 5° dataset](earth-merra2-5deg.md).

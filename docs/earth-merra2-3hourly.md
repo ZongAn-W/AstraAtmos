@@ -38,16 +38,16 @@
 
 ## 构建与重复运行
 
-从 `AresVision_backend/backend/` 执行，使用项目指定的 AresVision conda 解释器。将 `$merraRaw` 设置为实际 raw 路径，`$earthOutput` 设置为 Git checkout 和 raw 目录之外的新目录；不要将 smoke 与完整发布写到同一目录。
+从 `AstraAtmos_backend/backend/` 执行，使用项目指定的 工作区约定的 Conda 解释器。将 `$merraRaw` 设置为实际 raw 路径，`$earthOutput` 设置为 Git checkout 和 raw 目录之外的新目录；不要将 smoke 与完整发布写到同一目录。
 
 最小 smoke 是 7 天，允许 `--smoke-days 7..30`：
 
 ```powershell
-& 'D:\Anaconda\envs\AresVision\python.exe' -B -m scripts.build_earth_merra2_3hourly `
+& "$env:CONDA_PREFIX\python.exe" -B -m scripts.build_earth_merra2_3hourly `
   --source-root "$merraRaw" --output-dir "$earthOutput" `
   --start-date 2020-01-01 --smoke-days 7
 
-& 'D:\Anaconda\envs\AresVision\python.exe' -B -m scripts.verify_earth_merra2_3hourly `
+& "$env:CONDA_PREFIX\python.exe" -B -m scripts.verify_earth_merra2_3hourly `
   --package-dir "$earthOutput" --raw-dir "$merraRaw" `
   --report "$earthOutput\verification.json"
 ```
@@ -55,12 +55,12 @@
 完整两年处理省略 smoke 参数，并使用另一个外部目录：
 
 ```powershell
-& 'D:\Anaconda\envs\AresVision\python.exe' -B -m scripts.build_earth_merra2_3hourly `
+& "$env:CONDA_PREFIX\python.exe" -B -m scripts.build_earth_merra2_3hourly `
   --source-root "$merraRaw" --output-dir "$earthFullOutput" `
   --start-date 2020-01-01 --end-date 2021-12-31
 ```
 
-`--output-dir` 优先；省略时使用 `ARESVISION_EARTH_MERRA2_3HOURLY_DIR`，再回退到工作区父级的 `data/earth/merra2_3hourly_v1/`，不会写入项目 Git checkout。输出为：
+`--output-dir` 优先；省略时使用 `ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR`，再回退到工作区父级的 `data/earth/merra2_3hourly_v1/`，不会写入项目 Git checkout。输出为：
 
 ```text
 merra2_3hourly_v1/
@@ -89,31 +89,31 @@ fingerprint 复用 `build_dataset_fingerprint()` 的组合方式：数据集 ID�
 回归测试从后端目录执行，始终使用新的工作区临时目录，避免 pytest 清理已有目录：
 
 ```powershell
-$earthTestTemp = Join-Path 'D:\_Aresvision' ('.earth-3hourly-test-' + [guid]::NewGuid().ToString('N'))
-& 'D:\Anaconda\envs\AresVision\python.exe' -B -m pytest `
+$earthTestTemp = Join-Path $env:TEMP ('.earth-3hourly-test-' + [guid]::NewGuid().ToString('N'))
+& "$env:CONDA_PREFIX\python.exe" -B -m pytest `
   tests/test_build_earth_merra2_3hourly.py tests/test_preprocess_earth_reanalysis.py `
   -q --basetemp "$earthTestTemp" -p no:cacheprovider
 ```
 
-2026-10-07 已完成完整两年真实构建与独立数据验收：输出目录为 `E:\AAOzone\data\earth\merra2_3hourly_v1_full_20200101_20211231`，包含 5848 步 NetCDF、manifest 和 `verification.json`。验证覆盖时间轴、UTC 标签、240×480 网格、变量/单位、缺失值、SHA/fingerprint、周期经度、重网格均值守恒与首/中/末日期原始数据抽查；这不是训练或预测验收。注册、惰性窗口、官方 DLinear 后端训练与历史回测 API 已实现，三小时前端时间轴也已接线。
+2026-10-07 已完成完整两年真实构建与独立数据验收：输出目录为 `<数据根目录>\data\earth\merra2_3hourly_v1_full_20200101_20211231`，包含 5848 步 NetCDF、manifest 和 `verification.json`。验证覆盖时间轴、UTC 标签、240×480 网格、变量/单位、缺失值、SHA/fingerprint、周期经度、重网格均值守恒与首/中/末日期原始数据抽查；这不是训练或预测验收。注册、惰性窗口、官方 DLinear 后端训练与历史回测 API 已实现，三小时前端时间轴也已接线。
 
 ## 注册与目录 API
 
-后端启动前将 `ARESVISION_EARTH_MERRA2_3HOURLY_DIR` 设置为包含两份发布文件的目录，或在后端 `.env` 中配置；相对路径按后端启动目录解析。未配置时为 `data/earth/merra2_3hourly_v1/`。这是后端运行时默认值，与离线构建器默认的工作区外目录不同；应显式配置到实际构建目录。日频的两个环境变量继续指向原发布。客户端只选择 dataset_id，不能指定目录、版本、fingerprint 或 snapshot。
+后端启动前将 `ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR` 设置为包含两份发布文件的目录，或在后端 `.env` 中配置；相对路径按后端启动目录解析。未配置时为 `data/earth/merra2_3hourly_v1/`。这是后端运行时默认值，与离线构建器默认的工作区外目录不同；应显式配置到实际构建目录。日频的两个环境变量继续指向原发布。客户端只选择 dataset_id，不能指定目录、版本、fingerprint 或 snapshot。
 
 ```powershell
-$env:ARESVISION_EARTH_MERRA2_3HOURLY_DIR = "$earthOutput"
+$env:ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR = "$earthOutput"
 ```
 
-`GET /api/datasets` 保留原四个身份并追加新 ID，`GET /api/datasets/earth_merra2_3hourly_v1` 返回独立描述符。完整两年包摘要：5848 步，`2020-01-01T01:30:00Z` 至 `2021-12-31T22:30:00Z`，指纹 `c4f4e9127e48fc3bb18bd71c5bdc792ee9192b52e5fe44ed51193ba8524d6697`。该包发布于 `fingerprint_rule` 出现之前，因此按 rule 1 解释，内容摘要与 fingerprint 保持冻结（`manifest_content_sha256=3ec08179…3282e`）；新增的规则只影响之后构建的新包，不重算、不改写已注册发布。经校验的 7 天 smoke 详情仍可作为构建器回归夹具参考：
+`GET /api/datasets` 保留原四个身份并追加新 ID，`GET /api/datasets/earth_merra2_3hourly_v1` 返回独立描述符。完整两年包摘要：5848 步，`2020-01-01T01:30:00Z` 至 `2021-12-31T22:30:00Z`，指纹 `76d6fc9f305fe5e6d13a03765beab2feaede5bb8bdf35c268ff2138c33687357`。该包发布于 `fingerprint_rule` 出现之前，因此按 rule 1 解释，内容摘要与 fingerprint 保持冻结（`manifest_content_sha256=3ec08179…3282e`）；新增的规则只影响之后构建的新包，不重算、不改写已注册发布。经校验的 7 天 smoke 详情仍可作为构建器回归夹具参考：
 
-开发与生产默认 Earth 数据集均为 `earth_merra2_3hourly_v1`，作为 `default_earth_dataset_id` 返回。`ARESVISION_DEFAULT_EARTH_DATASET_ID` 只接受该值，旧日频配置须修改或移除；不能通过设为日频恢复入口。缺失三小时包时 catalog 仍返回 `missing/package_missing`，界面不回退到旧包。完整发布的数据验证与模型精度验收仍是不同范围。
+开发与生产默认 Earth 数据集均为 `earth_merra2_3hourly_v1`，作为 `default_earth_dataset_id` 返回。`ASTRAATMOS_DEFAULT_EARTH_DATASET_ID` 只接受该值，旧日频配置须修改或移除；不能通过设为日频恢复入口。缺失三小时包时 catalog 仍返回 `missing/package_missing`，界面不回退到旧包。完整发布的数据验证与模型精度验收仍是不同范围。
 
 ```json
 {
   "dataset_id": "earth_merra2_3hourly_v1",
   "dataset_version": "v1",
-  "schema": "aresvision_earth_3hourly_v1",
+  "schema": "astraatmos_earth_3hourly_v1",
   "availability": "available",
   "frequency_hours": 3,
   "step_unit": "hour",
@@ -145,11 +145,11 @@ $env:ARESVISION_EARTH_MERRA2_3HOURLY_DIR = "$earthOutput"
 
 ## 三小时上传模型
 
-已开放独立 `aresvision_earth_3hourly_uploaded_model_v1` 契约，绑定 `earth_merra2_3hourly_v1`。下载[专用模板](earth-3hourly-uploaded-model-template.py)或[v1 四位置共享门控模板](earth-3hourly-four-positions-shared-no-after-decoder-model.py)，调用形状、通道轴、dtype、设备、单位、保留参数及错误码见[模板说明](earth-3hourly-uploaded-model.md)。日频/Mars 上传结论不继承，三小时专属模型也不会自动获得它们的资格。
+已开放独立 `astraatmos_earth_3hourly_uploaded_model_v1` 契约，绑定 `earth_merra2_3hourly_v1`。下载[专用模板](earth-3hourly-uploaded-model-template.py)或[v1 四位置共享门控模板](earth-3hourly-four-positions-shared-no-after-decoder-model.py)，调用形状、通道轴、dtype、设备、单位、保留参数及错误码见[模板说明](earth-3hourly-uploaded-model.md)。日频/Mars 上传结论不继承，三小时专属模型也不会自动获得它们的资格。
 
 实际 v1 模型调用为 float32 `[B,window,C,24,48] → [B,horizon,1,24,48]`，默认 56→24，C 是 TO3 加所选辅助变量的规范顺序；100 个无重叠块拼为 240×480。上传或手动重新校验的 dry-run 在有超时的隔离子进程中检查 16 个通道组合、B=1/2、eval/train 前向与 backward。v1/v2 创建任务复用保存的具体 dataset/schema 兼容报告，复查归属、valid 状态、报告证据、源码摘要、参数 schema 和 batch 范围，冻结源码/schema/参数后排队，不重复执行实际配置 dry-run；未知、失败或缺少验证证据不能写入训练任务。实际训练仍检查输出与梯度，完成前仍严格重载。前端开放来源切换及自定义参数，显示可用/不可用/未知和原因，按数据集提供模板下载。
 
-复用服务器 registry、任务级原始 UTC split、仅当前任务训练期 normalization、缺失拒绝、任务调度和训练/评估循环。上传代码不控制路径、版本、fingerprint、snapshot 或 normalization。队列保存冻结源码引用，重启恢复同一版本。上传 checkpoint 仍用独立三小时 artifact schema，另保存上传 implementation `aresvision_earth_3hourly_uploaded_runner_v1`、契约 schema、块尺寸、实际 build config 和源码摘要；重载核对它们并严格加载权重。任务完成前使用 30 秒超时的独立 CPU 进程重载并检查前向一致性，失败不能 completed。日频和 Mars checkpoint 不能冒充三小时产物。
+复用服务器 registry、任务级原始 UTC split、仅当前任务训练期 normalization、缺失拒绝、任务调度和训练/评估循环。上传代码不控制路径、版本、fingerprint、snapshot 或 normalization。队列保存冻结源码引用，重启恢复同一版本。上传 checkpoint 仍用独立三小时 artifact schema，另保存上传 implementation `astraatmos_earth_3hourly_uploaded_runner_v1`、契约 schema、块尺寸、实际 build config 和源码摘要；重载核对它们并严格加载权重。任务完成前使用 30 秒超时的独立 CPU 进程重载并检查前向一致性，失败不能 completed。日频和 Mars checkpoint 不能冒充三小时产物。
 
 新 `earth_raw_utc_timeline_v1` checkpoint 的官方 DLinear 与上传模型历史回测都要求完整 window+horizon 步在同一任务分区内；context 只返回满足条件的起点，跨分区返回 `earth_prediction_origin_out_of_range`。旧 manifest 任务在默认 56→24 下共有 2849+1369+1393=5611 个此类起点；新任务依保存的比例、实际边界与窗口计算。没有 task split 的旧 checkpoint 保留各自的 manifest 兼容行为；日频任务不能回测。
 
@@ -186,21 +186,21 @@ TO3 始终为首个输入和唯一输出；`selected_channels=[]` 表示只用 T
 
 归一化只拟合当前任务完整 train 区间（旧任务使用 manifest train），每次读取一个通道最多 8 个全网格时间步，以 float64 合并均值/总体方差，保存通道顺序、均值、scale、常量通道标记、拟合 UTC 起止与步数。validation / test 复用统计量。训练先以最多 8 步、一个通道的分块读取生成 normalized float32 `.npy` 内存映射，再由 `EarthThreeHourlyWindows` 读取所需 56→24 窗口及 24×48 空间块；每个时间窗口恰好 100 块，`batch_size` 表示空间块数量。缓存避免压缩 NetCDF 整场 chunk 被每个小块反复解压，不复制全部滑窗或将两年体积读入内存。模型共享各网格点的时间权重，checkpoint 的网格仍为完整 240×480。
 
-缓存目录由 `ARESVISION_EARTH_TRAINING_CACHE_DIR` 配置，默认在 Git checkout 的工作区父目录 `earth_training_cache/`；按源包身份、通道顺序、train-only normalization 内容、存储布局和缓存版本查找复用，以只读映射使用。模型参数、batch、学习率和 epoch 不进入键；window/horizon 变化但 train 实际边界不变时也无需重建全时间轴缓存。验证证明和统计量跨后端/训练子进程共享，完整验证仍保留；发布、并发、损坏拒绝和实测计时见[训练准备缓存](earth-preparation-cache.md)。完整两年五通道缓存约 12.55 GiB，TO3-only 约 2.51 GiB；默认 batch=8 的窗口/目标张量约 10.7 MiB，另有模型 activation 与系统文件页缓存。完成、中断和损坏的缓存均保留，不批量删除源包或旧缓存。未发布临时目录不得命中；既有当前布局全图/分块缓存必须先完整对照源值认证一次。
+缓存目录由 `ASTRAATMOS_EARTH_TRAINING_CACHE_DIR` 配置，默认在 Git checkout 的工作区父目录 `earth_training_cache/`；按源包身份、通道顺序、train-only normalization 内容、存储布局和缓存版本查找复用，以只读映射使用。模型参数、batch、学习率和 epoch 不进入键；window/horizon 变化但 train 实际边界不变时也无需重建全时间轴缓存。验证证明和统计量跨后端/训练子进程共享，完整验证仍保留；发布、并发、损坏拒绝和实测计时见[训练准备缓存](earth-preparation-cache.md)。完整两年五通道缓存约 12.55 GiB，TO3-only 约 2.51 GiB；默认 batch=8 的窗口/目标张量约 10.7 MiB，另有模型 activation 与系统文件页缓存。完成、中断和损坏的缓存均保留，不批量删除源包或旧缓存。未发布临时目录不得命中；既有当前布局全图/分块缓存必须先完整对照源值认证一次。
 
 新缓存采用 `layout=earth_spatial_tiles_v1`：物理数组为 `[100,time,C,24,48]`，metadata 的 `shape` 仍保存逻辑全球形状 `[time,C,240,480]`，另存 `storage_shape` 与 `spatial_tile_shape`；全图模型使用 `earth_full_grid_v1` 的 `[time,C,240,480]`。流式构建仍每次只解压最多 8 个时间步、一个通道，再按纬向优先的 100 个空间块重排写入；模型输入/目标及归一化数值不变。读取支持对齐空间块、跨块、反向/跨步切片及全球窗口；旧缓存首次挂载前完整认证，未知 layout、错误物理形状、身份或统计量明确拒绝。运行中的任务不迁移已有缓存。
 
 PyTorch 批量取样通过 `EarthThreeHourlyWindows.read_windows` 在一批读取前后各核对一次源包签名，减少逐样本重复文件状态查询；期间源包变化会使整批失败。样本顺序、重复索引、训练 shuffle 及每轮全部窗口 × 100 块的覆盖保持不变。CUDA loader 使用 `pin_memory`，输入/目标以 `non_blocking` 传输，CPU 路径保持普通传输；未增加多进程 worker 或额外预取副本。每批全部非空梯度仍检查 NaN/Inf，但有限性标志在设备上合并后只同步一次，失败时保留首个异常参数名；没有放宽上传输出、梯度或 checkpoint 门禁。缓存调整不减少批次数，也不承诺端到端固定倍数提速或 100% GPU 利用率。
 
-三小时 checkpoint 使用独立 schema `aresvision_earth_forecast_checkpoint_3hourly_v1` 和实现 ID `aresvision_gridpoint_dlinear_3hourly_v1`；保存权重/完整网格模型配置、通道顺序及单位、任务 window/horizon（默认 56/24）、hour/step=3、UTC、`timestamp_rule=interval_center`、三小时平均与 90 分钟中心偏移（01:30…22:30）、独立任务划分策略、比例、原始索引/UTC/步数/窗口范围（旧策略保留发布分区）、归一化、数据版本/SHA/fingerprint 和任务身份。日频 checkpoint 不能绑定三小时任务，反向也拒绝，旧日频 schema 与加载行为保留。产物原子保存前严格重载，父进程验证成功后任务才 completed。
+三小时 checkpoint 使用独立 schema `astraatmos_earth_forecast_checkpoint_3hourly_v1` 和实现 ID `astraatmos_gridpoint_dlinear_3hourly_v1`；保存权重/完整网格模型配置、通道顺序及单位、任务 window/horizon（默认 56/24）、hour/step=3、UTC、`timestamp_rule=interval_center`、三小时平均与 90 分钟中心偏移（01:30…22:30）、独立任务划分策略、比例、原始索引/UTC/步数/窗口范围（旧策略保留发布分区）、归一化、数据版本/SHA/fingerprint 和任务身份。日频 checkpoint 不能绑定三小时任务，反向也拒绝，旧日频 schema 与加载行为保留。产物原子保存前严格重载，父进程验证成功后任务才 completed。
 
 新指标使用 `earth_training_metrics_3hourly_v2`，validation/test 的总体、每步 `by_lead` 与累计 `by_horizon` 均含 MSE/RMSE/MAE/R²/MAPE/SMAPE，单位分别为 DU²/DU/DU/无量纲/%/%。horizon 使用任务配置，累计为每 24 小时及最终 lead；总体/累计由全部 float64 误差和与稳定真值统计量计算，保持 `forecast_origin_lead_grid_uniform`。旧指标 v1 仍可读、可预测，缺项显示“未提供”；公式、零分母、恒定真值及严格门禁见[地球评价指标](earth-evaluation-metrics.md)。
 
-验证命令从 `AresVision_backend/backend/` 执行，先 smoke 再分文件回归，每次使用 `D:\_Aresvision` 下的新临时目录：
+验证命令从 `AstraAtmos_backend/backend/` 执行，先 smoke 再分文件回归，每次使用 `<工作区>` 下的新临时目录：
 
 ```powershell
-$earthSmokeTemp = Join-Path 'D:\_Aresvision' ('.earth-3hour-training-smoke-' + [guid]::NewGuid().ToString('N'))
-& 'D:\Anaconda\envs\AresVision\python.exe' -B -m pytest `
+$earthSmokeTemp = Join-Path $env:TEMP ('.earth-3hour-training-smoke-' + [guid]::NewGuid().ToString('N'))
+& "$env:CONDA_PREFIX\python.exe" -B -m pytest `
   tests/test_earth_3hourly_training_runner.py::test_smoke_training_publishes_56_to_24_checkpoint `
   -q --basetemp "$earthSmokeTemp" -p no:cacheprovider
 
@@ -212,8 +212,8 @@ $earthTrainingTests = @(
   'tests/test_earth_training_runner.py', 'tests/test_earth_training_service.py'
 )
 foreach ($earthTrainingTest in $earthTrainingTests) {
-  $earthTrainingTemp = Join-Path 'D:\_Aresvision' ('.earth-training-regression-' + [guid]::NewGuid().ToString('N'))
-  & 'D:\Anaconda\envs\AresVision\python.exe' -B -m pytest $earthTrainingTest `
+  $earthTrainingTemp = Join-Path $env:TEMP ('.earth-training-regression-' + [guid]::NewGuid().ToString('N'))
+  & "$env:CONDA_PREFIX\python.exe" -B -m pytest $earthTrainingTest `
     -q --basetemp "$earthTrainingTemp" -p no:cacheprovider
   if ($LASTEXITCODE -ne 0) { throw "Training regression failed: $earthTrainingTest" }
 }
@@ -312,7 +312,7 @@ context、预测及缓存命中前均严格核对任务与 checkpoint 的数据 
 
 ### 三小时回测验证
 
-从 `AresVision_backend/backend/` 执行，每个文件使用新的工作区英文临时目录：
+从 `AstraAtmos_backend/backend/` 执行，每个文件使用新的工作区英文临时目录：
 
 ```powershell
 $earthPredictionTests = @(
@@ -324,8 +324,8 @@ $earthPredictionTests = @(
   'tests/test_earth_training_isolation.py'
 )
 foreach ($earthPredictionTest in $earthPredictionTests) {
-  $earthPredictionTemp = Join-Path 'D:\_Aresvision' ('.earth-prediction-test-' + [guid]::NewGuid().ToString('N'))
-  & 'D:\Anaconda\envs\AresVision\python.exe' -B -m pytest $earthPredictionTest `
+  $earthPredictionTemp = Join-Path $env:TEMP ('.earth-prediction-test-' + [guid]::NewGuid().ToString('N'))
+  & "$env:CONDA_PREFIX\python.exe" -B -m pytest $earthPredictionTest `
     -q --basetemp "$earthPredictionTemp" -p no:cacheprovider
   if ($LASTEXITCODE -ne 0) { throw "Prediction regression failed: $earthPredictionTest" }
 }
@@ -335,7 +335,7 @@ foreach ($earthPredictionTest in $earthPredictionTests) {
 
 ## 2026-10-07 数据构建与注册阶段历史验证
 
-使用项目规定的 AresVision 解释器，真实 `slv/rad` 7 天 smoke 已构建并独立验证。每个变量形状为 `[56,240,480]`，中心时间从 `2020-01-01T01:30:00Z` 到 `2020-01-07T22:30:00Z`，间隔严格三小时；五变量及掩码扫描通过，目标缺失率均为零。实际原始对照检查 2020-01-01、01-04、01-07 的 405 项，包含两极与周期经度接缝。float64 重网格的最大面积均值守恒误差为 `1.14e-13`，输出采用 float32 的舍入误差在 manifest 中单独记录。
+使用项目规定的 AstraAtmos 解释器，真实 `slv/rad` 7 天 smoke 已构建并独立验证。每个变量形状为 `[56,240,480]`，中心时间从 `2020-01-01T01:30:00Z` 到 `2020-01-07T22:30:00Z`，间隔严格三小时；五变量及掩码扫描通过，目标缺失率均为零。实际原始对照检查 2020-01-01、01-04、01-07 的 405 项，包含两极与周期经度接缝。float64 重网格的最大面积均值守恒误差为 `1.14e-13`，输出采用 float32 的舍入误差在 manifest 中单独记录。
 
 相同请求再次执行成功校验并复用；NetCDF 和 manifest 的 SHA-256、修改时间均保持不变。新增构建/验证回归 25 项通过；既有日频构建、读取、注册和路由回归 55 项通过。测试日志存在既有 NumPy 二进制大小 RuntimeWarning，以及日频路由依赖的 FastAPI 弃用提示，没有测试失败。本次没有执行完整两年构建或训练。
 
@@ -345,10 +345,10 @@ foreach ($earthPredictionTest in $earthPredictionTests) {
 
 2026-10-07 上传链路最终后端回归为 **435 passed、5 warnings，145.16 秒**，覆盖下列 17 个文件。新增上传契约测试含 80 项：严格 spec/类型/单位/轴、16 种通道组合、错误 dtype/形状/设备/梯度、具体 dataset_id 兼容性与稳定错误码、隔离超时、当时创建任务流程的实际参数 dry-run、源码冻结与队列恢复、合成训练/验证/测试指标、checkpoint 身份及权重隔离、缺失原源码时嵌入副本的摘要核对、完成门禁的独立 CPU 重载，以及完整全球历史回测和跨 split 拒绝。模板的 CPU 与本机可用 CUDA 设备检查均执行通过。此处为历史验证记录；当前任务创建已取消重复的实际配置 dry-run。
 
-从 `AresVision_backend/backend/` 执行。每次调用创建唯一临时根目录，将 TEMP/TMP 和 pytest basetemp 均放在工作区根目录下；不要复用既有目录或 checkpoint：
+从 `AstraAtmos_backend/backend/` 执行。每次调用创建唯一临时根目录，将 TEMP/TMP 和 pytest basetemp 均放在工作区根目录下；不要复用既有目录或 checkpoint：
 
 ```powershell
-$earthUploadTemp = Join-Path 'D:\_Aresvision' ('.earth-upload-check-' + [guid]::NewGuid().ToString('N'))
+$earthUploadTemp = Join-Path $env:TEMP ('.earth-upload-check-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $earthUploadTemp -ErrorAction Stop | Out-Null
 $earthPreviousTemp = $env:TEMP
 $earthPreviousTmp = $env:TMP
@@ -366,7 +366,7 @@ $earthUploadTests = @(
 try {
   $env:TEMP = $earthUploadTemp
   $env:TMP = $earthUploadTemp
-  & 'D:\Anaconda\envs\AresVision\python.exe' -B -m pytest @earthUploadTests `
+  & "$env:CONDA_PREFIX\python.exe" -B -m pytest @earthUploadTests `
     -q --basetemp (Join-Path $earthUploadTemp 'pytest') -p no:cacheprovider
   if ($LASTEXITCODE -ne 0) { throw 'Earth upload regression failed' }
 } finally {
@@ -382,26 +382,26 @@ try {
 完整两年真实包只读集成 **1 passed，387.76 秒**。检查实际 descriptor、5848 步、5611 个 split 内历史起点及每个 split 的真实 80 步五变量 24×48 块，确认形状、float32 和有限性，读取前后包签名一致。可复现命令如下，先将 `$earthUploadPackage` 设为已配置并独立验证的外部完整发布目录。环境变量只作用于本次进程，不改写 `.env` 或开发默认值：
 
 ```powershell
-$earthReadonlyTemp = Join-Path 'D:\_Aresvision' ('.earth-upload-readonly-' + [guid]::NewGuid().ToString('N'))
+$earthReadonlyTemp = Join-Path $env:TEMP ('.earth-upload-readonly-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $earthReadonlyTemp -ErrorAction Stop | Out-Null
 $earthReadonlyPreviousTemp = $env:TEMP
 $earthReadonlyPreviousTmp = $env:TMP
-$earthReadonlyPreviousDir = $env:ARESVISION_EARTH_MERRA2_3HOURLY_DIR
-$earthReadonlyPreviousOptIn = $env:ARESVISION_TEST_EARTH_3HOURLY_PACKAGE
+$earthReadonlyPreviousDir = $env:ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR
+$earthReadonlyPreviousOptIn = $env:ASTRAATMOS_TEST_EARTH_3HOURLY_PACKAGE
 try {
   $env:TEMP = $earthReadonlyTemp
   $env:TMP = $earthReadonlyTemp
-  $env:ARESVISION_EARTH_MERRA2_3HOURLY_DIR = $earthUploadPackage
-  $env:ARESVISION_TEST_EARTH_3HOURLY_PACKAGE = $earthUploadPackage
-  & 'D:\Anaconda\envs\AresVision\python.exe' -B -m pytest `
+  $env:ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR = $earthUploadPackage
+  $env:ASTRAATMOS_TEST_EARTH_3HOURLY_PACKAGE = $earthUploadPackage
+  & "$env:CONDA_PREFIX\python.exe" -B -m pytest `
     tests/test_earth_3hourly_uploaded_readonly.py -q -s `
     --basetemp (Join-Path $earthReadonlyTemp 'pytest') -p no:cacheprovider
   if ($LASTEXITCODE -ne 0) { throw 'Read-only Earth package integration failed' }
 } finally {
   $env:TEMP = $earthReadonlyPreviousTemp
   $env:TMP = $earthReadonlyPreviousTmp
-  $env:ARESVISION_EARTH_MERRA2_3HOURLY_DIR = $earthReadonlyPreviousDir
-  $env:ARESVISION_TEST_EARTH_3HOURLY_PACKAGE = $earthReadonlyPreviousOptIn
+  $env:ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR = $earthReadonlyPreviousDir
+  $env:ASTRAATMOS_TEST_EARTH_3HOURLY_PACKAGE = $earthReadonlyPreviousOptIn
 }
 ```
 

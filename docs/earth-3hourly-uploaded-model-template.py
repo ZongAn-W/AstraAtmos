@@ -18,7 +18,7 @@ MODEL_SPEC = {
     #                           "dtype": "float32", "unit": "degree"}},
     "datasets": {
         "earth_merra2_3hourly_v1": {
-            "schema": "aresvision_earth_3hourly_uploaded_model_v1",
+            "schema": "astraatmos_earth_3hourly_uploaded_model_v1",
             "frequency_hours": 3, "step_unit": "hour", "step": 3, "time_zone": "UTC",
             "window": list(range(1, 241)), "horizon": list(range(1, 241)), "grid": [[240, 480]],
             "target": "TO3", "target_unit": "DU",

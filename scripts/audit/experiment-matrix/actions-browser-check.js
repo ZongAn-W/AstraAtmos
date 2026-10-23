@@ -59,8 +59,8 @@ async (page) => {
   });
   await page.routeWebSocket('**/ws/**', () => {});
   await page.addInitScript(({ userId }) => {
-    localStorage.setItem('aresvision_token', 'isolated-actions-fixture');
-    localStorage.setItem(`aresvision_experiment_matrix_columns:${userId}`, JSON.stringify({ columns: ['model_name', 'tags', 'architecture', 'dataset', 'status', 'progress', 'start_time'] }));
+    localStorage.setItem('astraatmos_token', 'isolated-actions-fixture');
+    localStorage.setItem(`astraatmos_experiment_matrix_columns:${userId}`, JSON.stringify({ columns: ['model_name', 'tags', 'architecture', 'dataset', 'status', 'progress', 'start_time'] }));
   }, { userId });
   const assert = (condition, message) => { if (!condition) throw new Error(message); checks.push(message); };
   const row = name => page.locator('.experiment-matrix-table tbody tr').filter({ hasText: name });

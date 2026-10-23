@@ -51,8 +51,8 @@ async (page) => {
   });
   await page.routeWebSocket('**/ws/**', () => {});
   await page.addInitScript(({ userId }) => {
-    localStorage.setItem('aresvision_token', 'isolated-browser-fixture');
-    localStorage.setItem(`aresvision_experiment_matrix_columns:${userId}`, JSON.stringify({ columns: ['model_name', 'tags', 'architecture', 'dataset', 'status', 'progress', 'start_time', 'training:window', 'training:horizon', 'training:epochs', 'training:batch_size', 'training:learning_rate', 'training:seed', 'metric:rmse', 'metric:mae', 'metric:r2'] }));
+    localStorage.setItem('astraatmos_token', 'isolated-browser-fixture');
+    localStorage.setItem(`astraatmos_experiment_matrix_columns:${userId}`, JSON.stringify({ columns: ['model_name', 'tags', 'architecture', 'dataset', 'status', 'progress', 'start_time', 'training:window', 'training:horizon', 'training:epochs', 'training:batch_size', 'training:learning_rate', 'training:seed', 'metric:rmse', 'metric:mae', 'metric:r2'] }));
   }, { userId });
   const assert = (condition, message) => { if (!condition) throw new Error(message); checks.push(message); };
   await page.setViewportSize({ width: 1440, height: 900 });

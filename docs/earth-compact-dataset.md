@@ -28,10 +28,10 @@ NetCDF 还保存 `lat_bounds`、`lon_bounds`、来源产品、处理规则和 `s
 
 ## 从原始 MERRA-2 重建
 
-命令从 `AresVision_backend/backend/` 执行。先设置 `$merraRaw` 为实际 MERRA-2 raw 目录；此环境使用已安装依赖的 AresVision conda 环境：
+命令从 `AstraAtmos_backend/backend/` 执行。先设置 `$merraRaw` 为实际 MERRA-2 raw 目录；此环境使用已安装依赖的 工作区约定的 Conda 环境：
 
 ```powershell
-conda run -n AresVision python -m scripts.preprocess_earth_reanalysis `
+& "$env:CONDA_PREFIX\python.exe" -m scripts.preprocess_earth_reanalysis `
   --source-root "$merraRaw" `
   --output-dir data\earth\merra2_daily_v2
 ```
@@ -69,7 +69,7 @@ x, y = dataset[0]
 现有检查器可运行 DLinear CPU 前向、反向和一次优化器更新：
 
 ```powershell
-conda run -n AresVision python -m scripts.check_earth_ozone_dataset `
+& "$env:CONDA_PREFIX\python.exe" -m scripts.check_earth_ozone_dataset `
   --dataset data\earth\merra2_daily_v2\earth_merra2_daily.nc `
   --output-dir data\earth\merra2_daily_v2\verification `
   --raw-dir "$merraRaw" `
@@ -80,7 +80,7 @@ conda run -n AresVision python -m scripts.check_earth_ozone_dataset `
 
 ## API 和总览边界
 
-注册表同时保留 v1 与 v2，默认配置 `ARESVISION_EARTH_MERRA2_DIR` 指向 v2，旧包路径可由 `ARESVISION_EARTH_MERRA2_V1_DIR` 指定。v2 描述符、`/field` 和 `/regional-series` 返回 `wrap_longitude=true` 和真实全球单元范围；`/point-series` 允许 ±90°/±180°边界并返回吸附后的最近网格中心。
+注册表同时保留 v1 与 v2，默认配置 `ASTRAATMOS_EARTH_MERRA2_DIR` 指向 v2，旧包路径可由 `ASTRAATMOS_EARTH_MERRA2_V1_DIR` 指定。v2 描述符、`/field` 和 `/regional-series` 返回 `wrap_longitude=true` 和真实全球单元范围；`/point-series` 允许 ±90°/±180°边界并返回吸附后的最近网格中心。
 
 区域序列的 v2 聚合标识为 `spherical_cell_area_mean`，按纬度单元的 `sin(north)-sin(south)` 面积和等经度单元计算。v1 仍返回 `cos_lat_sample_mean`。所有响应保留物理单位；五变量顺序固定为 `TO3,U10M,V10M,T2M,SWGDN`。
 
@@ -88,11 +88,11 @@ conda run -n AresVision python -m scripts.check_earth_ozone_dataset `
 
 ## 验证入口
 
-后端测试从 `AresVision_backend/backend/` 执行，建议为 Windows NetCDF 测试指定新的英文临时目录：
+后端测试从 `AstraAtmos_backend/backend/` 执行，建议为 Windows NetCDF 测试指定新的英文临时目录：
 
 ```powershell
-$earthTestTemp = Join-Path 'D:\_Aresvision' ('.earth-test-' + [guid]::NewGuid().ToString('N'))
-conda run -n AresVision python -m pytest `
+$earthTestTemp = Join-Path $env:TEMP ('.earth-test-' + [guid]::NewGuid().ToString('N'))
+& "$env:CONDA_PREFIX\python.exe" -m pytest `
   tests/test_preprocess_earth_reanalysis.py `
   tests/test_earth_dataset.py tests/test_dataset_registry.py `
   tests/test_dataset_routes.py -q --basetemp "$earthTestTemp"

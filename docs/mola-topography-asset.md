@@ -39,8 +39,8 @@ physical detail limited by this 5-degree platform asset.
 From the repository root:
 
 ```powershell
-python AresVision_backend/backend/scripts/build_mola_topography_asset.py --output AresVision_backend/backend/data/assets/mola_topography_5deg.nc
-python AresVision_backend/backend/scripts/build_mola_topography_asset.py --output AresVision_backend/backend/data/assets/mola_topography_5deg.nc --validate
+python AstraAtmos_backend/backend/scripts/build_mola_topography_asset.py --output AstraAtmos_backend/backend/data/assets/mola_topography_5deg.nc
+python AstraAtmos_backend/backend/scripts/build_mola_topography_asset.py --output AstraAtmos_backend/backend/data/assets/mola_topography_5deg.nc --validate
 ```
 
 The raw PDS image and label are cached in the operating system temporary

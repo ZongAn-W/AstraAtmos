@@ -45,7 +45,7 @@ yarn-error.log*
 .coverage.*
 htmlcov/
 coverage/
-/AresVision_backend/backend/.pytest_*/
+/AstraAtmos_backend/backend/.pytest_*/
 backend-test-tmp*/
 **/.venv/
 **/venv/
@@ -53,43 +53,43 @@ backend-test-tmp*/
 **/env/
 
 # Environment and local databases
-AresVision_backend/backend/.env
-AresVision_backend/backend/.env.parked
+AstraAtmos_backend/backend/.env
+AstraAtmos_backend/backend/.env.parked
 *.db
 *.db-shm
 *.db-wal
 
 # Backend runtime datasets and generated caches
-AresVision_backend/backend/data/earth/
-AresVision_backend/backend/data/approved/
-AresVision_backend/backend/data/aresvision.db
-AresVision_backend/backend/data/mcd/
-AresVision_backend/backend/data/MCD/
-AresVision_backend/backend/data/mcd_overview/
-AresVision_backend/backend/data/nomad/
-AresVision_backend/backend/data/openmars/
-AresVision_backend/backend/data/pending_review/
-AresVision_backend/backend/data/perf_cache/
-AresVision_backend/backend/data/personal_cache/
-AresVision_backend/backend/data/personal_processed/
-AresVision_backend/backend/data/processed_tensors.pt
-AresVision_backend/backend/data/training_weights/
-AresVision_backend/backend/data/user_models/
-AresVision_backend/backend/data/user_uploads/
+AstraAtmos_backend/backend/data/earth/
+AstraAtmos_backend/backend/data/approved/
+AstraAtmos_backend/backend/data/astraatmos.db
+AstraAtmos_backend/backend/data/mcd/
+AstraAtmos_backend/backend/data/MCD/
+AstraAtmos_backend/backend/data/mcd_overview/
+AstraAtmos_backend/backend/data/nomad/
+AstraAtmos_backend/backend/data/openmars/
+AstraAtmos_backend/backend/data/pending_review/
+AstraAtmos_backend/backend/data/perf_cache/
+AstraAtmos_backend/backend/data/personal_cache/
+AstraAtmos_backend/backend/data/personal_processed/
+AstraAtmos_backend/backend/data/processed_tensors.pt
+AstraAtmos_backend/backend/data/training_weights/
+AstraAtmos_backend/backend/data/user_models/
+AstraAtmos_backend/backend/data/user_uploads/
 
 # Backend runtime outputs
-AresVision_backend/backend/logs/
-AresVision_backend/backend/data/recovery/
+AstraAtmos_backend/backend/logs/
+AstraAtmos_backend/backend/data/recovery/
 # Local server stdout/stderr redirections (development only)
-/AresVision_backend/backend/uvicorn*.log
+/AstraAtmos_backend/backend/uvicorn*.log
 /serve-prod*.log
 /frontend/serve-prod*.log
 
 # Model weights and generated training outputs
-AresVision_backend/backend/models/predrnnv2/
-AresVision_backend/backend/models/training_results/
-AresVision_backend/backend/models/training_logs/
-AresVision_backend/backend/models/**/__pycache__/
+AstraAtmos_backend/backend/models/predrnnv2/
+AstraAtmos_backend/backend/models/training_results/
+AstraAtmos_backend/backend/models/training_logs/
+AstraAtmos_backend/backend/models/**/__pycache__/
 *.pth
 *.pt
 *.h5
@@ -103,5 +103,5 @@ AresVision_backend/backend/models/**/__pycache__/
 # OS files
 .DS_Store
 Thumbs.db
-/AresVision_backend/backend/data/MCD_Output_global_10m_ls_lst
-/AresVision_backend/backend/data/mcd_cache
+/AstraAtmos_backend/backend/data/MCD_Output_global_10m_ls_lst
+/AstraAtmos_backend/backend/data/mcd_cache

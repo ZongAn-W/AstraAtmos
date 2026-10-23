@@ -4,7 +4,7 @@ from torch import nn
 
 MODEL_SPEC = {
     "name": "ExampleUploadedModel",
-    "description": "Minimal model definition for AresVision uploaded-model training.",
+    "description": "Minimal model definition for AstraAtmos uploaded-model training.",
     "parameters": {
         "hidden_dim": {"type": "int", "default": 16, "min": 4, "max": 128},
         "dropout": {"type": "float", "default": 0.1, "min": 0.0, "max": 0.9},

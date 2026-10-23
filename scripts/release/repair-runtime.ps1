@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 if ([string]::IsNullOrWhiteSpace($BackendDir)) {
-    $BackendDir = Join-Path $PSScriptRoot "AresVision_backend\backend"
+    $BackendDir = Join-Path $PSScriptRoot "AstraAtmos_backend\backend"
 }
 
 $BackendDir = (Resolve-Path $BackendDir).Path
@@ -241,7 +241,7 @@ if (-not (Test-Path $requirements)) {
 
 $bootstrap = Find-BootstrapPython
 if ($null -eq $bootstrap) {
-    throw "No usable Python interpreter found (need Python >= 3.9). Install Python 3.12 or 3.11 x64 (Add to PATH + Install launcher), then rerun start-aresvision.bat. Download: https://www.python.org/downloads/windows/"
+    throw "No usable Python interpreter found (need Python >= 3.9). Install Python 3.12 or 3.11 x64 (Add to PATH + Install launcher), then rerun start-astraatmos.bat. Download: https://www.python.org/downloads/windows/"
 }
 
 Write-Host "[INFO] Rebuilding .venv using $($bootstrap.Display) (Python $($bootstrap.Version))..." -ForegroundColor Cyan

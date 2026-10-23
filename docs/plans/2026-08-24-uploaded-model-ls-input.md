@@ -12,14 +12,14 @@
 
 ## File Map
 
-- Create `AresVision_backend/backend/training_backbones/uploaded_model_contract.py`: metadata, validation, and dispatch.
-- Modify `AresVision_backend/backend/training_backbones/user_model_runner.py`: Ls windows and training loops.
-- Modify `AresVision_backend/backend/services/user_model_validator.py`: strict metadata and dry-run.
-- Modify `AresVision_backend/backend/services/inference_service.py`: uploaded prediction and analysis paths.
-- Modify `AresVision_backend/backend/tests/test_uploaded_model_runner.py`: core contract and dataset tests.
-- Modify `AresVision_backend/backend/tests/test_user_model_validator.py`: upload validation tests.
-- Create `AresVision_backend/backend/tests/test_uploaded_model_ls_inference.py`: inference propagation tests.
-- Modify `AresVision_backend/backend/tests/test_user_model_downloads.py`: documentation contract.
+- Create `AstraAtmos_backend/backend/training_backbones/uploaded_model_contract.py`: metadata, validation, and dispatch.
+- Modify `AstraAtmos_backend/backend/training_backbones/user_model_runner.py`: Ls windows and training loops.
+- Modify `AstraAtmos_backend/backend/services/user_model_validator.py`: strict metadata and dry-run.
+- Modify `AstraAtmos_backend/backend/services/inference_service.py`: uploaded prediction and analysis paths.
+- Modify `AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py`: core contract and dataset tests.
+- Modify `AstraAtmos_backend/backend/tests/test_user_model_validator.py`: upload validation tests.
+- Create `AstraAtmos_backend/backend/tests/test_uploaded_model_ls_inference.py`: inference propagation tests.
+- Modify `AstraAtmos_backend/backend/tests/test_user_model_downloads.py`: documentation contract.
 - Modify `docs/uploaded-model-training.md` and `docs/uploaded-model-template.py`: user guidance.
 
 ### Task 1: Shared Contract
@@ -86,7 +86,7 @@ Parameterize rejection of unknown inputs, missing/extra Ls fields, `required=Fal
 
 - [ ] **Step 2: Verify RED**
 
-Run `python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py -k "auxiliary or receives or ls_tensor" -q`.
+Run `python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py -k "auxiliary or receives or ls_tensor" -q`.
 
 Expected: collection fails because the contract module is absent.
 
@@ -101,7 +101,7 @@ LS_AUXILIARY_INPUT = {
     "dtype": "float32",
     "unit": "degree",
 }
-CONTRACT_ATTRIBUTE = "_aresvision_auxiliary_inputs"
+CONTRACT_ATTRIBUTE = "_astraatmos_auxiliary_inputs"
 
 
 def normalize_auxiliary_inputs(model_spec: Any) -> dict[str, dict[str, Any]]:
@@ -115,7 +115,7 @@ def normalize_auxiliary_inputs(model_spec: Any) -> dict[str, dict[str, Any]]:
     if set(auxiliary_inputs) != {"ls"}:
         raise ValueError("MODEL_SPEC.auxiliary_inputs supports only ls")
     if auxiliary_inputs["ls"] != LS_AUXILIARY_INPUT:
-        raise ValueError("MODEL_SPEC.auxiliary_inputs.ls must match the AresVision Ls contract")
+        raise ValueError("MODEL_SPEC.auxiliary_inputs.ls must match the AstraAtmos Ls contract")
     return {"ls": dict(LS_AUXILIARY_INPUT)}
 
 
@@ -165,7 +165,7 @@ Add `LS_MODEL_SOURCE` with `forward(self, x, ls)` and assertions for successful 
 
 - [ ] **Step 2: Verify RED**
 
-Run `python -m pytest AresVision_backend/backend/tests/test_user_model_validator.py -q`.
+Run `python -m pytest AstraAtmos_backend/backend/tests/test_user_model_validator.py -q`.
 
 Expected: the Ls model fails because dry-run passes only `x`.
 
@@ -193,7 +193,7 @@ Request `return_ls=True` from `prepare_tensors`, then assert a `window=3, horizo
 
 - [ ] **Step 2: Verify RED**
 
-Run `python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py -k "prepare_tensors or window" -q`.
+Run `python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py -k "prepare_tensors or window" -q`.
 
 Expected: `return_ls` is unsupported.
 
@@ -213,7 +213,7 @@ Test `_split_train_test(x, y, ls)` produces three-tensor datasets and `_split_tr
 
 - [ ] **Step 2: Verify RED**
 
-Run `python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py -k "split_train or training_dispatch" -q`.
+Run `python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py -k "split_train or training_dispatch" -q`.
 
 Expected: the split function cannot carry Ls and loops call models directly.
 
@@ -223,7 +223,7 @@ Attach the normalized source contract inside `load_uploaded_model`. Load with `r
 
 - [ ] **Step 4: Verify GREEN**
 
-Run `python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py -q`; expect all tests to pass.
+Run `python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py -q`; expect all tests to pass.
 
 ### Task 5: Prediction And Analysis
 
@@ -233,7 +233,7 @@ Create focused tests using a tiny uploaded Ls model and monkeypatched tensors wi
 
 - [ ] **Step 2: Verify RED**
 
-Run `python -m pytest AresVision_backend/backend/tests/test_uploaded_model_ls_inference.py -q`.
+Run `python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_ls_inference.py -q`.
 
 Expected: Ls models fail because uploaded inference calls `model(x)`.
 
@@ -243,7 +243,7 @@ Call `prepare_tensors` with its existing positional arguments plus `return_ls=Tr
 
 - [ ] **Step 4: Verify GREEN**
 
-Run `python -m pytest AresVision_backend/backend/tests/test_uploaded_model_ls_inference.py AresVision_backend/backend/tests/test_trained_model_predict_contract.py AresVision_backend/backend/tests/test_prediction_horizon_contract.py -q`; expect all tests to pass.
+Run `python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_ls_inference.py AstraAtmos_backend/backend/tests/test_trained_model_predict_contract.py AstraAtmos_backend/backend/tests/test_prediction_horizon_contract.py -q`; expect all tests to pass.
 
 ### Task 6: Documentation
 
@@ -253,7 +253,7 @@ Assert the uploaded-model guide contains `auxiliary_inputs`, `forward(self, x, l
 
 - [ ] **Step 2: Verify RED**
 
-Run `python -m pytest AresVision_backend/backend/tests/test_user_model_downloads.py -q`; expect the new guide assertions to fail.
+Run `python -m pytest AstraAtmos_backend/backend/tests/test_user_model_downloads.py -q`; expect the new guide assertions to fail.
 
 - [ ] **Step 3: Update guidance**
 
@@ -270,7 +270,7 @@ Repeat Step 2; expect all tests to pass.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py AresVision_backend/backend/tests/test_user_model_validator.py AresVision_backend/backend/tests/test_uploaded_model_ls_inference.py AresVision_backend/backend/tests/test_user_model_downloads.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py AstraAtmos_backend/backend/tests/test_user_model_validator.py AstraAtmos_backend/backend/tests/test_uploaded_model_ls_inference.py AstraAtmos_backend/backend/tests/test_user_model_downloads.py -q
 ```
 
 Expected: all pass without new warnings.
@@ -280,14 +280,14 @@ Expected: all pass without new warnings.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_training_contract.py AresVision_backend/backend/tests/test_training_dataset_loader.py AresVision_backend/backend/tests/test_trained_model_test_set_metrics.py AresVision_backend/backend/tests/test_prediction_horizon_contract.py AresVision_backend/backend/tests/test_trained_model_predict_contract.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_training_contract.py AstraAtmos_backend/backend/tests/test_training_dataset_loader.py AstraAtmos_backend/backend/tests/test_trained_model_test_set_metrics.py AstraAtmos_backend/backend/tests/test_prediction_horizon_contract.py AstraAtmos_backend/backend/tests/test_trained_model_predict_contract.py -q
 ```
 
 Expected: all pass.
 
 - [ ] **Step 3: Run complete backend tests**
 
-Run `python -m pytest AresVision_backend/backend/tests -q` and report any environment-only failure with its exact error.
+Run `python -m pytest AstraAtmos_backend/backend/tests -q` and report any environment-only failure with its exact error.
 
 - [ ] **Step 4: Check scope**
 

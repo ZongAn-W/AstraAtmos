@@ -17,7 +17,7 @@ npm --version     # 应显示 9.x.x 或更高
 
 ### 2. 在 PyCharm 中打开项目
 
-1. 用 PyCharm 打开整个 `AresVision/` 目录
+1. 用 PyCharm 打开整个 `AstraAtmos/` 目录
 2. PyCharm 会自动识别 `frontend/` 为前端子项目
 3. 建议安装 PyCharm 的 **JavaScript and TypeScript** 插件（通常自带）
 
@@ -56,8 +56,8 @@ npm run dev
 ## 项目结构说明
 
 ```
-AresVision/
-├── AresVision_backend/
+AstraAtmos/
+├── AstraAtmos_backend/
 │   └── backend/                 ← FastAPI 后端
 │       ├── main.py              ← 应用入口 + lifespan 初始化
 │       ├── config.py            ← 全局配置常量
@@ -165,7 +165,7 @@ AresVision/
 ## 运行后端
 
 ```bash
-cd AresVision_backend/backend
+cd AstraAtmos_backend/backend
 pip install -r requirements.txt
 pip install torch==2.5.1       # CPU；或安装对应 CUDA 版本
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
@@ -176,10 +176,10 @@ Windows 当前工作区不要在启用 reload 时直接调用 `uvicorn`：Uvicor
 `vite.config.js` 已配置代理：前端所有 `/api/*` 请求自动转发到 `http://localhost:8000`。
 
 **开发时需同时运行两个终端：**
-- 终端 1：`cd AresVision_backend/backend && uvicorn main:app --reload`
+- 终端 1：`cd AstraAtmos_backend/backend && uvicorn main:app --reload`
 - 终端 2：`cd frontend && npm run dev`
 
-**环境变量**（`AresVision_backend/backend/.env`，不提交 git）：
+**环境变量**（`AstraAtmos_backend/backend/.env`，不提交 git）：
 
 ```env
 AI_API_KEY=your_gemini_api_key

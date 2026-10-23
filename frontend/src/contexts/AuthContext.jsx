@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
   const prewarmedKeysRef = useRef(new Set());
 
   useEffect(() => {
-    const stored = localStorage.getItem('aresvision_token');
+    const stored = localStorage.getItem('astraatmos_token');
     if (!stored) {
       endAuthenticatedPredictionSession();
       setIsLoading(false);
@@ -38,7 +38,7 @@ export function AuthProvider({ children }) {
       })
       .catch(() => {
         endAuthenticatedPredictionSession();
-        localStorage.removeItem('aresvision_token');
+        localStorage.removeItem('astraatmos_token');
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -49,8 +49,8 @@ export function AuthProvider({ children }) {
       setUser(null);
       setToken(null);
     };
-    window.addEventListener('aresvision:logout', handler);
-    return () => window.removeEventListener('aresvision:logout', handler);
+    window.addEventListener('astraatmos:logout', handler);
+    return () => window.removeEventListener('astraatmos:logout', handler);
   }, []);
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     const data = await apiLogin(email, password);
     beginAuthenticatedPredictionSession(data.user.id);
-    localStorage.setItem('aresvision_token', data.token);
+    localStorage.setItem('astraatmos_token', data.token);
     setToken(data.token);
     setUser(data.user);
     return data.user;
@@ -87,7 +87,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     endAuthenticatedPredictionSession();
-    localStorage.removeItem('aresvision_token');
+    localStorage.removeItem('astraatmos_token');
     setToken(null);
     setUser(null);
   }, []);

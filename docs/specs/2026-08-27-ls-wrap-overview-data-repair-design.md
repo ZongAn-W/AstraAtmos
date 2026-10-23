@@ -37,8 +37,8 @@ MY27 and MY28 will be generated into a dedicated staging directory using the cur
 
 The current files remain untouched until both staged files pass validation. After validation, only these exact targets will be replaced:
 
-- `AresVision_backend/backend/data/mcd_overview/MCD_MY27_overview.nc`
-- `AresVision_backend/backend/data/mcd_overview/MCD_MY28_overview.nc`
+- `AstraAtmos_backend/backend/data/mcd_overview/MCD_MY27_overview.nc`
+- `AstraAtmos_backend/backend/data/mcd_overview/MCD_MY28_overview.nc`
 
 These generated files are ignored by Git and can be reproduced from the canonical raw MCD inputs.
 

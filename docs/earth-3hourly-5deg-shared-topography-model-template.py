@@ -12,7 +12,7 @@ server-derived solar longitude, and the full global ETOPO terrain field. It
 predicts normalized TO3 for the requested horizon on the complete 36x72 grid,
 without spatial tiling. Input is [batch, window, channels, 36, 72]; output is
 [batch, horizon, 1, 36, 72]. The independent dataset is earth_merra2_3hourly_5deg_v1; the model
-contract is aresvision_earth_3hourly_5deg_model_v1. Time cadence remains three hours.
+contract is astraatmos_earth_3hourly_5deg_model_v1. Time cadence remains three hours.
 Terrain is the matching 36x72 ETOPO asset, supplied in physical metres by the server.
 Terrain and seasonal encodings are reused only within one forward call. This
 preserves all layers, parameter names and gradients, without retaining graphs
@@ -56,7 +56,7 @@ MODEL_SPEC = {
     },
     "datasets": {
         "earth_merra2_3hourly_5deg_v1": {
-            "schema": "aresvision_earth_3hourly_5deg_model_v1",
+            "schema": "astraatmos_earth_3hourly_5deg_model_v1",
             "frequency_hours": 3,
             "step_unit": "hour",
             "step": 3,
@@ -514,7 +514,7 @@ def build_model(config):
     values = dict(config)
     expected_contract = {
         "dataset_id": "earth_merra2_3hourly_5deg_v1",
-        "contract_schema": "aresvision_earth_3hourly_5deg_model_v1",
+        "contract_schema": "astraatmos_earth_3hourly_5deg_model_v1",
         "height": 36,
         "width": 72,
         "global_grid_shape": [36, 72],

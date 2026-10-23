@@ -1,5 +1,5 @@
 /**
- * AresVision API 请求封装
+ * AstraAtmos API 请求封装
  * Vite proxy: 前端 /api/* → localhost:8000/api/*
  */
 
@@ -12,7 +12,7 @@ const BASE = '/api';
 
 /** 从 localStorage 读取 token，自动附加到请求头 */
 async function authedFetch(url, options = {}) {
-  const token = localStorage.getItem('aresvision_token');
+  const token = localStorage.getItem('astraatmos_token');
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers = {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
@@ -532,7 +532,7 @@ export async function markAllNotificationsRead() {
 // ─── 反馈接口 ───
 
 export async function submitFeedback(formData) {
-  const token = localStorage.getItem('aresvision_token');
+  const token = localStorage.getItem('astraatmos_token');
   const headers = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${BASE}/feedback/submit`, {

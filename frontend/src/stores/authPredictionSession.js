@@ -41,11 +41,11 @@ export function handleUnauthorizedResponse(response) {
   if (typeof response === 'object') handledUnauthorizedResponses.add(response);
 
   endAuthenticatedPredictionSession();
-  if (typeof localStorage !== 'undefined') localStorage.removeItem('aresvision_token');
+  if (typeof localStorage !== 'undefined') localStorage.removeItem('astraatmos_token');
   if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
     const event = typeof Event === 'function'
-      ? new Event('aresvision:logout')
-      : { type: 'aresvision:logout' };
+      ? new Event('astraatmos:logout')
+      : { type: 'astraatmos:logout' };
     window.dispatchEvent(event);
   }
   return true;

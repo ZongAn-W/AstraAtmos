@@ -2,7 +2,7 @@
 
 从原 README「测试与构建」拆出的逐测试文件说明，用于定位回归入口；测试命令见 [README 测试与构建](../README.md#测试与构建)。这些说明记录编写时的验证范围，不代表当前全量通过。
 
-共用单模型预测的适配、展示范围与交互回归为 `singleModelAdapters.test.js`、`predictionPresentation.test.js`、`predictionDisplayModel.test.js` 及既有请求/缓存隔离测试；合成浏览器脚本为 [browser-check.js](../scripts/audit/shared-prediction/browser-check.js)。脚本只在隔离浏览器中替换 API，检查桌面与 390px、主题/色带/精度、行星/任务/时间步/全屏、错误重试及旧响应清理；不启动真实训练。后端使用工作区规定的 AresVision conda 解释器逐文件执行预测/诊断/身份回归，未标记的 async 契约文件加 `--asyncio-mode=auto`，并为每个文件指定仓库外新英文 `--basetemp`。实际范围与已知 Mars 坐标失败见[验证入口与边界](shared-single-model-prediction.md#验证入口与边界)。
+共用单模型预测的适配、展示范围与交互回归为 `singleModelAdapters.test.js`、`predictionPresentation.test.js`、`predictionDisplayModel.test.js` 及既有请求/缓存隔离测试；合成浏览器脚本为 [browser-check.js](../scripts/audit/shared-prediction/browser-check.js)。脚本只在隔离浏览器中替换 API，检查桌面与 390px、主题/色带/精度、行星/任务/时间步/全屏、错误重试及旧响应清理；不启动真实训练。后端使用工作区规定的 工作区约定的 Conda 解释器逐文件执行预测/诊断/身份回归，未标记的 async 契约文件加 `--asyncio-mode=auto`，并为每个文件指定仓库外新英文 `--basetemp`。实际范围与已知 Mars 坐标失败见[验证入口与边界](shared-single-model-prediction.md#验证入口与边界)。
 
 科研图导出契约与文件验证为 `tests/test_research_export.py`，Earth 三小时路由另核对第 24 步导出无再次推理、DU 值与 UTC 时间。前端测试为 `frontend/src/pages/PredictPage/researchExportModel.test.js`。合成布局样例脚本位于 `scripts/audit/research-export/generate-fixtures.py`，输出目录设在仓库外；命令与验证边界见[科研图导出](research-figure-export.md)。
 
@@ -16,7 +16,7 @@ NetCDF 并发读锁由 `tests/test_netcdf_read_lock_contract.py` 覆盖：断言
 
 预测体积缓存由 `tests/test_prediction_volume_cache.py` 覆盖：断言 `return_scaled_volume` 切窗与逐样本展开路径逐元素一致（bitwise）、测试集分区滑窗与展开切片一致、第二次调用命中缓存返回同一对象、文件变化后缓存签名失效。`tests/test_uploaded_model_ls_inference.py` 的夹具已改为按 `ScaledVolume` 提供数据，继续断言各上传推理路径收到的 Ls 与历史窗口一致。
 
-Mars 检查点通道契约回归见 `tests/test_mars_checkpoint.py`：覆盖无辅助输入、U、U/V 与 U/V/T，实际运行官方及上传模型 runner，校验完整通道顺序、统计量数量与数值，并验证两条预测数据路径应用检查点统计量及缓存隔离。需从 `AresVision_backend/backend/` 用项目规定的 AresVision conda 解释器执行 `-m pytest tests/test_mars_checkpoint.py`，临时目录使用新的纯英文路径。
+Mars 检查点通道契约回归见 `tests/test_mars_checkpoint.py`：覆盖无辅助输入、U、U/V 与 U/V/T，实际运行官方及上传模型 runner，校验完整通道顺序、统计量数量与数值，并验证两条预测数据路径应用检查点统计量及缓存隔离。需从 `AstraAtmos_backend/backend/` 用项目规定的 工作区约定的 Conda 解释器执行 `-m pytest tests/test_mars_checkpoint.py`，临时目录使用新的纯英文路径。
 
 OpenMARS 年份边界回归见 `tests/test_openmars_year_boundaries.py`，覆盖单文件 Ls 回绕、多文件的全局/文件内 segment 索引、完整输入与目标窗口归属、真实 block 定位、三条预测路径以及 OpenMARS 缓存策略隔离；本地存在跨年原始文件时还会只读取 Ls 与字段形状作轻量检查。需同时运行 `tests/test_mars_ls_window.py` 和 `tests/test_training_dataset_loader.py`，核对周期定位与原始 MCD 加载行为。
 
@@ -30,4 +30,4 @@ Mars 坐标回归见 `tests/test_mars_prediction_coordinates.py`：以北高南�
 
 三小时历史回测测试为 `tests/test_earth_3hourly_prediction_time.py`、`tests/test_earth_3hourly_prediction_service.py`、`tests/test_earth_3hourly_prediction_routes.py`，覆盖 UTC 时间窗、完整 240×480 场及发布参考值、物理指标、缓存身份、稳定错误码、认证与 Earth/Mars 隔离。六项公式/流式/新旧契约与服务重启恢复由 `tests/test_earth_metrics_v2.py` 验证，官方/上传 71→9 步合成训练和旧产物预测/比较由 `tests/test_earth_metrics_pipeline.py` 验证；前端为 `frontend/src/pages/ModelTrainingPage/earthMetrics.test.js`。使用固定解释器及仓库外新的英文临时目录，详见[指标专题](earth-evaluation-metrics.md)和[三小时回测验证](earth-merra2-3hourly.md#三小时回测验证)。
 
-三小时上传模型契约、隔离 dry-run、任务/源码冻结、训练与严格 checkpoint 重载、历史回测及兼容回归见 `tests/test_earth_3hourly_uploaded.py` 和 `tests/test_earth_topography*.py`；真实地形集成冒烟脚本为 `scripts/smoke_earth_topography.py`，须明确指定新的仓库外输出目录。完整包只读集成见 `tests/test_earth_3hourly_uploaded_readonly.py`，须显式设置 `ARESVISION_TEST_EARTH_3HOURLY_PACKAGE`。本轮真实冒烟只读原发布包并创建三天独立子包，不训练完整两年或评价预测精度。
+三小时上传模型契约、隔离 dry-run、任务/源码冻结、训练与严格 checkpoint 重载、历史回测及兼容回归见 `tests/test_earth_3hourly_uploaded.py` 和 `tests/test_earth_topography*.py`；真实地形集成冒烟脚本为 `scripts/smoke_earth_topography.py`，须明确指定新的仓库外输出目录。完整包只读集成见 `tests/test_earth_3hourly_uploaded_readonly.py`，须显式设置 `ASTRAATMOS_TEST_EARTH_3HOURLY_PACKAGE`。本轮真实冒烟只读原发布包并创建三天独立子包，不训练完整两年或评价预测精度。

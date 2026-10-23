@@ -74,7 +74,7 @@ complete model input order is `["O3", *selected_channels]`: selecting no auxilia
 still supplies one O3 channel, and selecting U supplies `["O3", "U"]`.
 
 Both the official `demo3.py` runner and uploaded `user_model_runner.py` runner save
-the shared `aresvision_mars_forecast_checkpoint_v1` contract. The checkpoint retains
+the shared `astraatmos_mars_forecast_checkpoint_v1` contract. The checkpoint retains
 auxiliary-only `training_contract.selected_channels`, while
 `normalization.input_channel_order` records the complete order. `input_mean`,
 `input_scale`, and `constant_channel_mask` each have one entry per input channel;

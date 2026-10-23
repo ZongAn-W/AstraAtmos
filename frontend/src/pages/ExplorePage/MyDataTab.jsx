@@ -1413,7 +1413,7 @@ export default function MyDataTab({ reviewSignal = 0 }) {
     setUploadPhase('uploading');
     setUploadResult(null);
 
-    const token = localStorage.getItem('aresvision_token');
+    const token = localStorage.getItem('astraatmos_token');
     const formData = new FormData();
     formData.append('file', file);
 

@@ -1,6 +1,6 @@
 # Earth 训练提速
 
-实现入口为 [Earth runner](../AresVision_backend/backend/models/training_scripts/earth_daily.py)、[窗口读取](../AresVision_backend/backend/services/earth_dataset.py)和 [36×72 共享门控优化模板](earth-3hourly-5deg-shared-topography-model-template.py)。优化保持请求的 window/horizon、变量、batch 和网络参数尺寸；不会把 20→20 改成短窗口。CPU 继续使用 FP32，Mars runner 不变。
+实现入口为 [Earth runner](../AstraAtmos_backend/backend/models/training_scripts/earth_daily.py)、[窗口读取](../AstraAtmos_backend/backend/services/earth_dataset.py)和 [36×72 共享门控优化模板](earth-3hourly-5deg-shared-topography-model-template.py)。优化保持请求的 window/horizon、变量、batch 和网络参数尺寸；不会把 20→20 改成短窗口。CPU 继续使用 FP32，Mars runner 不变。
 
 ## Runner
 
@@ -13,8 +13,8 @@
 
 | 变量 | 默认 | 含义 |
 | --- | --- | --- |
-| `ARESVISION_EARTH_AMP` | `1` | `0` / `false` / `no` / `off` 关闭 autocast，TF32 和 cuDNN 调优仍启用 |
-| `ARESVISION_EARTH_PREFETCH` | `1` | 同样的关闭值禁用批次预取 |
+| `ASTRAATMOS_EARTH_AMP` | `1` | `0` / `false` / `no` / `off` 关闭 autocast，TF32 和 cuDNN 调优仍启用 |
+| `ASTRAATMOS_EARTH_PREFETCH` | `1` | 同样的关闭值禁用批次预取 |
 
 checkpoint 的 `run.acceleration` 记录 AMP dtype、TF32 和 cuDNN 设置，`run.amp_skipped_optimizer_steps` 记录溢出跳步数，`run.saved_metrics_precision=float32` 和 `run.saved_metrics_cudnn_deterministic` 标明最终评价精度与卷积设置。外部上传契约仍要求 float32 输入输出；仅 CUDA autocast 调用允许模型内部返回 FP16/BF16，再在契约边界转为 FP32，CPU/常规调用仍拒绝错误 dtype。NaN/Inf、损失、梯度与契约检查保留。
 

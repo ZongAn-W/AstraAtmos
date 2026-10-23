@@ -47,7 +47,7 @@
 | 数据集 ID / 版本 | `earth_merra2_daily_v2` / `v2`（`earth_merra2_daily_v1` / `v1` 为保留身份） |
 | 训练脚本 | 服务端固定 `models/training_scripts/earth_daily.py`，客户端不能指定 |
 | 模型来源 | `official`（官方 DLinear）或 `uploaded`（用户上传模型，须通过 Earth 兼容校验） |
-| 架构 | 官方 `dlinear`（`implementation_id = aresvision_gridpoint_dlinear_v1`）；上传模型记为 `uploaded`，实际代码由 checkpoint 固定的模型引用决定 |
+| 架构 | 官方 `dlinear`（`implementation_id = astraatmos_gridpoint_dlinear_v1`）；上传模型记为 `uploaded`，实际代码由 checkpoint 固定的模型引用决定 |
 | 输入 / 输出 | 窗口 7 天、步长 3 天，一次输出三天，不做递归滚动 |
 | 上传模型张量契约 | 输入 `[B, 7, C, 36, 72]`，输出 `[B, 3, 1, 36, 72]`（C = 实际选用通道数） |
 | 通道顺序 | `TO3` 固定第一，其后按 `U10M, V10M, T2M, SWGDN`；请求顺序不影响模型顺序 |
@@ -111,9 +111,9 @@
 
 同一训练接口选择 `dataset_id=earth_merra2_3hourly_v1` 后，服务端 profile 为三小时 UTC、任务配置的 window/horizon（默认 56→24）、240×480 全球网格。TO3 必选，四个辅助输入可选，通道顺序固定；目标仅 TO3，单位 DU。支持官方 DLinear 及独立 v1/v2 契约上传模型，创建任务前校验保存的兼容报告、参数 schema、batch 范围及分区长度；上传模型冻结源码/schema/参数后直接排队，不运行实际配置 dry-run，不调用日频上传兼容门或降级模型。上传/手动重新校验的 dry-run、实际训练输出/梯度检查及完成前严格重载保留。
 
-新任务按原始时间轴比例划分后各自独立切窗，完整两年默认 70/20/10 和 56→24 对应 4094/1169/585 步、4015/1090/506 个窗口。无新策略的旧任务仍按 manifest，分别为 2928/1448/1472 步、2849/1369/1393 个窗口。归一化只扫描当前任务 train，逐通道最多 8 步，以 float64 合并统计量；选中通道的缺失显式拒绝。分块生成 normalized float32 磁盘内存映射后按需读取窗口与 24×48 空间块，避免压缩整场反复解压；每个窗口 100 块，`batch_size` 以块为单位，checkpoint 仍绑定完整 240×480 网格。缓存按源数据、实际 train 边界、通道、归一化内容和布局复用，任务的窗口索引和 checkpoint 仍严格保存自己的完整划分；准备日志显示验证/统计量/缓存的命中或生成、进度及耗时，见[训练准备缓存](earth-preparation-cache.md)。缓存通过 `ARESVISION_EARTH_TRAINING_CACHE_DIR` 配置，默认位于 Git checkout 外的工作区父级，完整五通道约 12.55 GiB；全图与分块布局分别使用 `earth_full_grid_v1` 和 `earth_spatial_tiles_v1`，未认证/损坏/中断缓存不得挂载。
+新任务按原始时间轴比例划分后各自独立切窗，完整两年默认 70/20/10 和 56→24 对应 4094/1169/585 步、4015/1090/506 个窗口。无新策略的旧任务仍按 manifest，分别为 2928/1448/1472 步、2849/1369/1393 个窗口。归一化只扫描当前任务 train，逐通道最多 8 步，以 float64 合并统计量；选中通道的缺失显式拒绝。分块生成 normalized float32 磁盘内存映射后按需读取窗口与 24×48 空间块，避免压缩整场反复解压；每个窗口 100 块，`batch_size` 以块为单位，checkpoint 仍绑定完整 240×480 网格。缓存按源数据、实际 train 边界、通道、归一化内容和布局复用，任务的窗口索引和 checkpoint 仍严格保存自己的完整划分；准备日志显示验证/统计量/缓存的命中或生成、进度及耗时，见[训练准备缓存](earth-preparation-cache.md)。缓存通过 `ASTRAATMOS_EARTH_TRAINING_CACHE_DIR` 配置，默认位于 Git checkout 外的工作区父级，完整五通道约 12.55 GiB；全图与分块布局分别使用 `earth_full_grid_v1` 和 `earth_spatial_tiles_v1`，未认证/损坏/中断缓存不得挂载。
 
-三小时 checkpoint schema 为 `aresvision_earth_forecast_checkpoint_3hourly_v1`，实现 ID 为 `aresvision_gridpoint_dlinear_3hourly_v1`。保存 window/horizon、hour/step=3、UTC、区间中心规则和 90 分钟中心偏移（01:30…22:30）、完整网格、通道/单位、独立任务分区策略与边界、训练期 normalization、发布 snapshot/SHA/fingerprint 和任务身份；日频 checkpoint 不能加载到三小时任务。验证/测试保存总体、任务 horizon 个 lead step 及累计时长的六项指标（指标 schema v2，单位与公式策略逐项保存），默认 24 步为 3…72 小时和累计前 24/48/72 小时。v1 指标 checkpoint 保持只读兼容；[评价专题](earth-evaluation-metrics.md)定义公式和门禁。
+三小时 checkpoint schema 为 `astraatmos_earth_forecast_checkpoint_3hourly_v1`，实现 ID 为 `astraatmos_gridpoint_dlinear_3hourly_v1`。保存 window/horizon、hour/step=3、UTC、区间中心规则和 90 分钟中心偏移（01:30…22:30）、完整网格、通道/单位、独立任务分区策略与边界、训练期 normalization、发布 snapshot/SHA/fingerprint 和任务身份；日频 checkpoint 不能加载到三小时任务。验证/测试保存总体、任务 horizon 个 lead step 及累计时长的六项指标（指标 schema v2，单位与公式策略逐项保存），默认 24 步为 3…72 小时和累计前 24/48/72 小时。v1 指标 checkpoint 保持只读兼容；[评价专题](earth-evaluation-metrics.md)定义公式和门禁。
 
 历史 smoke 使用合成 30 天/240 步，测试专用连续 split 各 10 天、各 1 个时间窗口；五通道 CPU 训练 1 epoch，最终内存映射版本严格重载通过。当前另有真实地形冒烟：从完整 MERRA-2 发布只读创建三天仓库外子包，v1/v2 各以 7→1、1 epoch CPU 完成上传校验、训练、严格重载、历史预测和诊断；这验证真实数据读取与地形消费，不代表完整两年训练或精度验收。命令见[三小时训练验证](earth-merra2-3hourly.md#官方-dlinear-后端训练)和[Earth 地形资产](earth-topography-asset.md)。
 
@@ -176,13 +176,13 @@
 ## 服务端执行与产物
 
 1. 父进程在**任何数据库写入、上传模型加载或子进程调度之前**解析数据集身份、校验配置支持性与参数，并构造绑定（`dataset_identity_status = verified`）。
-2. 任务行 flush 后生成内部 spec（`earth_training_spec_v1`：任务 ID、五列绑定、规范超参数），通过环境变量 `ARESVISION_EARTH_TRAINING_SPEC` 传给子进程。子进程只接收 `--output_path`，身份与快照从不作为命令行参数。
+2. 任务行 flush 后生成内部 spec（`earth_training_spec_v1`：任务 ID、五列绑定、规范超参数），通过环境变量 `ASTRAATMOS_EARTH_TRAINING_SPEC` 传给子进程。子进程只接收 `--output_path`，身份与快照从不作为命令行参数。
 3. 子进程重新校验 spec 与实际快照身份，用训练期统计量构建三份窗口，训练官方 DLinear（Adam + 标准化空间 MSE），按 validation 选择最佳 epoch，恢复最佳权重后评估 validation 与 test。
 4. 产物先写同目录临时文件，严格重载并比对同输入输出，全部通过才原子替换为最终 `.pth`。
 5. 父进程在**标记 completed 之前**再次 CPU 严格重载：校验 schema、字段、通道顺序、网格、窗口、归一化、指标与任务身份；成功才写 `completed`，并把 checkpoint 里的 DU 指标直接写入任务 `metrics`（不从日志正则凑另一套）。
 6. 用户停止后到达的 exit 0 完成回调不会把任务改成 completed；保持既有的 `failed` + `Stopped by user` 约定。
 
-日频 checkpoint 继续使用单文件 `aresvision_earth_forecast_checkpoint_v1`，三小时使用独立的 `aresvision_earth_forecast_checkpoint_3hourly_v1`；均包含 `model_state_dict`、`model_config`、`dataset_binding`、`training_contract`、`normalization`、`run`、`metrics`，只保存张量与 `weights_only=True` 可读的普通类型。加载校验 dataset_id 与时间契约，不能跨日频/三小时绑定。
+日频 checkpoint 继续使用单文件 `astraatmos_earth_forecast_checkpoint_v1`，三小时使用独立的 `astraatmos_earth_forecast_checkpoint_3hourly_v1`；均包含 `model_state_dict`、`model_config`、`dataset_binding`、`training_contract`、`normalization`、`run`、`metrics`，只保存张量与 `weights_only=True` 可读的普通类型。加载校验 dataset_id 与时间契约，不能跨日频/三小时绑定。
 
 ## 日频历史预测（历史资料，已停用）
 
@@ -289,7 +289,7 @@ context 返回 datetime 可选范围、数量、完整时间戳数组和 hour/st
 - 火星推理的所有入口（`predict_task`、metrics/comparison/error-distribution/PFI、`get_test_results`）在**用户访问检查之后、火星数据准备与缓存访问之前**调用 `require_mars_prediction_task()`，拒绝 Earth 任务。
 - 训练 `action=test` 按任务行星分流；Earth 使用专用诊断，Mars 保留原有推理数据环境和测试行为。
 - 火星迁移在读取来源任务后、加载权重前拒绝 Earth 来源。
-- 上传权重校验识别日频 `aresvision_earth_forecast_checkpoint_v1` 和三小时 `aresvision_earth_forecast_checkpoint_3hourly_v1`，返回明确不兼容并记录为 `invalid`，不会抽取其 `state_dict` 冒充火星权重。
+- 上传权重校验识别日频 `astraatmos_earth_forecast_checkpoint_v1` 和三小时 `astraatmos_earth_forecast_checkpoint_3hourly_v1`，返回明确不兼容并记录为 `invalid`，不会抽取其 `state_dict` 冒充火星权重。
 - 前端 Earth 结果身份以 `planet:earth` 开头，包含数据集 ID/版本/指纹、任务、预测起点和全部目标时间戳，与火星键互不命中。切换行星、任务、起点或账号取消旧请求并清空结果和全屏；Earth 回包还须匹配冻结的账号作用域、任务、起点、完整 window/horizon、模型身份、数据身份和真实坐标。
 
 ## 前端
@@ -305,11 +305,11 @@ context 返回 datetime 可选范围、数量、完整时间戳数组和 hour/st
 
 ## 日频历史验证入口（当前不能运行）
 
-后端从 `AresVision_backend/backend/` 执行，使用 `AresVision` conda 环境，并为 Windows NetCDF 测试指定新的纯英文临时目录：
+后端从 `AstraAtmos_backend/backend/` 执行，使用 `AstraAtmos` conda 环境，并为 Windows NetCDF 测试指定新的纯英文临时目录：
 
 ```powershell
-$earthTrainingTemp = Join-Path 'D:\_Aresvision' ('.earth-training-test-' + [guid]::NewGuid().ToString('N'))
-conda run -n AresVision python -m pytest `
+$earthTrainingTemp = Join-Path $env:TEMP ('.earth-training-test-' + [guid]::NewGuid().ToString('N'))
+& "$env:CONDA_PREFIX\python.exe" -m pytest `
   tests/test_earth_training_contract.py tests/test_earth_training_data.py `
   tests/test_earth_dlinear.py tests/test_earth_training_artifact.py `
   tests/test_earth_training_runner.py tests/test_earth_training_service.py `
@@ -323,7 +323,7 @@ conda run -n AresVision python -m pytest `
 真实端到端验收（需要后端运行在 8000 端口）：
 
 ```powershell
-conda run -n AresVision python scripts\audit\earth-training-acceptance.py
+& "$env:CONDA_PREFIX\python.exe" scripts\audit\earth-training-acceptance.py
 ```
 
 脚本只使用公开 HTTP 接口：登录 → 读目录 → 启动真实训练 → 轮询到结束 → 读可选起点 → 运行历史预测 → 校验三天 DU 场/日期/网格/指标 → 逐条验证错误码。
@@ -332,7 +332,7 @@ conda run -n AresVision python scripts\audit\earth-training-acceptance.py
 
 ## 日频后续设计（历史资料）
 
-第四步及以后可直接读取 `aresvision_earth_forecast_checkpoint_v1`，用保存的 `model_config` / `input_channel_order` / `normalization` / grid / splits 重建模型。未来比较身份至少包含 `planet`、`dataset_id`、`version`、`fingerprint`、`target`、`horizon`、测试起点集合与指标 aggregation；持久性基线与无参考真值外推须复用同样窗口、目标日期与单位。
+第四步及以后可直接读取 `astraatmos_earth_forecast_checkpoint_v1`，用保存的 `model_config` / `input_channel_order` / `normalization` / grid / splits 重建模型。未来比较身份至少包含 `planet`、`dataset_id`、`version`、`fingerprint`、`target`、`horizon`、测试起点集合与指标 aggregation；持久性基线与无参考真值外推须复用同样窗口、目标日期与单位。
 ## 任务分区与发布 split
 
 新三小时官方/上传任务统一使用 `earth_raw_utc_timeline_v1`，比例针对完整原始时间轴，采用向下取整、最大余数（同余数按 train/validation/test）确定步数。各分区独立生成窗口，完整输入与目标不跨界；每区至少 window+horizon 步，否则创建前返回 422。normalization 仅拟合当前任务 train，并保存策略与实际边界用于缓存及严格重载。

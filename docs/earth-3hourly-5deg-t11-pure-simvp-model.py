@@ -38,7 +38,7 @@ MODEL_SPEC = {
     },
     "datasets": {
         "earth_merra2_3hourly_5deg_v1": {
-            "schema": "aresvision_earth_3hourly_5deg_model_v1",
+            "schema": "astraatmos_earth_3hourly_5deg_model_v1",
             "frequency_hours": 3,
             "step_unit": "hour",
             "step": 3,
@@ -239,7 +239,7 @@ def build_model(config):
     values = dict(config)
     expected_contract = {
         "dataset_id": "earth_merra2_3hourly_5deg_v1",
-        "contract_schema": "aresvision_earth_3hourly_5deg_model_v1",
+        "contract_schema": "astraatmos_earth_3hourly_5deg_model_v1",
         "height": 36,
         "width": 72,
         "global_grid_shape": [36, 72],

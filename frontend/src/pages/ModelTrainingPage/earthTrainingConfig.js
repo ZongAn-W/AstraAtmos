@@ -22,9 +22,9 @@ import { isUploadedModelValidationTimeout, UPLOADED_MODEL_VALIDATION_TIMEOUT } f
 export const EARTH_3HOURLY_DATASET_ID = TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1;
 export const EARTH_3HOURLY_5DEG_DATASET_ID = TRAINING_DATASET_EARTH_MERRA2_3HOURLY_5DEG_V1;
 export const EARTH_DATASET_ID = EARTH_3HOURLY_DATASET_ID;
-export const EARTH_3HOURLY_UPLOAD_SCHEMA = 'aresvision_earth_3hourly_uploaded_model_v1';
-export const EARTH_3HOURLY_5DEG_SCHEMA = 'aresvision_earth_3hourly_5deg_model_v1';
-export const EARTH_3HOURLY_FULL_GRID_SCHEMA = 'aresvision_earth_3hourly_fullgrid_model_v2';
+export const EARTH_3HOURLY_UPLOAD_SCHEMA = 'astraatmos_earth_3hourly_uploaded_model_v1';
+export const EARTH_3HOURLY_5DEG_SCHEMA = 'astraatmos_earth_3hourly_5deg_model_v1';
+export const EARTH_3HOURLY_FULL_GRID_SCHEMA = 'astraatmos_earth_3hourly_fullgrid_model_v2';
 export const EARTH_MODEL_ARCHITECTURE = 'dlinear';
 /** 上传模型的架构标记；真正的代码由服务端固定的模型引用决定。 */
 export const EARTH_UPLOADED_ARCHITECTURE = 'uploaded';

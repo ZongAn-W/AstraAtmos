@@ -12,7 +12,7 @@
 
 ## 1. 范围、前置依赖和工作区规则
 
-项目为 `D:\_Aresvision\Aresvision`。所有源码路径均相对该目录；后端简称路径以 `AresVision_backend/backend/` 为前缀。此文档属于项目功能设计，保存到未被 Git 忽略的 `docs/plans/`。
+项目为 `AstraAtmos`。所有源码路径均相对该目录；后端简称路径以 `AstraAtmos_backend/backend/` 为前缀。此文档属于项目功能设计，保存到未被 Git 忽略的 `docs/plans/`。
 
 执行前阅读父目录 `AGENTS.md`，以及 [README](../../README.md) 的“快速接手”“模块与代码入口”“关键业务链路”“当前功能边界”“README 维护约定”。禁止批量删除或递归清理文件，不通过其他脚本语言绕过该约定。
 
@@ -108,16 +108,16 @@ flowchart LR
 
 | 动作 | 路径 | 职责 |
 | --- | --- | --- |
-| 修改 | `AresVision_backend/backend/services/earth_dataset_metadata.py` | 产出已验证 release snapshot，原 metadata 函数保持兼容 |
-| 修改 | `AresVision_backend/backend/services/dataset_registry.py` | 唯一发布校验/快照缓存入口，新增受控 snapshot 方法 |
-| 新增 | `AresVision_backend/backend/services/earth_overview_service.py` | 日期/变量/点位校验，场、点序列、区域加权均值 |
-| 新增 | `AresVision_backend/backend/schemas/earth_overview.py` | 三种响应，有限浮点及日期/坐标契约 |
-| 新增 | `AresVision_backend/backend/routers/earth_overview.py` | 三个 GET 接口和稳定错误映射 |
-| 修改 | `AresVision_backend/backend/main.py` | 装配 service、挂载路由 |
-| 扩展 | `AresVision_backend/backend/tests/conftest.py` | 独立 `earth_spatial_release` fixture，保留旧 fixture 值不变 |
-| 新增 | `AresVision_backend/backend/tests/test_earth_overview_service.py` | 数值、日期、坐标、缓存变化行为 |
-| 新增 | `AresVision_backend/backend/tests/test_earth_overview_routes.py` | API 形状、错误、身份和拒绝场景 |
-| 修改 | `AresVision_backend/backend/tests/test_dataset_registry.py`、`test_dataset_routes.py` | 新 snapshot 生命周期、capability 更新 |
+| 修改 | `AstraAtmos_backend/backend/services/earth_dataset_metadata.py` | 产出已验证 release snapshot，原 metadata 函数保持兼容 |
+| 修改 | `AstraAtmos_backend/backend/services/dataset_registry.py` | 唯一发布校验/快照缓存入口，新增受控 snapshot 方法 |
+| 新增 | `AstraAtmos_backend/backend/services/earth_overview_service.py` | 日期/变量/点位校验，场、点序列、区域加权均值 |
+| 新增 | `AstraAtmos_backend/backend/schemas/earth_overview.py` | 三种响应，有限浮点及日期/坐标契约 |
+| 新增 | `AstraAtmos_backend/backend/routers/earth_overview.py` | 三个 GET 接口和稳定错误映射 |
+| 修改 | `AstraAtmos_backend/backend/main.py` | 装配 service、挂载路由 |
+| 扩展 | `AstraAtmos_backend/backend/tests/conftest.py` | 独立 `earth_spatial_release` fixture，保留旧 fixture 值不变 |
+| 新增 | `AstraAtmos_backend/backend/tests/test_earth_overview_service.py` | 数值、日期、坐标、缓存变化行为 |
+| 新增 | `AstraAtmos_backend/backend/tests/test_earth_overview_routes.py` | API 形状、错误、身份和拒绝场景 |
+| 修改 | `AstraAtmos_backend/backend/tests/test_dataset_registry.py`、`test_dataset_routes.py` | 新 snapshot 生命周期、capability 更新 |
 | 新增 | `frontend/src/services/datasets.js`、`datasets.test.js` | 公开元信息/地球总览 API 封装、结构化错误、AbortSignal |
 | 修改 | `frontend/src/pages/DataOverviewPage.jsx` | planet 分支、状态持有、Mars 卸载请求清理；保留现有 Mars 实现所在文件 |
 | 修改 | `frontend/src/pages/DataOverviewPage/SidebarMenu.jsx` | 顶部插槽容纳 planet switch |
@@ -699,7 +699,7 @@ function OverviewSceneContent() {
 - [ ] 原 manifest 固定发布内容不改写，生产 SHA 不变。registry 返回的 limitations 目前包含历史“读取器尚未接注册表”等说明；保留物理数据限制，当前应用能力说明由 registry 生成，不能将旧 manifest capability 文案直接照搬到 UI。添加测试确保 API 不再宣称 Earth 总览未接入。
 - [ ] 新 `docs/earth-overview.md` 写明三个接口、参数/错误、日期和点选语义、区域均值公式、渲染边界、底图来源、可用与未开放功能。
 - [ ] README 同步主要功能、模块入口、业务链路和当前边界；Earth 小包文档和注册表文档更新第二阶段完成状态。原第一阶段验证记录作为历史保留，新增本次实际验证范围，不改写过去测试结果。
-- [ ] 不新增配置或依赖时明确沿用 `ARESVISION_EARTH_MERRA2_DIR`；新增运行命令必须写执行目录。不要在 README 写本机绝对数据路径或暂态分支。
+- [ ] 不新增配置或依赖时明确沿用 `ASTRAATMOS_EARTH_MERRA2_DIR`；新增运行命令必须写执行目录。不要在 README 写本机绝对数据路径或暂态分支。
 
 ### 任务 9：回归、真实值比对和浏览器验收
 
@@ -736,7 +736,7 @@ function OverviewSceneContent() {
 
 ### 后端验证
 
-从 `AresVision_backend/backend/` 执行，使用现有项目 Python。先验证依赖，不无理由安装或切换全局环境。每次使用新的 ASCII 临时目录，不清理已有目录。
+从 `AstraAtmos_backend/backend/` 执行，使用现有项目 Python。先验证依赖，不无理由安装或切换全局环境。每次使用新的 ASCII 临时目录，不清理已有目录。
 
 ```powershell
 $earthOverviewTemp = Join-Path ([IO.Path]::GetTempPath()) ('earth-overview-' + [guid]::NewGuid().ToString('N'))
@@ -839,7 +839,7 @@ print("Verified 45 point values and 15 regional means against local NetCDF")
 ## 9. 可复制到执行对话的指令
 
 ```text
-请实施 D:\_Aresvision\Aresvision\docs\plans\2026-09-23-earth-overview-2d.md。
+请实施 docs\plans\2026-09-23-earth-overview-2d.md。
 
 先阅读 AGENTS.md、README 接手章节和第一步已实现的数据集注册协议，核对 Git 状态；保留当前未提交的第一步修改与 Earth 小包代码。按方案完成第二步“二维地球数据总览”：同一发布身份的只读数据快照、日期场/点序列/区域均值API、火星/地球切换、局部覆盖二维地图、真实日期逐日播放和五变量原始单位展示。
 

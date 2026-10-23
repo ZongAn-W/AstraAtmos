@@ -66,4 +66,4 @@ Earth 诊断缓存是进程内 LRU（8 条 / 16 MiB），键至少包含 task ID
 
 本组散点、残差直方图与 Earth PFI 暂未开放科研图导出。现有 Earth 三联图和多模型 test 曲线仍只消费账号私有的结果快照，导出不重新推理。若后续开放诊断图导出，应消费本次诊断快照，保留抽样范围与 DU PFI 定义；不能套用 Mars 的 ΔR²。
 
-后端回归入口：`tests/test_earth_diagnostics.py`（手算/确定性统计）、`tests/test_earth_diagnostics_routes.py`（权限、分流、参数与协调）、`tests/test_earth_diagnostics_integration.py`（严格产物/数据流）。前端为 `earthDiagnosticsModel.test.js`、`predictionPresentation.test.js` 与 `services/earthDiagnostics.test.js`；展示适配回归覆盖 Earth 六项 DU 指标、Mars 误差显示换算、当前窗口/完整 test/抽样诊断范围、服务端散点配对和直方图计数、ΔRMSE/ΔR² 负值与导出能力。生产构建使用 `npm run build`。从后端目录用项目指定的 AresVision conda 解释器执行 pytest，并使用仓库外新的英文 `--basetemp`。验证使用合成数据及模型，真实两年训练和真实模型精度验收不在此范围。
+后端回归入口：`tests/test_earth_diagnostics.py`（手算/确定性统计）、`tests/test_earth_diagnostics_routes.py`（权限、分流、参数与协调）、`tests/test_earth_diagnostics_integration.py`（严格产物/数据流）。前端为 `earthDiagnosticsModel.test.js`、`predictionPresentation.test.js` 与 `services/earthDiagnostics.test.js`；展示适配回归覆盖 Earth 六项 DU 指标、Mars 误差显示换算、当前窗口/完整 test/抽样诊断范围、服务端散点配对和直方图计数、ΔRMSE/ΔR² 负值与导出能力。生产构建使用 `npm run build`。从后端目录用项目指定的 工作区约定的 Conda 解释器执行 pytest，并使用仓库外新的英文 `--basetemp`。验证使用合成数据及模型，真实两年训练和真实模型精度验收不在此范围。

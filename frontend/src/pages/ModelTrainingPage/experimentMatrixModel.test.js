@@ -66,7 +66,7 @@ test('matrix preference restore filters removed columns and appends newly availa
 
 test('matrix column preferences are scoped by account', () => {
   assert.notEqual(getMatrixStorageKey(101), getMatrixStorageKey(202));
-  assert.equal(getMatrixStorageKey(), 'aresvision_experiment_matrix_columns:guest');
+  assert.equal(getMatrixStorageKey(), 'astraatmos_experiment_matrix_columns:guest');
 });
 
 test('matrix filtering and sorting keep missing values at the end', () => {

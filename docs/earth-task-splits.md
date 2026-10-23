@@ -42,10 +42,10 @@
 
 真正旧三小时任务没有冻结划分、划分策略标记或指标版本/aggregation 标记时，继续按原发布 manifest 的 train/validation/test 解释，包括原有日块边界、normalization 和上传回测限制；比例兼容字段不改变其历史分区。旧 checkpoint 没有独立 run 策略标记仍可读取，单独的 v2 指标 block 不改变 artifact 的历史划分语义；但将其绑定到新任务时必须满足新任务的冻结划分。不自动改写、迁移或重新训练。已有日频 artifact 可保留为历史记录，活动运行入口仍返回 `dataset_retired`。
 
-从 `AresVision_backend/backend` 使用项目 conda `AresVision` 的解释器执行 `python -m pytest tests/test_earth_task_split.py` 及相关三小时训练、上传、预测、队列和停用回归；Windows 的 NetCDF 测试应通过 `--basetemp` 指定一个新的 ASCII 临时路径。从 `frontend` 执行 `node --test` 对应训练页测试和 `npm run build`。
+从 `AstraAtmos_backend/backend` 使用项目 conda `AstraAtmos` 的解释器执行 `python -m pytest tests/test_earth_task_split.py` 及相关三小时训练、上传、预测、队列和停用回归；Windows 的 NetCDF 测试应通过 `--basetemp` 指定一个新的 ASCII 临时路径。从 `frontend` 执行 `node --test` 对应训练页测试和 `npm run build`。
 
 新增回归使用完整 240×480 的合成三小时源：官方/上传模型均执行一轮训练和 strict reload，覆盖自定义比例与非默认输入窗口、原始时间轴覆盖/互斥、非法比例、过短分区、train-only normalization、缓存隔离、队列恢复、旧 manifest checkpoint、预测分区识别及不同 test 范围比较拒绝。未执行真实两年训练，也不将合成链路验证视为真实模型精度验收。
 
 2026-10-08 本轮实际验证：上述后端相关 12 个测试文件合计 **400 passed**（119.52 秒，5 条既有依赖警告），训练页 `node --test src/pages/ModelTrainingPage/*.test.js` 为 **244 passed**，生产构建成功（23.94 秒，既有大 chunk 警告）。隔离浏览器以合成 API 验证可编辑比例、0 验证比例阻塞、Earth/Mars 草稿分别恢复、请求 0–1 载荷、复制配置、实际 UTC/步数/窗口展示，以及详情和矩阵读取保存元数据；启动请求被拦截，未创建真实训练任务。现有服务只读检查 health、前端主页及数据代理均返回 200。
 
-实现入口：[划分策略](../AresVision_backend/backend/services/earth_task_split.py)、[训练 runner](../AresVision_backend/backend/models/training_scripts/earth_daily.py)、[checkpoint](../AresVision_backend/backend/services/earth_training_artifact.py)、[预测与比较](../AresVision_backend/backend/services/earth_prediction_service.py)、[前端配置](../frontend/src/pages/ModelTrainingPage/earthTrainingConfig.js)。
+实现入口：[划分策略](../AstraAtmos_backend/backend/services/earth_task_split.py)、[训练 runner](../AstraAtmos_backend/backend/models/training_scripts/earth_daily.py)、[checkpoint](../AstraAtmos_backend/backend/services/earth_training_artifact.py)、[预测与比较](../AstraAtmos_backend/backend/services/earth_prediction_service.py)、[前端配置](../frontend/src/pages/ModelTrainingPage/earthTrainingConfig.js)。

@@ -23,7 +23,7 @@ MODEL_SPEC = {
     },
     "datasets": {
         "earth_merra2_3hourly_5deg_v1": {
-            "schema": "aresvision_earth_3hourly_5deg_model_v1",
+            "schema": "astraatmos_earth_3hourly_5deg_model_v1",
             "frequency_hours": 3,
             "step_unit": "hour",
             "step": 3,
@@ -213,7 +213,7 @@ def build_model(config):
 
     expected_metadata = {
         "dataset_id": "earth_merra2_3hourly_5deg_v1",
-        "contract_schema": "aresvision_earth_3hourly_5deg_model_v1",
+        "contract_schema": "astraatmos_earth_3hourly_5deg_model_v1",
         "global_grid_shape": [36, 72],
         "spatial_tile_shape": [36, 72],
         "target_channel": "TO3",

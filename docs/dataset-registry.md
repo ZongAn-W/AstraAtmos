@@ -36,10 +36,10 @@
 | --- | --- | --- | --- | --- |
 | `openmars_mcd` | `mars` | `null` | `null` | 现有服务器目录尚无不可变发布版本 |
 | `mcd_overview` | `mars` | `null` | `null` | 同上，与前一来源区分 |
-| `earth_merra2_daily_v1` | `earth` | `v1` | `aresvision_earth_daily_v1` | 保留原 31×49 区域抽样包，原始文件和哈希不变 |
-| `earth_merra2_daily_v2` | `earth` | `v2` | `aresvision_earth_daily_v1` | 归档全球 36×72、5° 单元，运行接口已停用 |
-| `earth_merra2_3hourly_v1` | `earth` | `v1` | `aresvision_earth_3hourly_v1` | 独立全球 240×480、0.75° 单元，三小时 UTC 中心标签，分块校验 |
-| `earth_merra2_3hourly_5deg_v1` | `earth` | `v1` | `aresvision_earth_3hourly_v1` | 独立全球 36×72、5° 三小时训练发布，完整全球窗口 |
+| `earth_merra2_daily_v1` | `earth` | `v1` | `astraatmos_earth_daily_v1` | 保留原 31×49 区域抽样包，原始文件和哈希不变 |
+| `earth_merra2_daily_v2` | `earth` | `v2` | `astraatmos_earth_daily_v1` | 归档全球 36×72、5° 单元，运行接口已停用 |
+| `earth_merra2_3hourly_v1` | `earth` | `v1` | `astraatmos_earth_3hourly_v1` | 独立全球 240×480、0.75° 单元，三小时 UTC 中心标签，分块校验 |
+| `earth_merra2_3hourly_5deg_v1` | `earth` | `v1` | `astraatmos_earth_3hourly_v1` | 独立全球 36×72、5° 三小时训练发布，完整全球窗口 |
 
 - `schema` 是文件格式协议名，不是数据集 ID，也不是数据版本。
 - `manifest_sha256` 指 `manifest.json` **原始字节**的 SHA-256；日频发布继续按其固定原始字节哈希验证。
@@ -83,7 +83,7 @@ GET /api/datasets/{dataset_id}
 
 列表稳定按 `openmars_mcd`、`mcd_overview`、`earth_merra2_3hourly_v1` 顺序返回。活动发布文件缺失仍返回 200 和明确状态，不从列表消失，也不回退旧包。日频详情返回 409 `dataset_retired`；无效查询 ID 返回 404。
 
-`default_earth_dataset_id` 由 `ARESVISION_DEFAULT_EARTH_DATASET_ID` 配置，只接受 `earth_merra2_3hourly_v1`，未设置时也使用该值。开发与生产模板一致，旧日频值会在启动时拒绝。Earth 页面通过该 catalog 字段选择数据集；不会改写旧任务、checkpoint、时间轴或窗口，也不会自动迁移日频模型。三小时包缺失时列表照常返回不可用原因，应用启动本身不依赖该包。
+`default_earth_dataset_id` 由 `ASTRAATMOS_DEFAULT_EARTH_DATASET_ID` 配置，只接受 `earth_merra2_3hourly_v1`，未设置时也使用该值。开发与生产模板一致，旧日频值会在启动时拒绝。Earth 页面通过该 catalog 字段选择数据集；不会改写旧任务、checkpoint、时间轴或窗口，也不会自动迁移日频模型。三小时包缺失时列表照常返回不可用原因，应用启动本身不依赖该包。
 
 `DatasetDescriptor` 字段：
 
@@ -114,7 +114,7 @@ GET /api/datasets/{dataset_id}
   "display_name": "MERRA-2 daily ozone compact v1",
   "planet": "earth",
   "dataset_version": "v1",
-  "schema": "aresvision_earth_daily_v1",
+  "schema": "astraatmos_earth_daily_v1",
   "availability": "available",
   "availability_reason": null,
   "dataset_fingerprint": "74ce14752cb83932b29b458d9c19a61804861c270e6fec33f55316778ad64d31",
@@ -185,10 +185,10 @@ Mars 两个注册项的 `availability=unverified`、`availability_reason=legacy_
 - 日频文件名固定为 `earth_merra2_daily.nc`，三小时固定为 `earth_merra2_3hourly.nc`；不接受客户端路径或任意 manifest 路径。
 - 元数据由文件真实计算得出，不写死 731 天或 31 × 49 来伪造成功。
 - 时间 `calendar` 从解码时间编码读取，只接受 `standard`、`gregorian`、`proleptic_gregorian`；其他日历按 `invalid_dataset` 拒绝，不会标成火星时间。
-- 校验由锁保护，按 ID 缓存描述符及快照，key 绑定两个文件的绝对路径、大小、mtime 和设备/文件 ID/变更时间；Windows 使用 NTFS ChangeTime，不能把创建时间当作变更时间。三小时服务端和训练子进程通过 `ARESVISION_EARTH_TRAINING_CACHE_DIR/verification/` 共享完整校验生成的证明，证明包含验证器版本、原始/canonical manifest SHA、NetCDF SHA、fingerprint 和完整元信息摘要。命中前后复核源身份并重新读取 manifest；证明损坏、版本变化、文件替换或修改均重新完整校验。`get_earth_snapshot(..., force_full=True)` 保留强制完整校验，直接 `read_earth_3hourly_release()` 未指定缓存目录时仍完整扫描，详见[训练准备缓存](earth-preparation-cache.md)。日频保留不可写五场数组，三小时每变量最多扫描 8 步并只缓存元信息/只读坐标；完整体积留在磁盘。三小时未变化的缺失或无效结果也复用，校验中变化的结果不复用。API 返回深拷贝，不允许客户端污染缓存。
+- 校验由锁保护，按 ID 缓存描述符及快照，key 绑定两个文件的绝对路径、大小、mtime 和设备/文件 ID/变更时间；Windows 使用 NTFS ChangeTime，不能把创建时间当作变更时间。三小时服务端和训练子进程通过 `ASTRAATMOS_EARTH_TRAINING_CACHE_DIR/verification/` 共享完整校验生成的证明，证明包含验证器版本、原始/canonical manifest SHA、NetCDF SHA、fingerprint 和完整元信息摘要。命中前后复核源身份并重新读取 manifest；证明损坏、版本变化、文件替换或修改均重新完整校验。`get_earth_snapshot(..., force_full=True)` 保留强制完整校验，直接 `read_earth_3hourly_release()` 未指定缓存目录时仍完整扫描，详见[训练准备缓存](earth-preparation-cache.md)。日频保留不可写五场数组，三小时每变量最多扫描 8 步并只缓存元信息/只读坐标；完整体积留在磁盘。三小时未变化的缺失或无效结果也复用，校验中变化的结果不复用。API 返回深拷贝，不允许客户端污染缓存。
 - 注册表构造不读取文件，首次查询时才校验。
 
-三小时目录配置、训练与 descriptor 示例见 [三小时数据构建与训练](earth-merra2-3hourly.md)；当前完整包共 5848 步，`availability=available`。`ARESVISION_EARTH_MERRA2_3HOURLY_DIR` 不改变日频两个配置项；旧数据库身份迁移、任务 JSON 和 checkpoint 不重写。三小时 binding 保留完整 UTC datetime、网格、发布 split、canonical manifest SHA 与 dataset-selected profile，实际 NetCDF 路径只经过服务端内部 spec，不返回客户端。
+三小时目录配置、训练与 descriptor 示例见 [三小时数据构建与训练](earth-merra2-3hourly.md)；当前完整包共 5848 步，`availability=available`。`ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR` 不改变日频两个配置项；旧数据库身份迁移、任务 JSON 和 checkpoint 不重写。三小时 binding 保留完整 UTC datetime、网格、发布 split、canonical manifest SHA 与 dataset-selected profile，实际 NetCDF 路径只经过服务端内部 spec，不返回客户端。
 
 三小时按 split 独立生成 56→24 窗口，完整两年无缺失发布的 train/validation/test 时间窗口数为 2849/1369/1393；归一化仅扫描 train，每通道最多 8 步。runner 惰性读窗并以 24×48 空间块组批，一个时间窗口有 100 块，`batch_size` 是空间块数。所选通道缺失显式拒绝；checkpoint 使用独立 schema，绑定完整 240×480 网格、UTC 3 小时区间中心规则、通道、normalization 和 fingerprint，不能加载日频 checkpoint；DU 指标含总体、24 个 lead 与累计 24/48/72 小时。
 
@@ -317,10 +317,10 @@ Pydantic 对字段类型的基本校验错误仍使用 422；上表中 400/409 �
 
 | 变量 | 用途 |
 | --- | --- |
-| `ARESVISION_EARTH_MERRA2_DIR` | 覆盖已注册 Earth 小包目录，默认 `data/earth/merra2_daily_v2` |
-| `ARESVISION_EARTH_MERRA2_V1_DIR` | 独立指定旧兼容包目录，默认 `data/earth/merra2_daily_v1` |
-| `ARESVISION_EARTH_MERRA2_3HOURLY_DIR` | 独立三小时发布目录，默认 `data/earth/merra2_3hourly_v1`，不替换日频配置 |
-| `ARESVISION_DEFAULT_EARTH_DATASET_ID` | 开发/生产均为 `earth_merra2_3hourly_v1`；旧日频值须修改或移除，否则启动明确报错 |
+| `ASTRAATMOS_EARTH_MERRA2_DIR` | 覆盖已注册 Earth 小包目录，默认 `data/earth/merra2_daily_v2` |
+| `ASTRAATMOS_EARTH_MERRA2_V1_DIR` | 独立指定旧兼容包目录，默认 `data/earth/merra2_daily_v1` |
+| `ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR` | 独立三小时发布目录，默认 `data/earth/merra2_3hourly_v1`，不替换日频配置 |
+| `ASTRAATMOS_DEFAULT_EARTH_DATASET_ID` | 开发/生产均为 `earth_merra2_3hourly_v1`；旧日频值须修改或移除，否则启动明确报错 |
 
 日频 v1/v2 与三小时身份均不按请求互相映射。
 
@@ -328,10 +328,10 @@ Pydantic 对字段类型的基本校验错误仍使用 422；上表中 400/409 �
 
 ## 手工验证
 
-从后端目录（`AresVision_backend/backend/`）执行；真实小包只读校验不需要启动完整应用：
+从后端目录（`AstraAtmos_backend/backend/`）执行；真实小包只读校验不需要启动完整应用：
 
 ```powershell
-conda run -n AresVision python -B -c "from config import EARTH_MERRA2_DIR, EARTH_MERRA2_V1_DIR, EARTH_MERRA2_3HOURLY_DIR; from services.dataset_registry import DatasetRegistry; r = DatasetRegistry(EARTH_MERRA2_DIR, earth_dataset_id='earth_merra2_daily_v2', legacy_earth_package_dir=EARTH_MERRA2_V1_DIR, earth_3hourly_package_dir=EARTH_MERRA2_3HOURLY_DIR).get_dataset('earth_merra2_3hourly_v1'); print(r['availability'], r['frequency_hours'], r['grid_shape'], r['dataset_fingerprint'])"
+& "$env:CONDA_PREFIX\python.exe" -B -c "from config import EARTH_MERRA2_DIR, EARTH_MERRA2_V1_DIR, EARTH_MERRA2_3HOURLY_DIR; from services.dataset_registry import DatasetRegistry; r = DatasetRegistry(EARTH_MERRA2_DIR, earth_dataset_id='earth_merra2_daily_v2', legacy_earth_package_dir=EARTH_MERRA2_V1_DIR, earth_3hourly_package_dir=EARTH_MERRA2_3HOURLY_DIR).get_dataset('earth_merra2_3hourly_v1'); print(r['availability'], r['frequency_hours'], r['grid_shape'], r['dataset_fingerprint'])"
 ```
 
 回归测试（使用新的纯英文临时目录）：
@@ -341,8 +341,8 @@ $datasetTests = @('tests/test_dataset_identity.py', 'tests/test_dataset_registry
   'tests/test_training_dataset_identity_migration.py', 'tests/test_training_dataset_identity.py',
   'tests/test_earth_3hourly_registry.py', 'tests/test_earth_3hourly_data_contract.py')
 foreach ($datasetTest in $datasetTests) {
-  $datasetTestTemp = Join-Path 'D:\_Aresvision' ('.dataset-registry-test-' + [guid]::NewGuid().ToString('N'))
-  conda run -n AresVision python -B -m pytest $datasetTest `
+  $datasetTestTemp = Join-Path $env:TEMP ('.dataset-registry-test-' + [guid]::NewGuid().ToString('N'))
+  & "$env:CONDA_PREFIX\python.exe" -B -m pytest $datasetTest `
     -q --basetemp "$datasetTestTemp" -p no:cacheprovider
   if ($LASTEXITCODE -ne 0) { throw "Dataset regression failed: $datasetTest" }
 }
@@ -362,7 +362,7 @@ foreach ($datasetTest in $datasetTests) {
 
 ## v1 历史验证记录（不代表 v2 验收）
 
-2026-09-23 使用 conda 环境 `AresVision` 的解释器在本地执行：
+2026-09-23 使用 conda 环境 `AstraAtmos` 的解释器在本地执行：
 
 - 本地固定小包只读校验（当时训练入口尚未开放，故记录 `capabilities.training=false`）：`availability=available`、731 天、31 × 49、步长 4°/5°、`wrap_longitude=false`、`TO3` 单位为 `DU`；两个实际 SHA 与上表发布定义一致。
 - 新增测试全部通过：`tests/test_dataset_identity.py`（44）、`tests/test_dataset_registry.py`、`tests/test_dataset_routes.py`、`tests/test_training_dataset_identity_migration.py`（9）、`tests/test_training_dataset_identity.py`（41，含 HTTP 请求到数据库的集成用例）。
@@ -373,4 +373,4 @@ foreach ($datasetTest in $datasetTests) {
 
 ## 三小时 5° 训练发布
 
-`earth_merra2_3hourly_5deg_v1` 为新增活动身份，schema 仍为 `aresvision_earth_3hourly_v1`，网格固定 36×72、全球 5°，原三小时时间轴不变。注册表严格拒绝两个空间发布路径互换；新条目提供 training/trained_prediction，web_overview=false。任务、缓存和 checkpoint 使用独立 ID/发布指纹，默认总览仍为 0.75°。构建、上传契约和配置见 [5° 专题](earth-merra2-5deg.md)。
+`earth_merra2_3hourly_5deg_v1` 为新增活动身份，schema 仍为 `astraatmos_earth_3hourly_v1`，网格固定 36×72、全球 5°，原三小时时间轴不变。注册表严格拒绝两个空间发布路径互换；新条目提供 training/trained_prediction，web_overview=false。任务、缓存和 checkpoint 使用独立 ID/发布指纹，默认总览仍为 0.75°。构建、上传契约和配置见 [5° 专题](earth-merra2-5deg.md)。

@@ -20,15 +20,15 @@
 
 ## 执行
 
-工作目录为 `AresVision_backend/backend`，使用部署中 `AresVision` conda 环境的 Python。先审计（默认只读）：
+工作目录为 `AstraAtmos_backend/backend`，使用部署中 `AstraAtmos` conda 环境的 Python。先审计（默认只读）：
 
 ```powershell
-& '<AresVision-conda-python.exe>' scripts/recover_earth_metrics_task.py --task-id <id> --checkpoint-sha256 <sha256>
+& '<AstraAtmos-conda-python.exe>' scripts/recover_earth_metrics_task.py --task-id <id> --checkpoint-sha256 <sha256>
 ```
 
-显式写入时加 `--apply`；写入模式会重新执行完整只读验证后备份并迁移，不信任上一次审计结果。默认数据库为配置 DATA_DIR 下的 `aresvision.db`，默认发布目录来自 `ARESVISION_EARTH_MERRA2_3HOURLY_DIR`；独立副本可通过 `--database`、`--package-dir`、`--audit-root` 指定。不要对运行中的任务调用，也不要用恢复工具补造不完整指标。
+显式写入时加 `--apply`；写入模式会重新执行完整只读验证后备份并迁移，不信任上一次审计结果。默认数据库为配置 DATA_DIR 下的 `astraatmos.db`，默认发布目录来自 `ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR`；独立副本可通过 `--database`、`--package-dir`、`--audit-root` 指定。不要对运行中的任务调用，也不要用恢复工具补造不完整指标。
 
-实现：[恢复门禁与事务](../AresVision_backend/backend/services/earth_training_recovery.py)、[命令行入口](../AresVision_backend/backend/scripts/recover_earth_metrics_task.py)。合成回归入口为 `tests/test_earth_training_recovery.py`；契约链路回归为 `test_earth_metrics_execution_contract.py` 与 `test_earth_metrics_task_contract.py`。
+实现：[恢复门禁与事务](../AstraAtmos_backend/backend/services/earth_training_recovery.py)、[命令行入口](../AstraAtmos_backend/backend/scripts/recover_earth_metrics_task.py)。合成回归入口为 `tests/test_earth_training_recovery.py`；契约链路回归为 `test_earth_metrics_execution_contract.py` 与 `test_earth_metrics_task_contract.py`。
 
 ## 重载超时恢复
 
@@ -39,7 +39,7 @@
 从后端目录执行以下只读审计，`$releaseDirectory` 必须是该任务对应的实际发布目录；5° 任务不能使用 CLI 默认的 0.75° 包。加 `--apply` 会重新验证、备份后执行恢复：
 
 ```powershell
-& '<AresVision-conda-python.exe>' scripts/recover_earth_metrics_task.py `
+& '<AstraAtmos-conda-python.exe>' scripts/recover_earth_metrics_task.py `
   --task-id <id> --checkpoint-sha256 <sha256> `
   --failure-kind reload-timeout --package-dir $releaseDirectory
 ```

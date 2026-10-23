@@ -94,7 +94,7 @@ npx --package @playwright/cli playwright-cli -s=shared-prediction run-code --fil
 
 页面加载生产构建，通过真实组件检查 1440px 桌面和 390px 移动端、深浅主题、4/6 位精度、色带、三联图/单图、时间步、地球地图/火星球面全屏、PFI 与评价范围、任务/行星切换、过期响应拒绝、错误重试及退出登录清理；还检查支持的三联图导出入口、Earth 完整测试集分区行、Mars 重复运行保留完整测试集指标。脚本中的小网格只验证数据配对和交互，不模拟完整 240×480 长 horizon 的传输、解析与绘图成本。
 
-后端从 `AresVision_backend/backend/` 使用工作区规定的 AresVision conda 解释器逐文件执行 `-m pytest`，每次指定仓库外新的英文 `--basetemp`；未标记 async 的已训练模型契约加 `--asyncio-mode=auto`。本轮实际结果如下：
+后端从 `AstraAtmos_backend/backend/` 使用工作区规定的 工作区约定的 Conda 解释器逐文件执行 `-m pytest`，每次指定仓库外新的英文 `--basetemp`；未标记 async 的已训练模型契约加 `--asyncio-mode=auto`。本轮实际结果如下：
 
 | 文件 | 实际结果 |
 | --- | --- |
@@ -119,6 +119,6 @@ npx --package @playwright/cli playwright-cli -s=shared-prediction run-code --fil
 
 浏览器侧用一个独立合成驱动核对：设备为 1440px 与 390px，Earth 与 Mars 各一张截图，**18 项检查通过、0 运行时错误**，覆盖「不再出现生成预测按钮」「不再出现刷新起点范围」「无引言标题」「上下文块/起点说明行/参考场说明均不存在」「保留逐步与累计窗口指标表」「完整测试集分区行等于 checkpoint 绑定」「三联图顺序与六项指标不变」「390px 无横向溢出」「Mars 仍为开始预测」。仓库自带的 `scripts/audit/shared-prediction/browser-check.js` 在本机缺少其期望的 Chromium 修订（缓存为 1243，CLI 要求 1247），且其语言切换步骤在未改动的树上同样超时，因此本轮以独立驱动为准；该脚本的 Earth 固定数据与断言已同步更新（补 `latitude_range`/`longitude_range`、发布分区绑定与分区行断言）。
 
-运行验证：后端 `run_backend.py`（AresVision conda 解释器）+ `scripts/serve-prod.mjs`（`ROOT=frontend/dist`、`PORT=5173`、`API_PORT=8000`）在服务中，`/health`、`http://127.0.0.1:5173/`、`/api/datasets` 三项 HTTP 200；服务进程与端口属于实时状态，接手时需重新检查。本轮未改动后端代码，未执行真实训练或真实预测精度验收。
+运行验证：后端 `run_backend.py`（工作区约定的 Conda 解释器）+ `scripts/serve-prod.mjs`（`ROOT=frontend/dist`、`PORT=5173`、`API_PORT=8000`）在服务中，`/health`、`http://127.0.0.1:5173/`、`/api/datasets` 三项 HTTP 200；服务进程与端口属于实时状态，接手时需重新检查。本轮未改动后端代码，未执行真实训练或真实预测精度验收。
 
 同一轮收口了 Earth 手动诊断面板（触发方式按既有约定保持手动）：`EarthDiagnosticPanel` 的文案迁到 `predict.earthDiagnostics.*`（zh/en 同名键），标题层级改用共用的 `prediction-chart-title` / `prediction-chart-subtitle`，面板外壳改用共用的 `prediction-panel`，未再使用的 `.earth-diagnostics-head`、`.earth-diagnostic-metrics`、`.earth-diagnostic-chart-grid`、`.earth-diagnostic-pfi-plot` 样式删除；`PredictMetrics` 新增 `flattened` 选项，避免它自带的面板外壳在诊断卡片内二次套框；PFI 的标题/范围/帮助文本只由共用卡片输出一次。该面板第二个独立合成驱动 **20 项检查通过、0 运行时错误**：进入页面只发 `GET /diagnostics/context`（不发计算请求）、计算按钮与默认参数文案来自 i18n、主标题/副标题使用共用类、无 `h4` 残留、四个子标题与 PFI 表头来自 i18n、`flattened` 后卡片内无嵌套面板、PFI 标题只出现一次、完整测试集与抽样诊断指标块仍分离、诊断科研导出仍未开放、切到英文全部文案随 i18n 变化且不触发重算。

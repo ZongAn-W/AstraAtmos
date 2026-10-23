@@ -8,13 +8,11 @@
   <p><strong>Planetary Atmosphere Prediction & Experiment Platform</strong><br />面向多行星大气数据分析、模型训练与时空预测实验的平台</p>
 </div>
 
-[项目仓库](https://github.com/ZongAn-W/Aresvision) · [自定义模型接入](docs/uploaded-model-training.md) · [Linux 部署](scripts/deploy/README_DEPLOY_CN.md) · [Windows 分发](scripts/release/README_CN.md)
+[项目仓库](https://github.com/ZongAn-W/AstraAtmos) · [自定义模型接入](docs/uploaded-model-training.md) · [Linux 部署](scripts/deploy/README_DEPLOY_CN.md) · [Windows 分发](scripts/release/README_CN.md)
 
 ## 项目简介
 
 AstraAtmos（行星大气实验室）定位为行星大气预测实验平台，从火星臭氧研究起步，以 OpenMARS 再分析数据、MCD 气候模拟数据和地球 MERRA-2 三小时数据为当前数据基础，将数据管理、模型训练、预测、模型对比和三维可视化整合到同一个 Web 平台。当前已开放火星臭氧训练与预测，以及地球三小时数据总览、官方 DLinear 和独立契约上传模型的训练与历史回测；日频地球数据集已停用，更多行星和变量预测任务仍属后续扩展。
-
-产品原名为 AresVision（智绘赤星）。目录、仓库地址、启动脚本、`ARESVISION_*` 环境变量、数据库与浏览器存储键、数据格式标识沿用原名称以兼容已有部署；改名无需迁移数据或配置。
 
 前端视觉令牌、主题与基础控件的一致性和可访问性约定见[前端说明](frontend/README.md#界面样式与可访问性)；单模型预测的紧凑准备面板、训练运行条与访客登录入口等布局细节见[共用单模型预测工作台](docs/shared-single-model-prediction.md)。
 
@@ -26,7 +24,7 @@ AstraAtmos 使用「大气之 A / Atmospheric A」作为正式标志：冰蓝 A 
 
 本节只保留稳定的接手信息。历史更新记录（2026-09-25 至 2026-10-22，含逐轮验证范围与一次性测试数量）已移至[更新记录](docs/change-history.md)，README 不再逐条累积。
 
-文档最近核对日期：**2026-10-16**（核对了 Earth v1 短窗口与 v2 全图上传预算、隔离进程截止时间及 API 响应性；分组回归 209 条唯一用例，未执行完整训练或精度验收）。当前地球默认活动数据集为 `earth_merra2_3hourly_v1`：UTC 三小时、240×480 全球五变量，官方 DLinear 与 v1/v2 契约上传模型均支持按任务配置窗口（默认 56→24）训练和历史回测；v1 按 24×48 空间块，v2 一次处理完整全图，另提供仅供训练与回测的独立 5°（36×72）发布。Earth 单模型页面按需启动：进入只读任务目录，点击「开始预测」后才校验上下文与数据身份并运行。真实数据冒烟为三天、7→1、单 epoch 的链路验证，不代表长期收敛或预测精度。专题入口：[三小时数据集](docs/earth-merra2-3hourly.md)、[上传模型契约](docs/earth-3hourly-uploaded-model.md)、[全图 v2](docs/earth-3hourly-fullgrid-model.md)、[地形资产](docs/earth-topography-asset.md)、[5° 数据集](docs/earth-merra2-5deg.md)。
+**命名与数据契约**：项目、后端目录、环境变量（`ASTRAATMOS_*`）、数据库（`data/astraatmos.db`）、浏览器存储键、日志与数据/模型契约标识（`astraatmos_*`）已统一为 AstraAtmos；旧命名产物与旧 checkpoint 不再兼容，需要重新生成或重新训练。
 
 | 需要先知道的事 | 当前约定 |
 | --- | --- |
@@ -92,7 +90,7 @@ AstraAtmos 使用「大气之 A / Atmospheric A」作为正式标志：冰蓝 A 
 
 - 训练页 `#/training` 为**实验中心 · 大气实验控制台**：固定视图栏提供「实验配置 / 训练监视 / 实验矩阵」，进入页面默认展示最新一条记录的结果；配置画布、实验目录、检查器与底部运行条保持挂载，切换视图不丢失编辑、筛选、排序或浏览位置，运行条是唯一提交入口并复用页面既有校验。上传模型为一等主入口，官方模型为次级兼容入口。布局、响应式规则与验收边界见[实验中心](docs/experiment-center.md)。
 - 实验矩阵复用 `TrainingContext` 任务快照，支持按名称/状态/标签筛选、排序、列配置（按账号保存在当前浏览器）、行内改名与标签管理；「更多操作」提供用于预测、模型测试与删除。预测沿用模型可用性门禁并按行星跳转，测试仅对已完成且产物有效的任务开放（Earth 额外核验数据与 checkpoint），删除说明日志、权重与该任务预测分析缓存的连带清理，活动任务须先取消或停止。
-- 内置 PredRNNv2、PredRNN++、ConvLSTM、SimVP、DLinear、PatchTST、TimeMixer、Earthformer 等模型及实验变体，完整注册表见 [model_zoo.py](AresVision_backend/backend/training_backbones/model_zoo.py)。
+- 内置 PredRNNv2、PredRNN++、ConvLSTM、SimVP、DLinear、PatchTST、TimeMixer、Earthformer 等模型及实验变体，完整注册表见 [model_zoo.py](AstraAtmos_backend/backend/training_backbones/model_zoo.py)。
 - 按模型配置输入窗口、输出步长、气象通道和超参数，查看训练进度、Loss 曲线、日志与测试指标。
 - 偏好设置可自定义新建火星和 Earth 实验的训练轮次、批大小、学习率、窗口 / 步长、数据切分、随机种子、早停和迁移冻结 / 微调默认值；设置保存在当前浏览器，新实验应用设置值，复制配置仍以历史任务为准。Earth 使用任务级原始 UTC 时间轴划分，默认 70/20/10 且三项均须大于 0；窗口 / 步长默认 56→24，可在 1–240 个三小时时间步内自定义。Mars 默认验证比例为 0 时，Earth 使用 70/20/10。
 - 三小时官方 DLinear 通过 `POST /api/training/start` 提交 `dataset_id=earth_merra2_3hourly_v1`；输入 TO3 加可选辅助通道，输出 TO3。训练不复制全部窗口，官方与 v1 的 `batch_size` 按 24×48 空间块计，全图 v2 按完整全球时间窗口计且允许 1–64，默认 1；checkpoint 固定 UTC 三小时时间规则、完整网格、通道、归一化和数据指纹，并保存总体、各 lead 与累计提前步 DU 指标。上传模型需通过对应 v1/v2 契约校验，不回退日频；上传模型可声明可选季节坐标 `MODEL_SPEC.derived_inputs.ls`，声明后按 `model(x, ls)` 调用并在 checkpoint 冻结 `season_algorithm`，未声明的模型调用与前向契约不变；详见[三小时训练契约](docs/earth-merra2-3hourly.md#官方-dlinear-后端训练)。
@@ -145,13 +143,13 @@ AstraAtmos 使用「大气之 A / Atmospheric A」作为正式标志：冰蓝 A 
 | 数据存储 | SQLite / aiosqlite，NetCDF 数据与文件缓存 |
 | 测试 | Node.js 内置测试运行器、pytest |
 
-前端依赖见 [package.json](frontend/package.json)，后端依赖见 [requirements.txt](AresVision_backend/backend/requirements.txt)。
+前端依赖见 [package.json](frontend/package.json)，后端依赖见 [requirements.txt](AstraAtmos_backend/backend/requirements.txt)。
 
 ## 项目结构
 
 ```text
-AresVision/
-├── AresVision_backend/backend/
+AstraAtmos/
+├── AstraAtmos_backend/backend/
 │   ├── main.py                # FastAPI 入口、生命周期、服务装配
 │   ├── config.py              # 路径、数据、模型及环境配置
 │   ├── auth/                  # 认证与访问依赖
@@ -187,22 +185,22 @@ AresVision/
 
 | 任务 | 主要入口 |
 | --- | --- |
-| 页面路由、导航、服务装配 | [App.jsx](frontend/src/App.jsx)、[Navbar.jsx](frontend/src/components/Navbar.jsx)、[main.py](AresVision_backend/backend/main.py) |
+| 页面路由、导航、服务装配 | [App.jsx](frontend/src/App.jsx)、[Navbar.jsx](frontend/src/components/Navbar.jsx)、[main.py](AstraAtmos_backend/backend/main.py) |
 | 首页与品牌 | [HomePage.jsx](frontend/src/pages/HomePage.jsx)、[PlanetPreview.jsx](frontend/src/pages/HomePage/PlanetPreview.jsx)、[BrandMark.jsx](frontend/src/components/BrandMark.jsx)、[brand.css](frontend/src/components/brand.css) |
-| 数据总览与三维场景 | [DataOverviewPage.jsx](frontend/src/pages/DataOverviewPage.jsx)、[SphericalFieldCanvas.jsx](frontend/src/components/SphericalFieldCanvas.jsx)、[analysis.py](AresVision_backend/backend/routers/analysis.py)、[earth_overview.py](AresVision_backend/backend/routers/earth_overview.py) |
-| 行星观测台与年度分析 | [workbench/OverviewShell.jsx](frontend/src/pages/DataOverviewPage/workbench/OverviewShell.jsx)、[EarthResearchViews.jsx](frontend/src/pages/DataOverviewPage/EarthOverview/EarthResearchViews.jsx)、[earth_analysis.py](AresVision_backend/backend/routers/earth_analysis.py)、[earth_research_service.py](AresVision_backend/backend/services/earth_research_service.py) |
-| 数据集注册与查询 | [datasets.py](AresVision_backend/backend/routers/datasets.py)、[dataset_registry.py](AresVision_backend/backend/services/dataset_registry.py)、[dataset_identity.py](AresVision_backend/backend/services/dataset_identity.py) |
-| 模型训练与实验中心 | [ModelTrainingPage.jsx](frontend/src/pages/ModelTrainingPage.jsx)、[TrainingContext.jsx](frontend/src/contexts/TrainingContext.jsx)、[training.py](AresVision_backend/backend/routers/training.py)、[training_service.py](AresVision_backend/backend/services/training_service.py) |
-| 地球训练、划分、上传与回测 | [earthTrainingConfig.js](frontend/src/pages/ModelTrainingPage/earthTrainingConfig.js)、[earth_training_contract.py](AresVision_backend/backend/services/earth_training_contract.py)、[earth_task_split.py](AresVision_backend/backend/services/earth_task_split.py)、[earth_model_source.py](AresVision_backend/backend/services/earth_model_source.py)、[earth_predict.py](AresVision_backend/backend/routers/earth_predict.py) |
-| 预测、比较、诊断与科研导出 | [PredictPage.jsx](frontend/src/pages/PredictPage.jsx)、[SingleModelWorkbench.jsx](frontend/src/pages/PredictPage/SingleModelWorkbench.jsx)、[predict.py](AresVision_backend/backend/routers/predict.py)、[inference_service.py](AresVision_backend/backend/services/inference_service.py)、[research_export.py](AresVision_backend/backend/routers/research_export.py) |
-| 自定义模型接入 | [UploadedModelPanel.jsx](frontend/src/pages/ModelTrainingPage/UploadedModelPanel.jsx)、[user_models.py](AresVision_backend/backend/routers/user_models.py)、[uploaded_model_contract.py](AresVision_backend/backend/training_backbones/uploaded_model_contract.py)、[user_model_runner.py](AresVision_backend/backend/training_backbones/user_model_runner.py) |
-| AI、登录与持久化 | [AIPage.jsx](frontend/src/pages/AIPage.jsx)、[AICopilotWidget.jsx](frontend/src/pages/DataOverviewPage/AICopilotWidget.jsx)、[AuthContext.jsx](frontend/src/contexts/AuthContext.jsx)、[auth.py](AresVision_backend/backend/routers/auth.py)、[models.py](AresVision_backend/backend/database/models.py) |
-| 缓存与 NetCDF 并发读 | [prediction_analysis_cache.py](AresVision_backend/backend/services/prediction_analysis_cache.py)、[prediction_volume_cache.py](AresVision_backend/backend/services/prediction_volume_cache.py)、[netcdf_read_lock.py](AresVision_backend/backend/services/netcdf_read_lock.py) |
+| 数据总览与三维场景 | [DataOverviewPage.jsx](frontend/src/pages/DataOverviewPage.jsx)、[SphericalFieldCanvas.jsx](frontend/src/components/SphericalFieldCanvas.jsx)、[analysis.py](AstraAtmos_backend/backend/routers/analysis.py)、[earth_overview.py](AstraAtmos_backend/backend/routers/earth_overview.py) |
+| 行星观测台与年度分析 | [workbench/OverviewShell.jsx](frontend/src/pages/DataOverviewPage/workbench/OverviewShell.jsx)、[EarthResearchViews.jsx](frontend/src/pages/DataOverviewPage/EarthOverview/EarthResearchViews.jsx)、[earth_analysis.py](AstraAtmos_backend/backend/routers/earth_analysis.py)、[earth_research_service.py](AstraAtmos_backend/backend/services/earth_research_service.py) |
+| 数据集注册与查询 | [datasets.py](AstraAtmos_backend/backend/routers/datasets.py)、[dataset_registry.py](AstraAtmos_backend/backend/services/dataset_registry.py)、[dataset_identity.py](AstraAtmos_backend/backend/services/dataset_identity.py) |
+| 模型训练与实验中心 | [ModelTrainingPage.jsx](frontend/src/pages/ModelTrainingPage.jsx)、[TrainingContext.jsx](frontend/src/contexts/TrainingContext.jsx)、[training.py](AstraAtmos_backend/backend/routers/training.py)、[training_service.py](AstraAtmos_backend/backend/services/training_service.py) |
+| 地球训练、划分、上传与回测 | [earthTrainingConfig.js](frontend/src/pages/ModelTrainingPage/earthTrainingConfig.js)、[earth_training_contract.py](AstraAtmos_backend/backend/services/earth_training_contract.py)、[earth_task_split.py](AstraAtmos_backend/backend/services/earth_task_split.py)、[earth_model_source.py](AstraAtmos_backend/backend/services/earth_model_source.py)、[earth_predict.py](AstraAtmos_backend/backend/routers/earth_predict.py) |
+| 预测、比较、诊断与科研导出 | [PredictPage.jsx](frontend/src/pages/PredictPage.jsx)、[SingleModelWorkbench.jsx](frontend/src/pages/PredictPage/SingleModelWorkbench.jsx)、[predict.py](AstraAtmos_backend/backend/routers/predict.py)、[inference_service.py](AstraAtmos_backend/backend/services/inference_service.py)、[research_export.py](AstraAtmos_backend/backend/routers/research_export.py) |
+| 自定义模型接入 | [UploadedModelPanel.jsx](frontend/src/pages/ModelTrainingPage/UploadedModelPanel.jsx)、[user_models.py](AstraAtmos_backend/backend/routers/user_models.py)、[uploaded_model_contract.py](AstraAtmos_backend/backend/training_backbones/uploaded_model_contract.py)、[user_model_runner.py](AstraAtmos_backend/backend/training_backbones/user_model_runner.py) |
+| AI、登录与持久化 | [AIPage.jsx](frontend/src/pages/AIPage.jsx)、[AICopilotWidget.jsx](frontend/src/pages/DataOverviewPage/AICopilotWidget.jsx)、[AuthContext.jsx](frontend/src/contexts/AuthContext.jsx)、[auth.py](AstraAtmos_backend/backend/routers/auth.py)、[models.py](AstraAtmos_backend/backend/database/models.py) |
+| 缓存与 NetCDF 并发读 | [prediction_analysis_cache.py](AstraAtmos_backend/backend/services/prediction_analysis_cache.py)、[prediction_volume_cache.py](AstraAtmos_backend/backend/services/prediction_volume_cache.py)、[netcdf_read_lock.py](AstraAtmos_backend/backend/services/netcdf_read_lock.py) |
 | 微交互演示页与动效 | [UiKitPage.jsx](frontend/src/pages/UiKitPage.jsx)、[MorphSubmitButton.jsx](frontend/src/components/ui/MorphSubmitButton.jsx)、[JellyToggle.jsx](frontend/src/components/ui/JellyToggle.jsx)、[HoldToDeleteButton.jsx](frontend/src/components/ui/HoldToDeleteButton.jsx)、[motion.js](frontend/src/components/ui/motion.js) |
 
 页面地址为 `#/`、`#/overview`、`#/explore`、`#/predict`、`#/training`、`#/ai`、`#/about` 和仅用于验证的 `#/uikit`（微交互演示，不进导航）。全局设置与翻译分别位于 `frontend/src/contexts/SettingsContext.jsx` 和 `frontend/src/i18n/`；训练默认值的字段校验见 `frontend/src/utils/trainingDefaults.js`。
 
-训练默认值保存在当前浏览器的 `aresvision_settings`。修改有效默认值后，当前实验草稿中尚未手动修改的字段即时同步；手动编辑过的字段与「复制配置」载入的参数保留原值，点击「新建实验」重新应用全部默认值。数据分区比例作为一组同步，必须完整合计 100%；Earth 要求三项均大于 0，Mars 默认验证比例为 0 时 Earth 回退 70/20/10。Earth 窗口默认值在进入或新建实验时应用，已挂载草稿的窗口及禁用迁移学习不随通用默认值重写。已创建任务不被改写，详见[训练默认值](docs/experiment-center.md#35-2026-10-01-设置训练默认值)。
+训练默认值保存在当前浏览器的 `astraatmos_settings`。修改有效默认值后，当前实验草稿中尚未手动修改的字段即时同步；手动编辑过的字段与「复制配置」载入的参数保留原值，点击「新建实验」重新应用全部默认值。数据分区比例作为一组同步，必须完整合计 100%；Earth 要求三项均大于 0，Mars 默认验证比例为 0 时 Earth 回退 70/20/10。Earth 窗口默认值在进入或新建实验时应用，已挂载草稿的窗口及禁用迁移学习不随通用默认值重写。已创建任务不被改写，详见[训练默认值](docs/experiment-center.md#35-2026-10-01-设置训练默认值)。
 
 训练页的 [trainingDraftSession.js](frontend/src/pages/ModelTrainingPage/trainingDraftSession.js) 集中管理 Earth/Mars 场景草稿切换与上传参数保留。两个 Mars 数据集共用 Mars 草稿，往返 Earth 均恢复模型、通道、窗口、比例、结构和迁移来源；重复选择当前数据集不改写快照。Earth 暂停 Mars 迁移，切回后保留原结构以便解除迁移锁定。同一上传模型在两个场景可保留不同参数，复制/恢复/编辑的值不被延迟或等价 schema 重置；手动换模型应用其默认参数。“复制配置”和“新建实验”清除旧场景快照。草稿仅保存在当前页面会话，名称、轮次、批大小和学习率等通用字段仍共享，不新增后端实验实体。
 
@@ -237,15 +235,15 @@ Earth 总览使用三小时 UTC datetime。场接口传 `timestamp`，地图默�
 3. `/api/explore/overview/*` 路由解析来源，由总览服务提供球面、点位与图表数据。
 4. 三维球面、时间轴覆盖范围、图表和 AI 快照按当前选择更新。
 
-上传 MCD 可驱动总览整页；上传 OpenMARS 与 NOMAD 主要作为三维臭氧图层。NOMAD 网格数据还包含观测计数。详细校验入口为 [overview_upload_contract.py](AresVision_backend/backend/services/overview_upload_contract.py)，不要只凭文件扩展名判断用途。
+上传 MCD 可驱动总览整页；上传 OpenMARS 与 NOMAD 主要作为三维臭氧图层。NOMAD 网格数据还包含观测计数。详细校验入口为 [overview_upload_contract.py](AstraAtmos_backend/backend/services/overview_upload_contract.py)，不要只凭文件扩展名判断用途。
 
-时间与单位是跨模块约定：MY 表示火星年，Ls 表示太阳黄经，跨年会从接近 360° 回到 0°；总览与其他分析接口保留年份与样本关系。火星预测使用服务器配置目录下合并后的完整 OpenMARS/MCD 数据集，不按 MY 年份隔离文件，只由 `ls_start` 在完整时间轴中选择最近窗口；多个相同 Ls 时保留当前确定性的最近样本选择。臭氧换算集中在 [ozone_units.py](AresVision_backend/backend/services/ozone_units.py)，其目标单位为 `um-atm`。修改排序、坐标或单位时，应同时核对球面、时间轴、图表和预测输入。
+时间与单位是跨模块约定：MY 表示火星年，Ls 表示太阳黄经，跨年会从接近 360° 回到 0°；总览与其他分析接口保留年份与样本关系。火星预测使用服务器配置目录下合并后的完整 OpenMARS/MCD 数据集，不按 MY 年份隔离文件，只由 `ls_start` 在完整时间轴中选择最近窗口；多个相同 Ls 时保留当前确定性的最近样本选择。臭氧换算集中在 [ozone_units.py](AstraAtmos_backend/backend/services/ozone_units.py)，其目标单位为 `um-atm`。修改排序、坐标或单位时，应同时核对球面、时间轴、图表和预测输入。
 
 ### 训练与模型产物
 
 Mars 训练任务绑定**首次加载训练数据时**的目录、NetCDF 文件名/大小/`mtime_ns` 清单和指纹。`mcd_overview` 的 `data_directories` 包含原始全量 MCD 目录；`openmars_mcd` 按顺序同时包含 OpenMARS 与 MCD 两个目录，文件清单的 `root` 区分两者。数据加载、检查点、任务快照和预测校验共用 `canonical_dataset_identity()`，`data_dir` 仅为兼容保留的主目录，不能替代完整绑定。训练完成前验证检查点并重建兼容快照；两种数据集都在预测缓存、窗口加载和模型推理前复核，文件修改、增加、删除或目录变化返回 409 `dataset_version_changed`，必须重新训练。完整身份任务标记 `verified`；真正缺少文件身份的旧裸权重/历史任务标记 `legacy`，不声称已经验证数据；有身份但不完整的新 schema 检查点会被拒绝。详见[数据绑定与兼容边界](docs/dataset-registry.md#mars-数据绑定与预测校验)。
 
-Mars 的 `selected_channels`（包括检查点的 `training_contract.selected_channels`）只表示用户选择的辅助输入，例如 `["U", "D"]`；O3 是固定的目标与首个输入通道。官方 `demo3.py` 与上传模型 `user_model_runner.py` 共用 [mars_checkpoint.py](AresVision_backend/backend/services/mars_checkpoint.py)：`normalization.input_channel_order` 为完整顺序 `["O3", *selected_channels]`，与连续体积最后一维及模型输入的通道维一致；`input_mean`、`input_scale`、`constant_channel_mask` 均按该顺序保存且数量相同。加载时严格校验顺序、统计量数量、网格形状、有限值与正的输入 scale；预测复用这些统计量，并用独立的 `target_mean` / `target_scale` 反归一化 O3 输出。预测体积缓存也区分检查点统计量，避免不同任务复用错位结果。旧版带 schema 但缺少 O3 通道名的检查点会被拒绝，需要重新训练或经核实后单独迁移；旧裸 `state_dict` 保留原有归一化重新拟合兼容路径。详见[自定义模型训练协议](docs/uploaded-model-training.md#mars-input-channels-and-checkpoints)。
+Mars 的 `selected_channels`（包括检查点的 `training_contract.selected_channels`）只表示用户选择的辅助输入，例如 `["U", "D"]`；O3 是固定的目标与首个输入通道。官方 `demo3.py` 与上传模型 `user_model_runner.py` 共用 [mars_checkpoint.py](AstraAtmos_backend/backend/services/mars_checkpoint.py)：`normalization.input_channel_order` 为完整顺序 `["O3", *selected_channels]`，与连续体积最后一维及模型输入的通道维一致；`input_mean`、`input_scale`、`constant_channel_mask` 均按该顺序保存且数量相同。加载时严格校验顺序、统计量数量、网格形状、有限值与正的输入 scale；预测复用这些统计量，并用独立的 `target_mean` / `target_scale` 反归一化 O3 输出。预测体积缓存也区分检查点统计量，避免不同任务复用错位结果。旧版带 schema 但缺少 O3 通道名的检查点会被拒绝，需要重新训练或经核实后单独迁移；旧裸 `state_dict` 保留原有归一化重新拟合兼容路径。详见[自定义模型训练协议](docs/uploaded-model-training.md#mars-input-channels-and-checkpoints)。
 
 1. 实验中心底部运行条的「开始实验」（页面控制器 `handleStartTraining`）提交实验名称、`model_source`、上传模型 ID、超参数与服务器数据源；`training_channels.py` 规范化参数。运行条只负责提交与摘要，校验仍在页面控制器里完成。
 2. 官方模型使用统一训练入口 `models/training_scripts/demo3.py`；上传模型使用 `training_backbones/user_model_runner.py`。
@@ -295,7 +293,7 @@ Mars 输出的 `lat` / `lon` 使用数据 loader 提供的真实网格坐标，�
 
 Mars 前端内存缓存与后端持久化缓存是两层机制。前者通过用户会话作用域隔离，退出登录或 API 返回 401 时清理；后者结合任务、分析类型、请求参数及产物指纹定位结果。产物指纹包含模型文件、超参数与数据文件信息，缓存实现支持 `prediction`、`metrics`、`error_distribution`、`pfi`。
 
-NetCDF 读取必须串行：netCDF4 背后的 HDF5 C 库不是线程安全的，而推理在 `asyncio.to_thread` 线程池中执行，并发读取同一批 OpenMARS/MCD/MOLA/ETOPO 文件会间歇性抛出 `NetCDF: Can't open HDF5 attribute`，表现为预测接口 500。官方数据服务（`services/mars_data_service.py`）、上传模型数据加载（`training_backbones/user_model_runner.py`）、Mars MOLA（`training_backbones/mola_topography.py`）和 Earth ETOPO（`services/earth_topography.py`、离线构建器）共用在 [netcdf_read_lock.py](AresVision_backend/backend/services/netcdf_read_lock.py) 中定义的可重入锁；锁挂在该模块属性上，因为 `config.py` 会改写 `sys.path`，同一模块可能被加载两次，只有进程级单例才能真正互斥。新增 NetCDF 读取点必须写成 `with netcdf_read_lock(), netCDF4.Dataset(...) as dataset:`。
+NetCDF 读取必须串行：netCDF4 背后的 HDF5 C 库不是线程安全的，而推理在 `asyncio.to_thread` 线程池中执行，并发读取同一批 OpenMARS/MCD/MOLA/ETOPO 文件会间歇性抛出 `NetCDF: Can't open HDF5 attribute`，表现为预测接口 500。官方数据服务（`services/mars_data_service.py`）、上传模型数据加载（`training_backbones/user_model_runner.py`）、Mars MOLA（`training_backbones/mola_topography.py`）和 Earth ETOPO（`services/earth_topography.py`、离线构建器）共用在 [netcdf_read_lock.py](AstraAtmos_backend/backend/services/netcdf_read_lock.py) 中定义的可重入锁；锁挂在该模块属性上，因为 `config.py` 会改写 `sys.path`，同一模块可能被加载两次，只有进程级单例才能真正互斥。新增 NetCDF 读取点必须写成 `with netcdf_read_lock(), netCDF4.Dataset(...) as dataset:`。
 
 预测路由的兜底分支会通过 `logger.exception` 记录完整堆栈，接口只向客户端返回简要 `detail`；排查 500 时以服务端日志为准，不要只依据响应体。
 
@@ -372,30 +370,32 @@ NetCDF 读取必须串行：netCDF4 背后的 HDF5 C 库不是线程安全的，
 | 训练产物 | `models/training_results/` | 训练任务生成；已训练模型预测依赖有效权重和任务元数据 |
 | 地球三小时包 | `data/earth/merra2_3hourly_v1/` 或配置的外部目录 | 默认 Earth 发布；另可配置独立 5° 训练包，详见[5° 数据集](docs/earth-merra2-5deg.md)；包含 `manifest.json` 与 `earth_merra2_3hourly.nc`，支持总览、训练与历史回测；日频文件仅保留归档，不需删除 |
 
-具体字段与读取规则见 [数据服务](AresVision_backend/backend/services/data_service.py) 与 [训练模型推理服务](AresVision_backend/backend/services/inference_service.py)。文件名符合规则不代表数据结构一定兼容。
+具体字段与读取规则见 [数据服务](AstraAtmos_backend/backend/services/data_service.py) 与 [训练模型推理服务](AstraAtmos_backend/backend/services/inference_service.py)。文件名符合规则不代表数据结构一定兼容。
 
 Earth 三小时发布覆盖 2020–2021 年，共 5848 个 UTC 时间步，240×480 全球 0.75° 网格，包含臭氧、风、温度与短波辐射。构建命令、范围限制、训练划分和校验入口见[三小时专题](docs/earth-merra2-3hourly.md)。
 
 ### 2. 启动后端
 
-Windows 当前工作区固定使用 Conda 环境 `AresVision` 的解释器，不要为后端另建 `.venv` 或调用系统 Python。PowerShell 从仓库根目录执行：
+Windows 当前工作区固定使用工作区约定的 Conda 环境（环境名与解释器路径见父目录 `AGENTS.md`），不要为后端另建 `.venv` 或调用系统 Python。先在当前 PowerShell 会话激活该环境，再从仓库根目录执行：
 
 ```powershell
-conda activate AresVision
-$AresVisionPython = Join-Path $env:CONDA_PREFIX 'python.exe'
-Set-Location AresVision_backend/backend
+if (-not $env:CONDA_PREFIX) { throw '请先激活工作区约定的 Conda 环境（见父目录 AGENTS.md）' }
+$AstraAtmosPython = Join-Path $env:CONDA_PREFIX 'python.exe'
+Set-Location AstraAtmos_backend/backend
 ```
+
+后文命令中的 `$env:CONDA_PREFIX` 均指该已激活环境；文档里的 `<工作区>` 指仓库父级工作区目录，复制命令时替换为实际路径。
 
 若环境尚未安装项目依赖：
 
 ```powershell
-& $AresVisionPython -m pip install -r requirements.txt
+& $AstraAtmosPython -m pip install -r requirements.txt
 ```
 
 Linux / macOS 可在后端目录使用项目虚拟环境：
 
 ```bash
-cd AresVision_backend/backend
+cd AstraAtmos_backend/backend
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
@@ -416,10 +416,10 @@ cp .env.example .env
 Windows 当前工作区启动命令：
 
 ```powershell
-& 'D:\Anaconda\envs\AresVision\python.exe' run_backend.py main:app --reload --reload-dir . --host 0.0.0.0 --port 8000
+& "$env:CONDA_PREFIX\python.exe" run_backend.py main:app --reload --reload-dir . --host 0.0.0.0 --port 8000
 ```
 
-Windows 必须走后端目录的 `run_backend.py`，不要直接用 `-m uvicorn --reload`：项目固定的 Uvicorn 0.34.0 在 reload 模式下会先建立 Selector 事件循环，而 [main.py](AresVision_backend/backend/main.py) 在导入时才设置全局策略，只能影响之后创建的循环，无法替换已经运行的循环；Selector 受 Windows `select()` 套接字数量限制，可能出现 `WinError 10055`，循环退出后关闭默认线程池还会让后续 `asyncio.to_thread` 报 `Executor shutdown has been called`。`run_backend.py` 在创建循环前固定 Proactor，并在 reload 时等旧服务子进程退出后重新绑定监听套接字。该入口与父目录 `AGENTS.md` 同属工作区本地文件，不随本仓库克隆分发，缺失时应向工作区补齐而不是改用裸 `-m uvicorn`。长期训练建议省略 `--reload`，reload 会中断运行中的训练；不带 `--reload` 的单 worker 启动不受该问题影响，[scripts/release/start-aresvision.bat](scripts/release/start-aresvision.bat) 即直接调用 `-m uvicorn`。
+Windows 必须走后端目录的 `run_backend.py`，不要直接用 `-m uvicorn --reload`：项目固定的 Uvicorn 0.34.0 在 reload 模式下会先建立 Selector 事件循环，而 [main.py](AstraAtmos_backend/backend/main.py) 在导入时才设置全局策略，只能影响之后创建的循环，无法替换已经运行的循环；Selector 受 Windows `select()` 套接字数量限制，可能出现 `WinError 10055`，循环退出后关闭默认线程池还会让后续 `asyncio.to_thread` 报 `Executor shutdown has been called`。`run_backend.py` 在创建循环前固定 Proactor，并在 reload 时等旧服务子进程退出后重新绑定监听套接字。该入口是仓库内的固定启动脚本；配套工作区规则见父目录 `AGENTS.md`（不随本仓库克隆分发）。长期训练建议省略 `--reload`，reload 会中断运行中的训练；不带 `--reload` 的单 worker 启动不受该问题影响，[scripts/release/start-astraatmos.bat](scripts/release/start-astraatmos.bat) 即直接调用 `-m uvicorn`。
 
 Linux / macOS 启动命令：
 
@@ -461,44 +461,44 @@ node scripts\serve-prod.mjs
 
 ### Windows 一键启动
 
-当前工作区的仓库父目录提供 `start-aresvision.cmd` / `start-aresvision.ps1`，可一次启动后端和前端并打开浏览器；这些是工作区配套脚本，不随 Git 仓库分发。请从工作区根目录（仓库父目录）运行。默认使用生产前端服务：它从 `frontend/dist` 提供静态文件，并将 `/api` 转发到后端 `8000` 端口。需要热更新时使用：
+当前工作区的仓库父目录提供 `start-astraatmos.cmd` / `start-astraatmos.ps1`，可一次启动后端和前端并打开浏览器；这些是工作区配套脚本，不随 Git 仓库分发。请从工作区根目录（仓库父目录）运行。默认使用生产前端服务：它从 `frontend/dist` 提供静态文件，并将 `/api` 转发到后端 `8000` 端口。需要热更新时使用：
 
 ```powershell
-.\start-aresvision.ps1 -FrontendMode Dev
+.\start-astraatmos.ps1 -FrontendMode Dev
 ```
 
 生产模式使用 `frontend/dist`，开发模式使用 Vite 源码服务；两种模式的访问地址都是 `http://127.0.0.1:5173`。
 
 ## 环境配置
 
-配置文件位于 `AresVision_backend/backend/.env`，实际读取规则以 [config.py](AresVision_backend/backend/config.py) 为准。
+配置文件位于 `AstraAtmos_backend/backend/.env`，实际读取规则以 [config.py](AstraAtmos_backend/backend/config.py) 为准。
 
 | 变量 | 用途 |
 | --- | --- |
 | `JWT_SECRET_KEY` | JWT 签名密钥；固定设置可避免重启时随机密钥变化导致原令牌失效 |
 | `DEFAULT_ADMIN_EMAIL`、`DEFAULT_ADMIN_PASSWORD` | 初始化默认管理员账号时使用，首次部署前设置 |
-| `DATABASE_URL` | 默认指向 `data/aresvision.db` 的 SQLite 异步连接 |
+| `DATABASE_URL` | 默认指向 `data/astraatmos.db` 的 SQLite 异步连接 |
 | `AI_API_KEY` | 外部 AI 接口密钥 |
 | `AI_API_URL`、`AI_MODEL_NAME` | AI 聊天接口完整地址及模型名称，需与服务商配置一致 |
 | `SMTP_HOST`、`SMTP_PORT`、`SMTP_USER`、`SMTP_PASSWORD` | 邮件验证码服务配置 |
-| `ARESVISION_MCD_DIR` | 覆盖常规 MCD 数据目录 |
+| `ASTRAATMOS_MCD_DIR` | 覆盖常规 MCD 数据目录 |
 | `MCD_RAW_3H_DIR` | MCD 原始数据目录 |
-| `ARESVISION_EARTH_MERRA2_V1_DIR` | 归档日频 v1 路径，当前运行不读取；旧文件可保留 |
-| `ARESVISION_EARTH_MERRA2_DIR` | 归档日频 v2 路径，当前运行不读取；旧文件可保留 |
-| `ARESVISION_EARTH_MERRA2_3HOURLY_DIR` | 三小时独立发布目录，默认 `data/earth/merra2_3hourly_v1`；相对路径相对后端启动目录，须同时有 `manifest.json` 与 `earth_merra2_3hourly.nc`；不会替换日频配置 |
-| `ARESVISION_DEFAULT_EARTH_DATASET_ID` | 开发与生产均为 `earth_merra2_3hourly_v1`；仅接受该值，由 `GET /api/datasets` 返回，日频配置会在启动时拒绝 |
-| `ARESVISION_EARTH_TRAINING_CACHE_DIR` | 三小时验证证明、train-only 统计量和 normalized memmap 的共享目录，默认工作区父级 `earth_training_cache/`；按数据/通道/统计量/布局版本复用，五通道完整发布约 12.55 GiB；不覆盖原包 |
-| `ARESVISION_EARTH_AMP` | 默认 `1`，Earth CUDA 训练与逐轮验证启用 BF16/FP16；`0` 关闭 autocast，TF32/cuDNN 调优仍开启；最终保存指标使用关闭 autocast 的 FP32 前向 |
-| `ARESVISION_EARTH_PREFETCH` | 默认 `1`，CUDA normalized memmap 估算批次数据不超过 64 MiB 时预取一批；`0` 关闭，CPU 和大型原网格批次保持同步 |
+| `ASTRAATMOS_EARTH_MERRA2_V1_DIR` | 归档日频 v1 路径，当前运行不读取；旧文件可保留 |
+| `ASTRAATMOS_EARTH_MERRA2_DIR` | 归档日频 v2 路径，当前运行不读取；旧文件可保留 |
+| `ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR` | 三小时独立发布目录，默认 `data/earth/merra2_3hourly_v1`；相对路径相对后端启动目录，须同时有 `manifest.json` 与 `earth_merra2_3hourly.nc`；不会替换日频配置 |
+| `ASTRAATMOS_DEFAULT_EARTH_DATASET_ID` | 开发与生产均为 `earth_merra2_3hourly_v1`；仅接受该值，由 `GET /api/datasets` 返回，日频配置会在启动时拒绝 |
+| `ASTRAATMOS_EARTH_TRAINING_CACHE_DIR` | 三小时验证证明、train-only 统计量和 normalized memmap 的共享目录，默认工作区父级 `earth_training_cache/`；按数据/通道/统计量/布局版本复用，五通道完整发布约 12.55 GiB；不覆盖原包 |
+| `ASTRAATMOS_EARTH_AMP` | 默认 `1`，Earth CUDA 训练与逐轮验证启用 BF16/FP16；`0` 关闭 autocast，TF32/cuDNN 调优仍开启；最终保存指标使用关闭 autocast 的 FP32 前向 |
+| `ASTRAATMOS_EARTH_PREFETCH` | 默认 `1`，CUDA normalized memmap 估算批次数据不超过 64 MiB 时预取一批；`0` 关闭，CPU 和大型原网格批次保持同步 |
 | `TRAINING_PYTHON_PATH` | 训练子进程使用的 Python，默认使用后端当前解释器 |
-| `ARESVISION_MOLA_TOPOGRAPHY_PATH` | MOLA 地形 NetCDF 路径，默认使用平台地形资源 |
-| `ARESVISION_EARTH_MERRA2_3HOURLY_5DEG_DIR` | 独立 36×72 三小时训练包目录，包含 manifest 和 NetCDF；不替换数据总览默认值 |
-| `ARESVISION_EARTH_TOPOGRAPHY_5DEG_PATH` | 与 5° 发布严格对齐的 ETOPO 静态资产；仅声明地形的低分辨率上传模型需要 |
-| `ARESVISION_EARTH_TOPOGRAPHY_PATH` | Earth ETOPO 大气下边界资产路径；仅声明 `derived_inputs.topography` 的上传模型需要，运行时不下载原始 DEM |
-| `ARESVISION_MAX_UPLOAD_SIZE_MB` | 数据上传大小上限，默认 512 MB |
+| `ASTRAATMOS_MOLA_TOPOGRAPHY_PATH` | MOLA 地形 NetCDF 路径，默认使用平台地形资源 |
+| `ASTRAATMOS_EARTH_MERRA2_3HOURLY_5DEG_DIR` | 独立 36×72 三小时训练包目录，包含 manifest 和 NetCDF；不替换数据总览默认值 |
+| `ASTRAATMOS_EARTH_TOPOGRAPHY_5DEG_PATH` | 与 5° 发布严格对齐的 ETOPO 静态资产；仅声明地形的低分辨率上传模型需要 |
+| `ASTRAATMOS_EARTH_TOPOGRAPHY_PATH` | Earth ETOPO 大气下边界资产路径；仅声明 `derived_inputs.topography` 的上传模型需要，运行时不下载原始 DEM |
+| `ASTRAATMOS_MAX_UPLOAD_SIZE_MB` | 数据上传大小上限，默认 512 MB |
 | `USER_MODEL_VALIDATION_TIMEOUT_SECONDS` | 上传与手动重新校验的通用隔离进程预算，默认 120 秒、正整数；导入和声明检查仍在此预算内，合法全图声明按下一项扩展总预算。超时终止子进程并禁止训练；Earth 创建任务不重复 dry-run |
 | `USER_MODEL_FULL_GRID_VALIDATION_TIMEOUT_SECONDS` | 全图 Earth 上传、重新校验、显式配置探针及 checkpoint 隔离重载的预算，覆盖 240×480 和 36×72 契约；默认 900 秒、正整数，与通用预算取较大值。显式恢复工具也复用此配置，显式调用超时值优先；任务创建不运行探针 |
-| `ARESVISION_FRONTEND_DIST` | 指定后端托管的前端构建目录 |
+| `ASTRAATMOS_FRONTEND_DIST` | 指定后端托管的前端构建目录 |
 
 ## 自定义模型
 
@@ -538,7 +538,7 @@ node --test
 npm run build
 ```
 
-后端使用 pytest。在已安装后端依赖的虚拟环境中，从 `AresVision_backend/backend/` 执行：
+后端使用 pytest。在已安装后端依赖的虚拟环境中，从 `AstraAtmos_backend/backend/` 执行：
 
 ```bash
 python -m pip install pytest pytest-asyncio
@@ -579,7 +579,7 @@ python -m pytest tests
 | 跨年时间轴或球面样本不一致 | MY/Ls 的对应关系、数据源覆盖区间、排序与跨 360° 回绕逻辑 |
 | 训练立即失败或显存不足 | 训练日志、训练解释器与 PyTorch 环境、输入尺寸和 batch size；失败分类在 `training_failures.py` |
 | 训练请求返回 400/409 且提示数据集 | 顶层 `dataset_id` 与 `hyperparameters.training_dataset` 是否冲突、ID 是否已注册、Earth 模型来源及参数是否满足所选发布的契约；见 [数据集注册表](docs/dataset-registry.md) |
-| `/api/datasets` 中 Earth 不是 `available` | 检查 `ARESVISION_EARTH_MERRA2_3HOURLY_DIR`、`earth_merra2_3hourly.nc` 和 `manifest.json`，以 `availability_reason` 定位；日频请求返回 `dataset_retired` |
+| `/api/datasets` 中 Earth 不是 `available` | 检查 `ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR`、`earth_merra2_3hourly.nc` 和 `manifest.json`，以 `availability_reason` 定位；日频请求返回 `dataset_retired` |
 | 地球地图只有区域一块着色 | 默认 v2 应覆盖全球；若仍显示 ±60°/±120°，检查是否访问旧 v1 或未重建前端。v1 区域边界保持原义 |
 | 地球三维球体空白或只有底球 | WebGL 是否可用（不可用会自动切二维并给出说明）、`/api/analysis/earth/overview/context` 是否返回 200、`geometry` 是否含 36/72 个单元中心 |
 | 地球年度卡片一直加载 | `/api/analysis/earth/overview/research-suite`（或 `spatial-diagnostics`、`polar-dynamics`）的年份是否在发布范围内、`dataset_id` 与 `expected_fingerprint` 是否与当前描述符一致 |
@@ -592,7 +592,7 @@ python -m pytest tests
 | 旧训练任务缺少数据集身份 | 启动日志中的身份迁移记录；迁移失败会中止启动，修复数据库后可重试 |
 | 登录重启后失效、验证码失败 | 固定 `JWT_SECRET_KEY`，核对 SMTP 配置及具体接口错误 |
 | AI 仅返回固定回答 | `AI_API_KEY`、`AI_API_URL`、`AI_MODEL_NAME` 与外部接口响应 |
-| 部署后仍是旧页面 | 是否重新构建 `frontend/dist`、重启后端，以及 `ARESVISION_FRONTEND_DIST` 是否指向另一目录 |
+| 部署后仍是旧页面 | 是否重新构建 `frontend/dist`、重启后端，以及 `ASTRAATMOS_FRONTEND_DIST` 是否指向另一目录 |
 | 重新构建后页面全白、控制台报模块 MIME 为 `text/html` | `scripts/serve-prod.mjs` 的压缩缓存需带文件修改时间：若新旧 `index.html` 字节数相同，只按路径与大小做键会把上一版的 gzip 结果发给浏览器，页面仍引用已删除的哈希资源。该脚本已按 `路径:大小:mtime` 缓存并清理旧键；如仍复现，确认服务已重启且 `index.html` 已更新 |
 
 选择测试时优先定位受影响模块，而不是只运行结构检查：预测变更参考 `test_trained_model_predict_contract.py`、`test_prediction_horizon_contract.py` 与 `predictRequestCoordinator.test.js`；总览变更参考 `test_analysis_overview_uploaded_sources.py`、`test_mcd_overview_service.py`；模型接入变更参考 `test_uploaded_model_runner.py`、`test_uploaded_model_ls_inference.py`。这些测试分别位于后端 `tests/` 和对应前端模块目录，完整测试命令见上文。
@@ -620,4 +620,4 @@ README 是项目当前行为的接手入口，设计稿记录方案背景，源�
 
 避免把分支名、未提交文件清单、运行端口占用、临时日志或一次性测试数量长期写入 README。详细实验记录与长篇设计放入专题文档，README 保留稳定结论和入口；历史更新记录归档在[更新记录](docs/change-history.md)，完整文件入口见[代码入口索引](docs/code-map.md)，逐测试说明见[测试索引](docs/testing-map.md)，不再在 README 逐条累积。
 
-本地工作区 `D:\_Aresvision` 的智能体接手与维护规则放在父目录 `AGENTS.md`，该文件不随此 Git 仓库克隆分发。在其他工作区使用本仓库时，应将本节纳入该工作区的智能体指令。此约定要求执行代码变更的开发者或智能体同步维护，不是已经安装的文件监控器或定时自动化。
+本地工作区的智能体接手与维护规则放在父目录 `AGENTS.md`，该文件不随此 Git 仓库克隆分发。在其他工作区使用本仓库时，应将本节纳入该工作区的智能体指令。此约定要求执行代码变更的开发者或智能体同步维护，不是已经安装的文件监控器或定时自动化。

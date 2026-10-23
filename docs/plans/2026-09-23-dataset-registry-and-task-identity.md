@@ -12,7 +12,7 @@
 
 ## 1. 交接说明与范围
 
-项目根目录为 `D:\_Aresvision\Aresvision`，父工作区为 `D:\_Aresvision`。下文文件路径均相对项目根目录，命令另行标注执行目录。
+项目根目录为 `AstraAtmos`，父工作区为 `<工作区>`。下文文件路径均相对项目根目录，命令另行标注执行目录。
 
 执行者先阅读 [README](../../README.md) 中的“快速接手”“模块与代码入口”“关键业务链路”“当前功能边界”“README 维护约定”，以及父目录 `AGENTS.md`。遵守禁止批量删除文件/目录的规则；不要通过 Python、shell 或测试清理脚本绕过该限制。
 
@@ -56,7 +56,7 @@ rg --files -g AGENTS.md -g '!node_modules' -g '!.venv' .
 
 | 文件 | 当前事实和实施影响 |
 | --- | --- |
-| `services/earth_dataset.py`（后端内） | 有 `SCHEMA=aresvision_earth_daily_v1`、`load_earth_dataset()`、`validate_dataset()` 和 `EarthOzoneWindows`；这是文件格式协议，不是注册表 ID |
+| `services/earth_dataset.py`（后端内） | 有 `SCHEMA=astraatmos_earth_daily_v1`、`load_earth_dataset()`、`validate_dataset()` 和 `EarthOzoneWindows`；这是文件格式协议，不是注册表 ID |
 | `scripts/build_earth_ozone_dataset.py` | 已生成 manifest，包含源 SHA、数据 SHA、变量、范围和划分，但没有 `dataset_id`；可以由注册表补充身份，无需重建小包 |
 | `services/training_channels.py` | `_training_dataset()` 会将未知值回退到 `openmars_mcd`；新请求必须改为严格拒绝 |
 | `models/training_scripts/demo3.py`、`training_backbones/user_model_runner.py` | 各有 dataset normalizer；训练命令入口也必须做严格校验，不能仅修 HTTP 层 |
@@ -66,13 +66,13 @@ rg --files -g AGENTS.md -g '!node_modules' -g '!.venv' .
 | `services/training_channels.py` | `build_hyperparameter_args()` 会将所有非下划线开头字段转成 CLI 参数；身份字段应独立保存，不能直接塞进超参数 |
 | `services/prediction_analysis_cache.py` | 当前指纹包含整个 `hyperparameters`；不要重写旧任务 JSON 造成所有旧缓存意外失效 |
 
-表中简称均位于 `AresVision_backend/backend/`。其余项目入口详见 README。
+表中简称均位于 `AstraAtmos_backend/backend/`。其余项目入口详见 README。
 
 本地小包实际核对基准：
 
 | 项目 | 值 |
 | --- | --- |
-| 目录 | `AresVision_backend/backend/data/earth/merra2_daily_v1/` |
+| 目录 | `AstraAtmos_backend/backend/data/earth/merra2_daily_v1/` |
 | 文件 | `earth_merra2_daily.nc`、`manifest.json` |
 | 时间 | `2020-01-01` 至 `2021-12-31`，731 天 |
 | 网格 | 31 个纬度 × 49 个经度，纬度间隔 4°、经度间隔 5° |
@@ -95,7 +95,7 @@ rg --files -g AGENTS.md -g '!node_modules' -g '!.venv' .
 | `mcd_overview` | `mars` | `null` | 同上，保留与前一来源的区别 |
 | `earth_merra2_daily_v1` | `earth` | `v1` | 以当前已核验的小包为固定发布内容 |
 
-- `schema` 使用文件本来的 `aresvision_earth_daily_v1`，不将它混用为 `dataset_id` 或数据版本。
+- `schema` 使用文件本来的 `astraatmos_earth_daily_v1`，不将它混用为 `dataset_id` 或数据版本。
 - `manifest_sha256` 指 manifest **原始字节**的 SHA-256，不对 JSON 再序列化后计算；因此发布后连格式变动也应视为 manifest 变更。
 - `data_sha256` 指 NetCDF 原始字节 SHA-256。
 - `dataset_fingerprint` 组合数据 ID、版本、manifest SHA、data SHA，算法见任务 1。
@@ -147,7 +147,7 @@ Earth 验证成功后应返回如下结构。下列 SHA 和组合指纹已由本
   "display_name": "MERRA-2 daily ozone compact v1",
   "planet": "earth",
   "dataset_version": "v1",
-  "schema": "aresvision_earth_daily_v1",
+  "schema": "astraatmos_earth_daily_v1",
   "manifest_sha256": "1d346a059aff57964cb726dde7113fc495adb4b8245f533911dc6f3d63e52d7e",
   "data_sha256": "c21c4ddcb03a69d2eb504f746c86b3a15cf33a06929044f50da768bdfc45cf74",
   "dataset_fingerprint": "74ce14752cb83932b29b458d9c19a61804861c270e6fec33f55316778ad64d31",
@@ -247,7 +247,7 @@ Pydantic 对字段类型的基本校验错误可使用现有 422；上表 400 �
 
 ## 4. 文件职责与改动清单
 
-后端路径前缀均为 `AresVision_backend/backend/`。
+后端路径前缀均为 `AstraAtmos_backend/backend/`。
 
 | 动作 | 路径 | 职责 |
 | --- | --- | --- |
@@ -257,7 +257,7 @@ Pydantic 对字段类型的基本校验错误可使用现有 422；上表 400 �
 | 新增 | `schemas/datasets.py` | 描述符、时间/网格/变量/能力模型及列表响应 |
 | 新增 | `routers/datasets.py` | 只读列表和详情 |
 | 新增 | `database/dataset_identity_migration.py` | 可独立在临时 SQLite 上测试的补列和历史回填 |
-| 修改 | `config.py`、`.env.example` | `ARESVISION_EARTH_MERRA2_DIR` 覆盖小包目录 |
+| 修改 | `config.py`、`.env.example` | `ASTRAATMOS_EARTH_MERRA2_DIR` 覆盖小包目录 |
 | 修改 | `main.py` | 注册服务及路由 |
 | 修改 | `database/models.py`、`database/init_db.py` | 五个字段、迁移调用和失败处理 |
 | 修改 | `schemas/training.py`、`routers/training.py` | 请求字段、响应字段、准确的错误映射 |
@@ -575,12 +575,12 @@ def build_training_binding(self, dataset_id):
 
 ```python
 EARTH_MERRA2_DIR = Path(os.getenv(
-    "ARESVISION_EARTH_MERRA2_DIR",
+    "ASTRAATMOS_EARTH_MERRA2_DIR",
     DATA_DIR / "earth" / "merra2_daily_v1",
 )).expanduser()
 ```
 
-`.env.example` 增加可选注释 `# ARESVISION_EARTH_MERRA2_DIR=data/earth/merra2_daily_v1`。相对路径明确相对后端启动目录；路径本身不返回 API。
+`.env.example` 增加可选注释 `# ASTRAATMOS_EARTH_MERRA2_DIR=data/earth/merra2_daily_v1`。相对路径明确相对后端启动目录；路径本身不返回 API。
 
 - [ ] `main.py` lifespan 装配 `app.state.dataset_registry = DatasetRegistry(EARTH_MERRA2_DIR)`，构造不读取文件；路由挂载使用既有 `API_PREFIX`。不调用 Mars DataService 或模型加载器来获取目录。
 - [ ] Router 使用同步函数，让 FastAPI 在线程池执行磁盘/NetCDF 工作；从 Request 取同一注册服务：
@@ -855,10 +855,10 @@ def test_earth_training_rejected_before_database(monkeypatch):
 
 ## 7. 验证命令与成功标准
 
-所有 Python 命令在 `AresVision_backend/backend/` 执行。选择能导入当前后端依赖的解释器；可参考父工作区启动脚本中的现有 Conda 环境，不安装或切换全局环境。下面用 `$datasetPython` 保存已核实的解释器路径，不改系统环境变量。
+所有 Python 命令在 `AstraAtmos_backend/backend/` 执行。选择能导入当前后端依赖的解释器；可参考父工作区启动脚本中的现有 Conda 环境，不安装或切换全局环境。下面用 `$datasetPython` 保存已核实的解释器路径，不改系统环境变量。
 
 ```powershell
-Set-Location D:\_Aresvision\Aresvision\AresVision_backend\backend
+Set-Location AstraAtmos_backend\backend
 $datasetPython = (Get-Command python).Source
 & $datasetPython -B -c 'import sys, pytest, fastapi, pydantic, sqlalchemy, aiosqlite, numpy, xarray, netCDF4; print(sys.executable)'
 ```
@@ -868,7 +868,7 @@ $datasetPython = (Get-Command python).Source
 每次 pytest 使用新的纯英文临时路径，不复用旧 basetemp，不添加清理操作：
 
 ```powershell
-$datasetTestTemp = Join-Path 'D:\_Aresvision' ('.dataset-registry-test-' + [guid]::NewGuid().ToString('N'))
+$datasetTestTemp = Join-Path $env:TEMP ('.dataset-registry-test-' + [guid]::NewGuid().ToString('N'))
 $datasetTests = @(
   'tests/test_dataset_identity.py',
   'tests/test_dataset_registry.py',
@@ -919,7 +919,7 @@ print("Earth registry metadata verified")
 从项目根目录检查：
 
 ```powershell
-Set-Location D:\_Aresvision\Aresvision
+Set-Location AstraAtmos
 git diff --check
 git diff --stat
 git status --short
@@ -943,7 +943,7 @@ git status --short
 ## 9. 可复制给执行对话的指令
 
 ```text
-请实施 D:\_Aresvision\Aresvision\docs\plans\2026-09-23-dataset-registry-and-task-identity.md。
+请实施 docs\plans\2026-09-23-dataset-registry-and-task-identity.md。
 
 先阅读父工作区 AGENTS.md 和项目 README 指定接手章节，检查 Git 状态及近期提交，保留已有未提交 Earth 小包代码与文档。按方案完成“数据集注册与训练任务身份兼容”第一阶段，做到只读目录 API、真实 Earth 元数据验证、旧任务幂等迁移、新请求严格校验，以及测试和 README/专题文档同步。
 
