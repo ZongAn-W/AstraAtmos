@@ -86,8 +86,8 @@ async (page) => {
   });
   await page.routeWebSocket('**/ws/**', () => {});
   await page.addInitScript(() => {
-    localStorage.setItem('aresvision_token', 'isolated-earth-diagnostics-fixture');
-    localStorage.setItem('aresvision_settings', JSON.stringify({ language: 'zh', theme: 'dark' }));
+    localStorage.setItem('astraatmos_token', 'isolated-earth-diagnostics-fixture');
+    localStorage.setItem('astraatmos_settings', JSON.stringify({ language: 'zh', theme: 'dark' }));
   });
   const assert = (condition, name) => { if (!condition) throw new Error(name); checks.push(name); };
   await page.setViewportSize({ width: 1440, height: 900 });

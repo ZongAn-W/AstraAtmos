@@ -74,7 +74,8 @@ test('training task responses are guarded by request id, user, and scope', () =>
   assert.match(pageSource, /predictScopeRef\.current === scope/);
   assert.match(pageSource, /user\?\.id === userId/);
   assert.match(pageSource, /onRetryTrainingTasks=\{loadTrainingTasks\}/);
-  assert.match(pageSource, /reloadEarthContextAndTasks/);
+  assert.match(pageSource, /earthContextRequestRef\.current !== controller \|\| scope !== predictScopeRef\.current/);
+  assert.match(pageSource, /Number\(payload\.task_id\) !== normalized \|\| payload\.planet !== 'earth'/);
 });
 
 test('single and comparison analyses restore only for their exact request keys', () => {

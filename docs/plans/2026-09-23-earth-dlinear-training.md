@@ -32,7 +32,7 @@
 
 ## 1. 交付范围与前置条件
 
-项目根目录为 `D:\_Aresvision\Aresvision`。下文路径相对项目根目录；后端路径均以 `AresVision_backend/backend/` 为前缀。本计划属于项目功能文档，保存在可追踪的 `docs/plans/`。
+项目根目录为 `AstraAtmos`。下文路径相对项目根目录；后端路径均以 `AstraAtmos_backend/backend/` 为前缀。本计划属于项目功能文档，保存在可追踪的 `docs/plans/`。
 
 实施前先读父目录 `AGENTS.md`、[README](../../README.md) 的“快速接手 / 模块与代码入口 / 关键业务链路 / 当前功能边界 / README 维护约定”、[数据集注册协议](../dataset-registry.md)、[Earth 小包](../earth-compact-dataset.md)、[Earth 总览](../earth-overview.md)、[共用分析工作台](../earth-analysis-workbench.md)。接口接线以最新源码与已实现协议为准。禁止批量删除文件或目录。
 
@@ -80,7 +80,7 @@
 | 项目 | 首期值 |
 | --- | --- |
 | dataset_id / version | `earth_merra2_daily_v2` / `v2` |
-| 数据格式 schema | `aresvision_earth_daily_v1`（文件协议名，非版本号） |
+| 数据格式 schema | `astraatmos_earth_daily_v1`（文件协议名，非版本号） |
 | 时间 | 2020-01-01 至 2021-12-31，连续 731 个 UTC 日；`proleptic_gregorian` |
 | 网格 | `[36, 72]`，维度 `[lat, lon]`；中心纬 −87.5…87.5、经 −177.5…177.5，均递增 |
 | 分辨率 | 5°×5°，全球 |
@@ -260,9 +260,9 @@ test = EarthOzoneWindows.from_release(
 
 新增内部 schema `earth_training_spec_v1`，字段固定为 `schema`、`task_id`、`dataset_binding`（五列，snapshot 在内存中为对象）、`hyperparameters`（规范且无 `_` 字段）。完成任务 flush 后由服务端构造。
 
-用环境变量 `ARESVISION_EARTH_TRAINING_SPEC` 传入该 JSON，避免把长 JSON、路径或私有身份字段塞进现有 hyperparameter CLI。Earth 进程只接收 `--output_path`；不再无差别 `build_hyperparameter_args()`。
+用环境变量 `ASTRAATMOS_EARTH_TRAINING_SPEC` 传入该 JSON，避免把长 JSON、路径或私有身份字段塞进现有 hyperparameter CLI。Earth 进程只接收 `--output_path`；不再无差别 `build_hyperparameter_args()`。
 
-进程沿用服务端受控 `ARESVISION_EARTH_MERRA2_DIR`；父服务与子进程必须来自同一配置；相对路径由 backend 根目录解析，不依赖 Popen 的 `cwd=MODELS_DIR`。测试可通过构造函数注入临时 registry，生产不接受客户端指定期望哈希。
+进程沿用服务端受控 `ASTRAATMOS_EARTH_MERRA2_DIR`；父服务与子进程必须来自同一配置；相对路径由 backend 根目录解析，不依赖 Popen 的 `cwd=MODELS_DIR`。测试可通过构造函数注入临时 registry，生产不接受客户端指定期望哈希。
 
 runner 解析环境 spec 后新建本进程 registry，校验 task id、规范参数与发布身份，再取得同次校验快照训练。环境 spec 不含客户端提供的目录；runner 缺 spec 时不得自行套用默认 Mars 数据。
 
@@ -276,9 +276,9 @@ runner 解析环境 spec 后新建本进程 registry，校验 task id、规范�
 
 | 字段 | 必存内容 |
 | --- | --- |
-| artifact_schema | `aresvision_earth_forecast_checkpoint_v1` |
+| artifact_schema | `astraatmos_earth_forecast_checkpoint_v1` |
 | model_state_dict | 完整 ForecasterAdapter，包括 projector 与 backbone 的 CPU tensors |
-| model_config | architecture=dlinear、implementation_id=`aresvision_gridpoint_dlinear_v1`、input_channels、selected_channels、hidden_dims、height/width=36/72、window/horizon=7/3、use_sphere=false、architecture_params |
+| model_config | architecture=dlinear、implementation_id=`astraatmos_gridpoint_dlinear_v1`、input_channels、selected_channels、hidden_dims、height/width=36/72、window/horizon=7/3、use_sphere=false、architecture_params |
 | dataset_binding | 与任务五列一致的 identity，snapshot 为对象，含发布 SHA、日期与完整经纬数组 |
 | training_contract | target=TO3、target_unit=DU、input_channel_order、input_units、tensor_layout=`BTCHW`、step_unit=day、window/horizon、strict_split_windows=true、split_window_counts |
 | normalization | 第 3.3 节规定的完整统计量及 fit 日期；TO3 统计值索引明确 |
@@ -472,7 +472,7 @@ def test_metrics_are_physical_and_split_by_lead():
 
 **文件：** 新建 `models/training_scripts/earth_daily.py`、`tests/test_earth_training_runner.py`。
 
-- [ ] 入口按 backend 根目录配置导入路径；只解析 `--output_path`，从 `ARESVISION_EARTH_TRAINING_SPEC` 读取内部 spec，缺少或非法则非零退出。
+- [ ] 入口按 backend 根目录配置导入路径；只解析 `--output_path`，从 `ASTRAATMOS_EARTH_TRAINING_SPEC` 读取内部 spec，缺少或非法则非零退出。
 - [ ] 可测试核心为 `run_training(spec, output_path, registry, device=None)`，CLI 使用真实 registry；测试可传 fixture registry。
 - [ ] 验证 spec 与实际 snapshot 身份后构建三份窗口，创建 DLinear、Adam、MSELoss；限制随机数与 DataLoader 行为。
 - [ ] 实现训练、验证、按 validation 选 best、patience、恢复 best、最终 validation/test DU 评估。最优权重须 `.detach().cpu().clone()`，不引用活模型参数。
@@ -516,7 +516,7 @@ Earth metrics unit: DU
 - [ ] 在 `get_test_results()` 直接路径增加同一保护；action=test 路由在 `prepare_task_inference_data_env()` 之前拒绝。
 - [ ] 搜索所有以 task id 调用的推理/metrics/compare/error-distribution/PFI 分支，保证覆盖；compare 先对全部任务完成访问与场景预检，再读任何缓存或开始计算。混入 Earth 时整个请求拒绝，不先算完 Mars 再发现 Earth，也不静默丢掉它只比较其余模型。
 - [ ] `routers/predict.py` 先捕获 `DatasetRequestError` 再捕获 `ValueError`，使拒绝返回 409 与稳定 code，不变成 400 或 500。
-- [ ] Mars 迁移读取来源 task 后、加载文件前拒绝 Earth 来源；`TrainingWeightService._validate_weight_file()` 识别 `artifact_schema=aresvision_earth_forecast_checkpoint_v1` 时返回 ok=false 与明确不兼容 errors，上传记录为 invalid。不抽取 state_dict 伪装 Mars；保留原先支持的 Mars 裸权重路径。
+- [ ] Mars 迁移读取来源 task 后、加载文件前拒绝 Earth 来源；`TrainingWeightService._validate_weight_file()` 识别 `artifact_schema=astraatmos_earth_forecast_checkpoint_v1` 时返回 ok=false 与明确不兼容 errors，上传记录为 invalid。不抽取 state_dict 伪装 Mars；保留原先支持的 Mars 裸权重路径。
 - [ ] 不创建 Earth 预测缓存；测试把 Mars loader、cache lookup、weight loader 改为“一调用就失败”，证明保护发生在这些动作之前。
 
 ```python
@@ -622,15 +622,15 @@ npm run build
 
 ## 7. 验证命令与验收矩阵
 
-先确认解释器：`D:\Anaconda\envs\AresVision\python.exe`（含 torch、netCDF4）。不要默认系统 Python 就是训练环境。
+先确认解释器：`$env:CONDA_PREFIX\python.exe`（含 torch、netCDF4）。不要默认系统 Python 就是训练环境。
 
-后端工作目录：`AresVision_backend/backend/`。每次调用使用新的纯英文临时路径，不复用已存在的 basetemp，也不执行批量清理；返回非零时立即报告失败。
+后端工作目录：`AstraAtmos_backend/backend/`。每次调用使用新的纯英文临时路径，不复用已存在的 basetemp，也不执行批量清理；返回非零时立即报告失败。
 
 ```powershell
 function Invoke-EarthTrainingTests {
     param([Parameter(Mandatory = $true)][string[]]$TestFiles)
-    $earthTrainingTemp = Join-Path 'D:\_Aresvision' ('.earth-training-test-' + [guid]::NewGuid().ToString('N'))
-    & 'D:\Anaconda\envs\AresVision\python.exe' -m pytest @TestFiles -q --basetemp "$earthTrainingTemp"
+    $earthTrainingTemp = Join-Path $env:TEMP ('.earth-training-test-' + [guid]::NewGuid().ToString('N'))
+    & "$env:CONDA_PREFIX\python.exe" -m pytest @TestFiles -q --basetemp "$earthTrainingTemp"
     if ($LASTEXITCODE -ne 0) { throw "Earth training verification failed: $TestFiles" }
 }
 
@@ -695,7 +695,7 @@ npm run build
 
 ## 8. 后续阶段留下的稳定接口
 
-后续阶段直接读取 `aresvision_earth_forecast_checkpoint_v1`，通过保存的 `model_config` / `input_channel_order` / `normalization` / grid / date splits 重建模型。未来比较身份至少包含 `planet`、`dataset_id`、`version`、`fingerprint`、`target`、`horizon`、测试起点集合与指标 aggregation；不同模型可使用不同辅助输入，但比较的参考目标与日期集合必须一致。持久性基线与无参考真值外推也必须复用同样窗口、目标日期与单位。
+后续阶段直接读取 `astraatmos_earth_forecast_checkpoint_v1`，通过保存的 `model_config` / `input_channel_order` / `normalization` / grid / date splits 重建模型。未来比较身份至少包含 `planet`、`dataset_id`、`version`、`fingerprint`、`target`、`horizon`、测试起点集合与指标 aggregation；不同模型可使用不同辅助输入，但比较的参考目标与日期集合必须一致。持久性基线与无参考真值外推也必须复用同样窗口、目标日期与单位。
 
 若未来添加模型、季节特征、日期划分或更换归一化，需提升 profile/implementation/artifact 版本中实际改变的契约，不覆盖 v1 语义，也不能修改固定 ID 对应的数据内容来伪装同一版本。
 
@@ -710,7 +710,7 @@ npm run build
 
 随后接通预测页 Earth 模式：从已完成 Earth 任务与其 checkpoint 恢复模型，按用户选择的历史预测起点读取此前 7 天输入，返回随后 3 天的预测场、参考场与残差场（DU）及误差指标，并返回可选日期范围、三天日期与真实经纬网格。日期越界、指纹变化、权重损坏、任务无权限返回明确错误，且绝不回退到火星预测。前端沿用现有预测页模型选择与场展示习惯，Earth 用日期与 DU，Mars 继续 MY/Ls 与原有单位；切换任务时清理过期结果；缓存键区分星球与数据集身份。
 
-补充后端与前端测试（数据切窗与边界、训练集归一化、checkpoint 重载、历史日期预测、权限与错误、Mars 回归、前端模式切换），用真实 v2 小包完成至少一次训练与预测端到端验收，并核对预测场非空、日期与网格正确、指标有限。后端只用 D:\Anaconda\envs\AresVision\python.exe；前端源码变更后在 frontend 执行 npm run build。需要启动应用时按 AGENTS.md 验证 /health、前端首页与代理 /api/datasets 均 200。
+补充后端与前端测试（数据切窗与边界、训练集归一化、checkpoint 重载、历史日期预测、权限与错误、Mars 回归、前端模式切换），用真实 v2 小包完成至少一次训练与预测端到端验收，并核对预测场非空、日期与网格正确、指标有限。后端只用 $env:CONDA_PREFIX\python.exe；前端源码变更后在 frontend 执行 npm run build。需要启动应用时按 AGENTS.md 验证 /health、前端首页与代理 /api/datasets 均 200。
 
 同任务更新 README 与专题文档，准确区分已开放与未开放能力；报告修改文件、实际执行的测试与联调结果、训练任务 ID、预测日期与剩余限制。不要自动提交、推送、创建额外对话或批量删除文件。
 ```

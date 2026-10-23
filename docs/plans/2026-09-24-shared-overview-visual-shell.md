@@ -85,7 +85,7 @@ export function shouldUseCompactOverview(viewportWidth) {
 Cover default widths, the scene-width calculation, the compact breakpoint, and equal rail defaults:
 
 ~~~powershell
-cd D:\_Aresvision\Aresvision\frontend
+cd frontend
 node --test src/pages/DataOverviewPage/workbench/overviewVisualContract.test.js
 ~~~
 
@@ -202,7 +202,7 @@ After browser parity is confirmed, delete the Mars compatibility wrapper and its
 - [ ] Step 5: Run Mars regression tests.
 
 ~~~powershell
-cd D:\_Aresvision\Aresvision\frontend
+cd frontend
 node --test src/pages/DataOverviewPage/pointProbeStructure.test.js src/pages/DataOverviewPage/overviewOverlayHudStructure.test.js src/pages/DataOverviewPage/overviewSolarLightingStructure.test.js src/pages/DataOverviewPage/workbench/overviewShellStructure.test.js
 ~~~
 
@@ -328,7 +328,7 @@ Files:
 - [ ] Step 1: Run frontend tests and build.
 
 ~~~powershell
-cd D:\_Aresvision\Aresvision\frontend
+cd frontend
 node --test
 npm run build
 ~~~
@@ -338,7 +338,7 @@ Expected: all collected tests pass and Vite completes a production build. A pre-
 - [ ] Step 2: Run Earth backend regression tests.
 
 ~~~powershell
-cd D:\_Aresvision\Aresvision\AresVision_backend\backend
+cd AstraAtmos_backend\backend
 python -m pytest tests/test_earth_overview_service.py tests/test_earth_overview_routes.py tests/test_earth_research_service.py tests/test_earth_research_routes.py
 ~~~
 
@@ -347,7 +347,7 @@ Expected: PASS. No backend source or schema changes are expected for the visual 
 - [ ] Step 3: Check diff and links.
 
 ~~~powershell
-cd D:\_Aresvision\Aresvision
+cd AstraAtmos
 git diff --check
 git status --short
 ~~~

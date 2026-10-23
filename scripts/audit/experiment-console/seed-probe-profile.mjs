@@ -9,7 +9,7 @@
  *            可选注入一条 running 与一条 completed 任务（含真实日志文件）。
  *   cleanup  删除该账号及其上传模型、训练任务、日志文件与任务标签。
  *
- * 用法（后端工作目录为 AresVision_backend/backend）：
+ * 用法（后端工作目录为 AstraAtmos_backend/backend）：
  *   & '<conda env python>' scripts/audit/experiment-console/seed-probe-profile.mjs --help
  *
  * 注意：本脚本面向本地开发库，不要对生产库运行。验证完成后请执行 cleanup。
@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 // scripts/audit/experiment-console -> 仓库根
 const REPO_ROOT = resolve(HERE, '..', '..', '..');
-const BACKEND_DIR = join(REPO_ROOT, 'AresVision_backend', 'backend');
+const BACKEND_DIR = join(REPO_ROOT, 'AstraAtmos_backend', 'backend');
 const STATE_FILE = join(HERE, '.probe-profile.json');
 const MODEL_FILE = join(HERE, '.probe-surface-net.py');
 const LOG_DIR = join(BACKEND_DIR, 'data', 'probe_logs');
@@ -40,8 +40,8 @@ const valueOf = (name, fallback) => {
   const index = argv.indexOf(`--${name}`);
   return index >= 0 && argv[index + 1] ? argv[index + 1] : fallback;
 };
-const PYTHON = valueOf('python', process.env.ARESVISION_PYTHON || 'D:\\Anaconda\\envs\\AresVision\\python.exe');
-const API = valueOf('api', process.env.ARESVISION_API || 'http://127.0.0.1:8000/api');
+const PYTHON = valueOf('python', process.env.ASTRAATMOS_PYTHON || '$env:CONDA_PREFIX\python.exe');
+const API = valueOf('api', process.env.ASTRAATMOS_API || 'http://127.0.0.1:8000/api');
 
 if (hasFlag('help') || command === 'help') {
   console.log(`实验中心验收夹具

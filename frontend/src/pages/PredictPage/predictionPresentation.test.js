@@ -46,6 +46,30 @@ test('Earth metric subtitles use the response aggregation and metric policy', ()
     metric_policy: { spatial_weighting: 'spherical_cell_area' } }).subtitle, /Spherical cell-area weighted/);
   assert.match(presentation.describe({ aggregation: 'forecast_origin_lead_grid_uniform' }).subtitle,
     /Grid-uniform \(historical metric policy\)/);
+  // Without a bound checkpoint split there is no split line, exactly like Mars.
+  assert.equal(createEarthPredictionPresentation({ language: 'en' }).metrics.describe({}).splitLabel, '');
+});
+
+test('Earth complete-test metrics reuse the Mars split line from the bound checkpoint test partition', () => {
+  // earthPredictModel.buildEarthSplitLabelSource returns { split_meta }, and
+  // EarthPredictPanel passes that inner object here; the presentation re-wraps it
+  // because the shared getSplitLabel reads metrics.split_meta.
+  const splitMeta = { source: 'published_manifest_splits',
+    test_range: { date_start: '2021-11-01', date_end: '2021-12-28', window_count: 128 } };
+  const presentation = createEarthPredictionPresentation(
+    { language: 'en', scope: 'full_test', splitLabelSource: splitMeta }).metrics;
+  assert.equal(presentation.describe({}).splitLabel,
+    'Published test split: 2021-11-01 — 2021-12-28 · 128 windows');
+  const task = createEarthPredictionPresentation({ language: 'en', scope: 'full_test',
+    splitLabelSource: { source: 'earth_task_split_v1', test_range: splitMeta.test_range } }).metrics;
+  assert.equal(task.describe({}).splitLabel,
+    'Task test split: 2021-11-01 — 2021-12-28 · 128 windows');
+  const ratios = createEarthPredictionPresentation({ language: 'en', scope: 'full_test',
+    splitLabelSource: { source: 'earth_task_split_v1',
+      ratios: { train_ratio: .7, validation_ratio: .2, test_ratio: .1 } } }).metrics;
+  assert.equal(ratios.describe({}).splitLabel, 'Test split: train/validation/test 70%/20%/10%');
+  assert.equal(createEarthPredictionPresentation({ language: 'en', scope: 'full_test' }).metrics
+    .describe({}).splitLabel, '');
 });
 
 test('Earth diagnostics retain paired DU values and true server histogram counts, with no scatter or PFI export', () => {

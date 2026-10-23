@@ -34,6 +34,7 @@ const UserTrainingProvider = ({ children, enabled, user }) => {
   const pollingRef = useRef(null);
   const logPollingRef = useRef(null);
   const loadTasksRef = useRef(null);
+  const pendingTasksRef = useRef(null);
   const tasksGate = useRef(createScopedRequestGate());
   tasksGate.current.setScope(enabled ? user?.id ?? null : null);
   const mountedRef = useRef(true);
@@ -63,29 +64,37 @@ const UserTrainingProvider = ({ children, enabled, user }) => {
     }
   }, []);
 
-  const loadTasks = useCallback(async () => {
+  const loadTasks = useCallback(async ({ reusePending = false } = {}) => {
     if (!enabled || !user) return;
-    const request = tasksGate.current.start();
-    setTasksLoading(true);
-    try {
-      const data = await fetchTasks();
-      if (!mountedRef.current || !tasksGate.current.isCurrent(request)) return;
-      setTasks(data);
-      setTasksError(false);
-      setActiveTaskId((currentTaskId) => (
-        reconcileActiveTrainingTaskId(data, currentTaskId, {
-          suppressAutoSelect: suppressAutoSelectRef.current,
-        })
-      ));
-    } catch (err) {
-      console.error('Failed to load tasks', err);
-      if (mountedRef.current && tasksGate.current.isCurrent(request)) setTasksError(true);
-      throw err;
-    } finally {
-      // 首次加载标记只看「本轮请求是否已结束」：即使结果被下一次轮询取代，
-      // 也要复位，否则目录会一直停在「加载中」。
-      if (mountedRef.current) setTasksLoading(false);
+    const pending = pendingTasksRef.current;
+    if (reusePending && pending && tasksGate.current.isCurrent(pending.request)) {
+      return pending.promise;
     }
+    const request = tasksGate.current.start();
+    const operation = { request, promise: null };
+    pendingTasksRef.current = operation;
+    setTasksLoading(true);
+    operation.promise = (async () => {
+      try {
+        const data = await fetchTasks();
+        if (!mountedRef.current || !tasksGate.current.isCurrent(request)) return;
+        setTasks(data);
+        setTasksError(false);
+        setActiveTaskId((currentTaskId) => (
+          reconcileActiveTrainingTaskId(data, currentTaskId, {
+            suppressAutoSelect: suppressAutoSelectRef.current,
+          })
+        ));
+      } catch (err) {
+        console.error('Failed to load tasks', err);
+        if (mountedRef.current && tasksGate.current.isCurrent(request)) setTasksError(true);
+        throw err;
+      } finally {
+        if (pendingTasksRef.current === operation) pendingTasksRef.current = null;
+        if (mountedRef.current && tasksGate.current.isCurrent(request)) setTasksLoading(false);
+      }
+    })();
+    return operation.promise;
   }, [enabled, user]);
 
   useEffect(() => {
@@ -98,7 +107,9 @@ const UserTrainingProvider = ({ children, enabled, user }) => {
 
     if (enabled && user) {
       loadTasks().catch(() => {});
-      pollingRef.current = setInterval(() => loadTasks().catch(() => {}), 5000);
+      // A slow response must finish before another poll supersedes its token.
+      // Explicit refreshes still start a fresh request after a mutation.
+      pollingRef.current = setInterval(() => loadTasks({ reusePending: true }).catch(() => {}), 5000);
     } else {
       // 未登录 / 未启用时没有任务请求，加载标记必须一起复位，
       // 否则目录会一直停在「正在加载实验…」而看不到空状态。

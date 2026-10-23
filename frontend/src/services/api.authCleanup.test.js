@@ -47,8 +47,8 @@ test('API 401 clears the active user prediction cache before dispatching global 
   await assert.rejects(apiGetMe(), /401/);
 
   assert.deepEqual(operations, [
-    'remove:aresvision_token',
-    'event:aresvision:logout',
+    'remove:astraatmos_token',
+    'event:astraatmos:logout',
   ]);
   assert.equal(getPredictCache(userScope).results, null);
   assert.equal(getPredictCache(userScope).compareTrainingPfiData, null);

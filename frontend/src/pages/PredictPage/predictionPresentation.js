@@ -116,6 +116,9 @@ export function createMarsPredictionPresentation(options = {}) {
 export function createEarthPredictionPresentation(options = {}) {
   const isZh = selectLanguage(options);
   const scope = options.scope || 'current_window';
+  const splitLabelSource = options.splitLabelSource || null;
+  // getSplitLabel reads metrics.split_meta, so keep the shared wrapper shape.
+  const splitLabelMetrics = splitLabelSource ? { split_meta: splitLabelSource } : null;
   return {
     metrics: {
       items: EARTH_METRIC_META.map((item) => ({ ...item, label: item[isZh ? 'zh' : 'en'],
@@ -123,7 +126,9 @@ export function createEarthPredictionPresentation(options = {}) {
       title: text(isZh, '模型评价指标', 'Model evaluation metrics'), missingLabel: text(isZh, '未提供', 'Not provided'),
       convertValue: (value) => value,
       describe: (metrics) => ({ scope, subtitle: `${predictionScopeLabel(scope, isZh)} · ${text(isZh,
-        '反归一化 TO3（DU）；', 'Physical TO3 (DU); ')}${getEarthMetricPolicyLabel(metrics, isZh)}`, splitLabel: '' }),
+        '反归一化 TO3（DU）；', 'Physical TO3 (DU); ')}${getEarthMetricPolicyLabel(metrics, isZh)}`,
+        // Same split line Mars shows; the source is the bound checkpoint test split.
+        splitLabel: getSplitLabel(splitLabelMetrics, isZh) }),
     },
     distribution: {
       unitLabel: 'DU',

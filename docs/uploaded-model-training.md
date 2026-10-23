@@ -74,7 +74,7 @@ complete model input order is `["O3", *selected_channels]`: selecting no auxilia
 still supplies one O3 channel, and selecting U supplies `["O3", "U"]`.
 
 Both the official `demo3.py` runner and uploaded `user_model_runner.py` runner save
-the shared `aresvision_mars_forecast_checkpoint_v1` contract. The checkpoint retains
+the shared `astraatmos_mars_forecast_checkpoint_v1` contract. The checkpoint retains
 auxiliary-only `training_contract.selected_channels`, while
 `normalization.input_channel_order` records the complete order. `input_mean`,
 `input_scale`, and `constant_channel_mask` each have one entry per input channel;
@@ -145,19 +145,23 @@ only when all of these hold:
 2. it passes the shared safety gate (imports limited to `torch` / `numpy`, no
    `open` / `eval` / `exec` / `compile` / `__import__`, no `system` / `popen` / `Popen` / `run`);
 3. `MODEL_SPEC["datasets"]` declares the `earth_merra2` feed;
-4. that declaration does not require Ls or MOLA topography — Earth training rejects
-   Mars-only auxiliary inputs;
-5. a real dry-run builds the model with Earth's window/horizon/grid and runs
-   `[1, 7, {1, 5}, 36, 72]` → `[1, 3, 1, 36, 72]`.
+4. for the active three-hour Earth feed, the declaration uses the independent
+   v1 tile or v2 full-grid schema; `ls` and Earth `topography` are declared via
+   `derived_inputs`, never through Mars `auxiliary_inputs`;
+5. a real dry-run builds the model with the selected three-hour window,
+   horizon, grid and declared derived inputs. The complete active contract is
+   documented in [Earth three-hour uploaded models](earth-3hourly-uploaded-model.md).
 
 Any failure is reported with a reason; the training page disables "start experiment"
 until the verdict is positive. An upload with no `datasets` block keeps its historical
 Mars behaviour and reports `"compatible": false` for Earth with the reason
 `MODEL_SPEC does not declare the earth_merra2 dataset feed`.
 
-The Earth feed does **not** pass `ls` or MOLA topography, so anything a model needs must
-come from the five Earth channels (`TO3` plus four optional). `selected_channels` for
-Earth starts with the mandatory `TO3` target.
+The retired daily Earth example below does not describe the active three-hour
+feed. Active Earth models receive `TO3` plus selected meteorological channels,
+and may additionally declare UTC-derived `ls` or the server-owned ETOPO
+`topography` tensor. Mars MOLA declarations remain Mars-only. See the active
+[v1 contract](earth-3hourly-uploaded-model.md) and [Earth terrain asset](earth-topography-asset.md).
 
 Ask the server for the verdict instead of guessing:
 
@@ -357,7 +361,7 @@ MODEL_SPEC = {
 ## Validation Rules
 
 Upload and manual revalidation use a bounded child process,
-with a default budget of 120 seconds. Set the positive integer
+starting with a default import/declaration budget of 120 seconds. Set the positive integer
 `USER_MODEL_VALIDATION_TIMEOUT_SECONDS` in the backend environment and restart the
 backend to change it. All execution checks remain required. A timeout terminates
 the child and records `validation_report.code="uploaded_model_validation_timeout"`;
@@ -367,14 +371,23 @@ the package stays invalid until revalidation succeeds. Earth compatibility repor
 timeout error text receive the same treatment. This budget is separate from the
 30-second checkpoint completion/reload gate.
 
-Explicit `earth_probe` calls for Earth full-grid v2 configurations use the larger
-of the ordinary budget and `USER_MODEL_FULL_GRID_VALIDATION_TIMEOUT_SECONDS`
-(default 300 seconds). This setting remains available for explicit probes; task
-creation reuses the saved upload report and does not use this budget.
-Upload short-window probes, Mars and v1 tile checks retain the ordinary budget;
-explicit validator timeouts remain authoritative. The process result is drained
+After the isolated child imports the source and validates its dataset declaration
+and parameter schema, a full-grid v2 declaration extends the total budget to the
+larger of the ordinary setting and `USER_MODEL_FULL_GRID_VALIDATION_TIMEOUT_SECONDS`
+(default 900 seconds). The deadline always counts from process start; the parent
+never executes uploaded source to choose it. A hung import or invalid declaration
+does not receive the extension. Full-grid upload/revalidation still uses all 16
+channel combinations, the full 240x480 grid, default model parameters, finite
+gradient checks and eval sample independence. Upload and revalidation wait in a
+background thread so unrelated API requests remain responsive.
+
+Explicit `earth_probe` calls use the same larger budget for full-grid v2 and still
+check the requested configuration. Mars and v1 tile checks retain the ordinary
+budget; explicit validator timeouts remain authoritative. Task creation reuses
+the saved report and does not run these probes. The process result is drained
 before joining its sender to avoid false timeouts for large reports. The process
-must still exit successfully within the deadline. See [full-grid admission](earth-3hourly-fullgrid-model.md).
+must still exit successfully within the deadline. See
+[full-grid admission](earth-3hourly-fullgrid-model.md).
 
 Version 1 accepts these import roots:
 

@@ -16,9 +16,9 @@
 
 ## 部署
 
-后端工作目录为 `AresVision_backend/backend`。配置 `ARESVISION_EARTH_MERRA2_3HOURLY_DIR` 指向同时包含 `manifest.json` 与 `earth_merra2_3hourly.nc` 的已验证发布目录；相对路径按后端工作目录解析。
+后端工作目录为 `AstraAtmos_backend/backend`。配置 `ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR` 指向同时包含 `manifest.json` 与 `earth_merra2_3hourly.nc` 的已验证发布目录；相对路径按后端工作目录解析。
 
-`ARESVISION_DEFAULT_EARTH_DATASET_ID` 可省略或设为 `earth_merra2_3hourly_v1`；旧日频值须修改或移除，否则启动会明确报配置错误。无需改写日频路径或删除旧包。前端源码修改后在 `frontend/` 执行 `npm run build`，重启生产前端并完整刷新页面。
+`ASTRAATMOS_DEFAULT_EARTH_DATASET_ID` 可省略或设为 `earth_merra2_3hourly_v1`；旧日频值须修改或移除，否则启动会明确报配置错误。无需改写日频路径或删除旧包。前端源码修改后在 `frontend/` 执行 `npm run build`，重启生产前端并完整刷新页面。
 
 ## 验证入口
 

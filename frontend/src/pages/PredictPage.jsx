@@ -1139,12 +1139,6 @@ export default function PredictPage() {
     }
   }, []);
 
-  const reloadEarthContextAndTasks = useCallback(() => {
-    const tasksRequest = loadTrainingTasks();
-    loadEarthContext(earthTaskId);
-    return tasksRequest;
-  }, [earthTaskId, loadEarthContext, loadTrainingTasks]);
-
   useEffect(() => {
     if (modelMode !== PREDICT_MODEL_MODE_EARTH) return;
     if (!selectedEarthTask && earthTaskOptions.length > 0) {
@@ -1249,56 +1243,16 @@ export default function PredictPage() {
     }
   }, [earthContext, earthContextLoading, earthLoading, earthOrigin, earthTaskId, loadEarthContext, settings.language, settings.colormap, t]);
 
+  /**
+   * Earth 只保留侧栏行星契约需要的文案。单模型页面其余部分的措辞与火星一致，
+   * 由共用侧栏和共用工作台直接提供，不再单独维护一套介绍性词表。
+   */
   const earthCopy = useMemo(() => ({
-    title: t('predict.earthTitle'),
-    note: t('predict.earthNote'),
-    threeHourlyNote: t('predict.earthThreeHourlyNote'),
     taskLabel: t('predict.earthTaskLabel'),
     taskPlaceholder: t('predict.earthTaskPlaceholder'),
     originLabel: t('predict.earthOriginLabel'),
-    originRange: (start, end, count) => `${start} → ${end} · ${count}`,
-    originRangeUnknown: t('predict.earthOriginRangeUnknown'),
     originOutOfRange: t('predict.earthOriginOutOfRange'),
-    run: t('predict.earthRun'),
-    running: t('predict.earthRunning'),
-    reload: t('predict.earthReload'),
-    loadingContext: t('predict.earthLoadingContext'),
-    emptyReady: t('predict.earthEmptyReady'),
-    emptyNoTask: t('predict.earthEmptyNoTask'),
-    fieldEmpty: t('predict.earthFieldEmpty'),
-    dayTabsLabel: t('predict.earthDayTabsLabel'),
-    originLine: (origin, first, last, threeHourly = false, window = 56, horizon = 24) => t('predict.earthOriginLine', {
-      origin, first, last, threeHourly, window, horizon,
-    }),
-    originSplit: (split) => t('predict.earthOriginSplit', { split }),
-    rangeLabel: t('predict.earthRangeLabel'),
-    validCellsLabel: t('predict.earthValidCells'),
-    leadHeader: t('predict.earthLeadHeader'),
-    dateHeader: t('predict.earthDateHeader'),
-    referenceNote: t('predict.earthReferenceNote'),
-    residualUnit: t('predict.earthResidualUnit'),
-    residualMode: t('predict.earthResidualMode'),
-    physicalMode: t('predict.earthPhysicalMode'),
-    dayUnit: t('predict.earthDayUnit'),
-    stepUnit: t('predict.earthStepUnit'),
-    dailyFrequency: t('predict.earthDailyFrequency'),
-    factFrequency: t('predict.earthFactFrequency'),
-    timestampHeader: t('predict.earthTimestampHeader'),
-    daySuffix: t('predict.earthDaySuffix'),
-    factDataset: t('predict.earthFactDataset'),
-    factModel: t('predict.earthFactModel'),
-    official: t('predict.earthModelOfficial'),
-    uploadedFallback: t('predict.earthModelUploadedFallback'),
-    factGrid: t('predict.earthFactGrid'),
-    factWindow: t('predict.earthFactWindow'),
-    factChannels: t('predict.earthFactChannels'),
-    factBestEpoch: t('predict.earthFactBestEpoch'),
-    factTestRmse: t('predict.earthFactTestRmse'),
-    fieldLabels: {
-      prediction: t('predict.earthFieldPrediction'),
-      reference: t('predict.earthFieldReference'),
-      residual: t('predict.earthFieldResidual'),
-    },
+    emptyNoTask: t('predict.earthNoCompletedTask'),
   }), [t]);
 
   const isEarthMode = modelMode === PREDICT_MODEL_MODE_EARTH;
@@ -1336,9 +1290,8 @@ export default function PredictPage() {
           originValue={isEarthMode ? earthOrigin : lsStart}
           onOriginChange={isEarthMode ? handleEarthOriginChange : setLsStart}
           originDisabled={isEarthMode && !earthContext}
-          originHint={isEarthMode ? (earthOrigin && earthContext && !earthAdapter.origin.selectable(earthOrigin)
-            ? earthCopy.originOutOfRange : earthContext?.origins ? earthCopy.originRange(earthContext.origins.start, earthContext.origins.end, earthContext.origins.count) : earthCopy.originRangeUnknown) : null}
-          onReloadContext={isEarthMode && (earthContext || earthContextError) ? reloadEarthContextAndTasks : undefined}
+          originHint={isEarthMode && earthOrigin && earthContext && !earthAdapter.origin.selectable(earthOrigin)
+            ? earthCopy.originOutOfRange : null}
           contextLoading={isEarthMode && earthContextLoading}
           contextError={isEarthMode ? earthContextError : null}
           deferContext={isEarthMode}
@@ -1386,12 +1339,9 @@ export default function PredictPage() {
                 key={`${predictScope}:earth:${earthTaskId}`}
                 adapter={earthAdapter}
                 identityKey={`${predictScope}:${earthTaskId}:${earthOrigin}:${earthResultKey}`}
-                scope={predictScope}
-                copy={earthCopy}
-                context={earthContext}
-                result={earthResult}
+                identityScope={predictScope}
+                context={earthContext}                result={earthResult}
                 loading={earthLoading || earthContextLoading}
-                origin={earthOrigin}
                 selectedDay={earthDay}
                 onSelectDay={setEarthDay}
                 taskOptions={earthTaskOptions}

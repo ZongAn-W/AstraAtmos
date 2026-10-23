@@ -1,5 +1,6 @@
 import React from 'react';
 import { useT } from '../i18n';
+import { useAnimatedNumber } from './ui/motion';
 import { getTrainingStatusMeta } from '../pages/ModelTrainingPage/trainingStatusMeta';
 
 const TrainingProgressMonitor = ({
@@ -11,7 +12,10 @@ const TrainingProgressMonitor = ({
   status = 'running',
 }) => {
   const t = useT();
-  const percent = Math.min(100, Math.max(0, progress));
+  const rawPercent = Math.min(100, Math.max(0, progress));
+  // 进度来自轮询，直接赋值会跳格；这里缓动到目标值，视觉上连续推进
+  const animatedPercent = useAnimatedNumber(rawPercent, { duration: 640 });
+  const percent = Math.min(100, Math.max(0, animatedPercent));
   const statusMeta = getTrainingStatusMeta(status, t);
   const metrics = [
     { label: t('modelTraining.statsEpoch'), value: `${currentEpoch}`, suffix: totalEpochs ? `/ ${totalEpochs}` : '' },
@@ -37,9 +41,9 @@ const TrainingProgressMonitor = ({
         aria-label={t('modelTraining.statsProgress')}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={percent}
+        aria-valuenow={Number(rawPercent.toFixed(1))}
       >
-        <span style={{ width: `${percent}%` }} />
+        <span style={{ width: `${percent}%`, transition: 'width 120ms linear' }} />
       </div>
       <div className="experiment-progress-metrics">
         {metrics.map((metric) => (

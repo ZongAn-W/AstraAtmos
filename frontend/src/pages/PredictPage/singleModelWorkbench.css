@@ -1,7 +1,8 @@
 .prediction-page { padding: 100px 40px 60px; max-width: 1400px; margin: 0 auto; font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .predict-workspace > *, .single-model-workbench, .earth-predict-panel { min-width: 0; }
 .single-model-workbench, .earth-predict-panel { display: flex; flex-direction: column; gap: 20px; }
-.earth-predict-panel { padding: 0; border: 0; background: transparent; }
+/* Earth comparison keeps its own one-line scope note; the single-model page no longer adds one. */
+.earth-predict-note { color: var(--text-secondary); font-size: calc(var(--type-helper) * var(--font-scale, 1)); line-height: 1.5; margin: 0; overflow-wrap: anywhere; }
 .prediction-panel { min-width: 0; padding: 20px; border: 1px solid var(--line-subtle); border-radius: var(--radius-panel); background: var(--surface-1); }
 .prediction-panel--chart { padding: 16px; }
 .prediction-origin-control { display: flex; flex-direction: column; gap: 8px; color: var(--text-secondary); font-size: calc(var(--type-label) * var(--font-scale, 1)); font-weight: 600; }
@@ -30,13 +31,11 @@
 .prediction-table-scroll table { min-width: 720px; width: 100%; border-collapse: collapse; font-size: calc(var(--type-helper) * var(--font-scale, 1)); font-variant-numeric: tabular-nums; }
 .prediction-table-scroll th, .prediction-table-scroll td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line-subtle); }
 .prediction-table-scroll caption { color: var(--text-secondary); margin: 8px; text-align: left; }
-.earth-predict-unit { color: var(--text-primary); }
 .prediction-fullscreen__scene .prediction-earth-field { height: 100%; padding: 30px 12px; }
 @media (max-width: 640px) {
   .prediction-page { padding: 90px 12px 40px; }
   .predict-workspace { gap: 16px; }
   .prediction-colorbar { gap: 5px; }
   .prediction-earth-field { min-height: 0 !important; }
-  .earth-predict-panel { padding: 0; }
   .prediction-panel { padding: 16px; }
 }

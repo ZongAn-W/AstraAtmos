@@ -1,10 +1,9 @@
-.earth-diagnostics { display: flex; flex-direction: column; gap: 16px; min-width: 0; padding: 16px; border: 1px solid var(--line-subtle); border-radius: var(--radius-panel); background: var(--surface-1); color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.earth-diagnostics h3, .earth-diagnostics h4, .earth-diagnostics p { margin: 0; }
-.earth-diagnostics h3 { font-size: calc(var(--type-section-title) * var(--font-scale, 1)); line-height: 1.3; font-weight: 700; }
-.earth-diagnostics h4 { font-size: calc(14px * var(--font-scale, 1)); margin-top: 8px; }
-.earth-diagnostics-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
-.earth-diagnostics-head p, .earth-diagnostic-note, .earth-diagnostic-chart-grid p { font-size: calc(var(--type-helper) * var(--font-scale, 1)); line-height: 1.5; color: var(--text-secondary); overflow-wrap: anywhere; }
-.earth-diagnostic-unit { color: var(--brand-ice); }
+/* The panel shell and heading typography come from the shared prediction-panel
+   and prediction-chart-title classes; this file only carries Earth diagnostic layout. */
+.earth-diagnostics { display: flex; flex-direction: column; gap: 16px; min-width: 0; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.earth-diagnostics h3, .earth-diagnostics p { margin: 0; }
+.earth-diagnostic-unit { flex: none; color: var(--brand-ice); font-size: calc(var(--type-helper) * var(--font-scale, 1)); }
+.earth-diagnostic-note { font-size: calc(var(--type-helper) * var(--font-scale, 1)); line-height: 1.5; color: var(--text-secondary); overflow-wrap: anywhere; }
 .earth-diagnostic-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
 .earth-diagnostic-controls label { display: flex; flex-direction: column; gap: 5px; font-size: calc(12px * var(--font-scale, 1)); }
 .earth-diagnostic-controls input { width: 110px; }
@@ -15,18 +14,10 @@
 .earth-diagnostic-controls :focus-visible { outline: 3px solid color-mix(in srgb, var(--line-active) 22%, transparent); outline-offset: 2px; }
 .earth-diagnostic-status { padding: 10px 12px; border-radius: var(--radius-control); border: 1px solid var(--line-subtle); font-size: calc(var(--type-helper) * var(--font-scale, 1)); overflow-wrap: anywhere; }
 .earth-diagnostic-status[data-tone='error'] { color: var(--status-danger); border-color: var(--status-danger); }
-.earth-diagnostic-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 8px; }
-.earth-diagnostic-metrics > div { display: flex; flex-direction: column; gap: 5px; padding: 12px; background: var(--surface-2); border-radius: var(--radius-control); }
-.earth-diagnostic-metrics span, .earth-diagnostic-metrics small { font-size: calc(var(--type-micro) * var(--font-scale, 1)); color: var(--text-secondary); }
-.earth-diagnostic-metrics b { font-size: calc(17px * var(--font-scale, 1)); }
 .earth-diagnostic-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 0; }
 .earth-diagnostic-facts dt { font-size: calc(var(--type-label) * var(--font-scale, 1)); color: var(--text-secondary); }
 .earth-diagnostic-facts dd { font-size: calc(12px * var(--font-scale, 1)); line-height: 1.5; margin: 4px 0 0; overflow-wrap: anywhere; }
-.earth-diagnostic-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.earth-diagnostic-chart-grid figure { min-width: 0; margin: 0; border-top: 1px solid var(--line-subtle); padding: 12px 0; }
-.earth-diagnostic-chart-grid figcaption { font-weight: 700; font-size: calc(12px * var(--font-scale, 1)); }
-.earth-diagnostic-pfi-plot { min-width: 0; }
 .earth-diagnostic-table-scroll { overflow-x: auto; }
 .earth-diagnostics table { width: 100%; min-width: 600px; border-collapse: collapse; font-size: calc(12px * var(--font-scale, 1)); }
 .earth-diagnostics th, .earth-diagnostics td { padding: 8px; text-align: left; border-bottom: 1px solid var(--line-subtle); }
-@media (max-width: 760px) { .earth-diagnostic-chart-grid { grid-template-columns: minmax(0, 1fr); } .earth-diagnostics { padding: 12px; } .earth-diagnostic-facts { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .earth-diagnostic-facts { grid-template-columns: minmax(0, 1fr); } }

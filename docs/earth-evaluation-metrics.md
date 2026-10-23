@@ -33,7 +33,7 @@ Mars 官方 `demo3.py` 与上传 `user_model_runner.py` 已在 `_evaluate_metric
 
 ## 产物与兼容
 
-新训练保存 `earth_training_metrics_3hourly_v3`，checkpoint 外层仍为 `aresvision_earth_forecast_checkpoint_3hourly_v1`。指标块含 `target=TO3`、物理基准 `unit=DU`、`metric_units`（MSE 为 `DU^2`，R² 为 `1`，百分比为 `%`）、`metric_policy`（含 `spatial_weighting=spherical_cell_area`、公式和归一化）、aggregation，以及 validation/test 的窗口数和三种聚合结果。每步另保存 `target_statistics={count,mean,m2,weight_sum}`（v3；v2 不含 `weight_sum`），用于严格核验 R² 及累计统计。v1/v2 的 grid-uniform policy 保持可读、可预测和可比较。
+新训练保存 `earth_training_metrics_3hourly_v3`，checkpoint 外层仍为 `astraatmos_earth_forecast_checkpoint_3hourly_v1`。指标块含 `target=TO3`、物理基准 `unit=DU`、`metric_units`（MSE 为 `DU^2`，R² 为 `1`，百分比为 `%`）、`metric_policy`（含 `spatial_weighting=spherical_cell_area`、公式和归一化）、aggregation，以及 validation/test 的窗口数和三种聚合结果。每步另保存 `target_statistics={count,mean,m2,weight_sum}`（v3；v2 不含 `weight_sum`），用于严格核验 R² 及累计统计。v1/v2 的 grid-uniform policy 保持可读、可预测和可比较。
 
 新 v3 读回时要求全部六项为真正有限数值（拒绝 bool、字符串、缺字段、NaN/Inf），验证单位、公式策略、空间权重策略、步顺序、MSE/RMSE 一致性、非负误差、R²/SMAPE 范围与累计统计。完成门禁要求 checkpoint 与任务冻结的版本和 aggregation 严格一致，再隔离严格 CPU 重建模型；新任务使用完整 v3，旧 v2 队列任务继续使用完整 v2 等权契约。任务 metrics 直接复制已核验 checkpoint，不通过日志重建指标。
 
@@ -63,20 +63,20 @@ v2 checkpoint 的每步元素数必须等于保存的分区窗口数 × 240 × 4
 
 以下仅列评价指标及必要配套涉及的文件；工作区已有的任务划分修改被保留，同文件可以同时包含已有修改。
 
-- [earth_training_artifact.py](../AresVision_backend/backend/services/earth_training_artifact.py)
-- [earth_training_contract.py](../AresVision_backend/backend/services/earth_training_contract.py)
-- [earth_prediction_service.py](../AresVision_backend/backend/services/earth_prediction_service.py)
-- [training_service.py](../AresVision_backend/backend/services/training_service.py)
-- [research_export_sources.py](../AresVision_backend/backend/services/research_export_sources.py)
-- [earth_predict.py](../AresVision_backend/backend/schemas/earth_predict.py)
-- [test_earth_metrics_v2.py](../AresVision_backend/backend/tests/test_earth_metrics_v2.py)
-- [test_earth_metrics_pipeline.py](../AresVision_backend/backend/tests/test_earth_metrics_pipeline.py)
-- [test_earth_3hourly_artifact.py](../AresVision_backend/backend/tests/test_earth_3hourly_artifact.py)
-- [test_earth_3hourly_training_runner.py](../AresVision_backend/backend/tests/test_earth_3hourly_training_runner.py)
-- [test_earth_3hourly_training_service.py](../AresVision_backend/backend/tests/test_earth_3hourly_training_service.py)
-- [test_earth_3hourly_uploaded.py](../AresVision_backend/backend/tests/test_earth_3hourly_uploaded.py)
-- [test_earth_3hourly_prediction_service.py](../AresVision_backend/backend/tests/test_earth_3hourly_prediction_service.py)
-- [test_earth_3hourly_prediction_routes.py](../AresVision_backend/backend/tests/test_earth_3hourly_prediction_routes.py)
+- [earth_training_artifact.py](../AstraAtmos_backend/backend/services/earth_training_artifact.py)
+- [earth_training_contract.py](../AstraAtmos_backend/backend/services/earth_training_contract.py)
+- [earth_prediction_service.py](../AstraAtmos_backend/backend/services/earth_prediction_service.py)
+- [training_service.py](../AstraAtmos_backend/backend/services/training_service.py)
+- [research_export_sources.py](../AstraAtmos_backend/backend/services/research_export_sources.py)
+- [earth_predict.py](../AstraAtmos_backend/backend/schemas/earth_predict.py)
+- [test_earth_metrics_v2.py](../AstraAtmos_backend/backend/tests/test_earth_metrics_v2.py)
+- [test_earth_metrics_pipeline.py](../AstraAtmos_backend/backend/tests/test_earth_metrics_pipeline.py)
+- [test_earth_3hourly_artifact.py](../AstraAtmos_backend/backend/tests/test_earth_3hourly_artifact.py)
+- [test_earth_3hourly_training_runner.py](../AstraAtmos_backend/backend/tests/test_earth_3hourly_training_runner.py)
+- [test_earth_3hourly_training_service.py](../AstraAtmos_backend/backend/tests/test_earth_3hourly_training_service.py)
+- [test_earth_3hourly_uploaded.py](../AstraAtmos_backend/backend/tests/test_earth_3hourly_uploaded.py)
+- [test_earth_3hourly_prediction_service.py](../AstraAtmos_backend/backend/tests/test_earth_3hourly_prediction_service.py)
+- [test_earth_3hourly_prediction_routes.py](../AstraAtmos_backend/backend/tests/test_earth_3hourly_prediction_routes.py)
 - [earthMetricMeta.js](../frontend/src/utils/earthMetricMeta.js)
 - [experimentCenterModel.js](../frontend/src/pages/ModelTrainingPage/experimentCenterModel.js)
 - [ExperimentResultPanel.jsx](../frontend/src/pages/ModelTrainingPage/ExperimentResultPanel.jsx)
@@ -88,7 +88,7 @@ v2 checkpoint 的每步元素数必须等于保存的分区窗口数 × 240 × 4
 - [EarthPredictPanel.jsx](../frontend/src/pages/PredictPage/EarthPredictPanel.jsx)
 - [EarthCompareWorkspace.jsx](../frontend/src/pages/PredictPage/EarthCompareWorkspace.jsx)
 - [PredictSidebar.jsx](../frontend/src/pages/PredictPage/PredictSidebar.jsx)
-- [earthPredictPanel.css](../frontend/src/pages/PredictPage/earthPredictPanel.css)
+- [singleModelWorkbench.css](../frontend/src/pages/PredictPage/singleModelWorkbench.css)
 - [CompareTrainingModelsPanel.jsx](../frontend/src/pages/PredictPage/CompareTrainingModels/CompareTrainingModelsPanel.jsx)
 - [compareTrainingModelsData.js](../frontend/src/pages/PredictPage/CompareTrainingModels/compareTrainingModelsData.js)
 - [zh.js](../frontend/src/i18n/zh.js)

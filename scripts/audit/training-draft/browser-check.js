@@ -31,7 +31,7 @@ async (page) => {
     else if (path === '/api/user-models') body = { items: models };
     else if (path.includes('/earth-compatibility')) body = {
       package_id: 'draft-model', dataset_id: earthId, status: 'available', compatible: true,
-      contract_schema: 'aresvision_earth_3hourly_uploaded_model_v1', reasons: [],
+      contract_schema: 'astraatmos_earth_3hourly_uploaded_model_v1', reasons: [],
       frequency_hours: 3, grid_shape: [240, 480], contract: { window: Array.from({length:240},(_,i)=>i+1), horizon: Array.from({length:240},(_,i)=>i+1) },
     };
     else if (path === '/api/training/tasks') body = [sourceTask];
@@ -57,7 +57,7 @@ async (page) => {
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
   });
   await page.routeWebSocket('**/ws/**', () => {});
-  await page.addInitScript(() => { localStorage.setItem('aresvision_token','isolated-draft-fixture'); });
+  await page.addInitScript(() => { localStorage.setItem('astraatmos_token','isolated-draft-fixture'); });
   await page.setViewportSize({width:1440,height:1000});
   await page.goto(`${base}/#/training`);
   await page.reload();

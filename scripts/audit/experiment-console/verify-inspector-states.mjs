@@ -156,10 +156,10 @@ const OPEN = async (width, height, { token }) => {
       const ready = document.readyState !== 'loading' && location.origin === ${JSON.stringify(new URL(BASE).origin)};
       if (ready) {
         try {
-          localStorage.removeItem('aresvision_token');
-          localStorage.setItem('aresvision_settings', JSON.stringify({ language: 'zh', theme: 'dark' }));
-          ${token ? `localStorage.setItem('aresvision_token', ${JSON.stringify(token)});` : "localStorage.removeItem('aresvision_token');"}
-          return { ok: true, tokenLen: (localStorage.getItem('aresvision_token') || '').length };
+          localStorage.removeItem('astraatmos_token');
+          localStorage.setItem('astraatmos_settings', JSON.stringify({ language: 'zh', theme: 'dark' }));
+          ${token ? `localStorage.setItem('astraatmos_token', ${JSON.stringify(token)});` : "localStorage.removeItem('astraatmos_token');"}
+          return { ok: true, tokenLen: (localStorage.getItem('astraatmos_token') || '').length };
         } catch (e) { /* 文档仍在切换，重试 */ }
       }
       await new Promise(r=>setTimeout(r,250));
@@ -204,7 +204,7 @@ const OPEN = async (width, height, { token }) => {
     document.documentElement.style.scrollBehavior = 'auto';
     await new Promise(r=>setTimeout(r,400));
       const loginRow = Boolean(document.querySelector('[data-inspector-issue="login"]'));
-    return { tokenLen: (localStorage.getItem('aresvision_token') || '').length, loginRow, card: Boolean(document.querySelector('[data-uploaded-model-card="true"]')) };
+    return { tokenLen: (localStorage.getItem('astraatmos_token') || '').length, loginRow, card: Boolean(document.querySelector('[data-uploaded-model-card="true"]')) };
   `);
   console.log(`  [debug] 载入后 token=${settled.tokenLen} 未登录提示行=${settled.loginRow} 上传卡=${settled.card}`);
   if (token && settled.loginRow) {

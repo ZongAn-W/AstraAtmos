@@ -5,7 +5,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useToast } from '../../contexts/ToastContext';
 import GlowCard from '../../components/GlowCard';
-import ConfirmDialog from '../../components/ConfirmDialog';
+import HoldToDeleteButton from '../../components/ui/HoldToDeleteButton';
+import { staggerStyle } from '../../components/ui/motion';
 import ContributeModal from '../../components/ContributeModal';
 import ContributeHistoryPanel from '../../components/ContributeHistoryPanel';
 import {
@@ -856,13 +857,13 @@ function PersonalCoreDetail({
             onClick={onContribute}
             disabled={viewActionLoading || viewingUpload.is_public || !viewingCtx.contributionCondition.ok}
           />
-          <ActionBtn
+          <HoldToDeleteButton
+            size="compact"
             label={t('explore.myData.deleteBtn')}
-            borderColor="rgba(199,91,57,0.5)"
-            textColor={C.mars}
-            onClick={onDelete}
-            disabled={viewActionLoading}
-            loading={viewActionLoading}
+            hint={t('explore.myData.deleteHoldHint')}
+            doneLabel={t('explore.myData.deleteSuccess')}
+            onConfirm={onDelete}
+            persist={viewActionLoading}
           />
         </div>
       </div>
@@ -1213,8 +1214,8 @@ export default function MyDataTab({ reviewSignal = 0 }) {
     error: null,
   });
   const [viewLs, setViewLs] = useState(90);
-  const [confirmDelete, setConfirmDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
+  const [collapsingId, setCollapsingId] = useState(null);
   const [contributeOpen, setContributeOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -1412,7 +1413,7 @@ export default function MyDataTab({ reviewSignal = 0 }) {
     setUploadPhase('uploading');
     setUploadResult(null);
 
-    const token = localStorage.getItem('aresvision_token');
+    const token = localStorage.getItem('astraatmos_token');
     const formData = new FormData();
     formData.append('file', file);
 
@@ -1486,16 +1487,20 @@ export default function MyDataTab({ reviewSignal = 0 }) {
     e.target.value = '';
   }, [handleFile]);
 
-  const handleDeleteConfirm = async () => {
-    const id = confirmDelete;
-    setConfirmDelete(null);
+  const handleDeleteConfirm = async (id) => {
+    if (id == null) return;
     setActionLoading((prev) => ({ ...prev, [id]: true }));
     try {
       await deleteUpload(id);
-      setUploads((prev) => prev.filter((u) => u.id !== id));
-      if (viewingId === id) setViewingId(null);
+      // 先播放收起动画，再从列表移除，避免条目瞬间消失
+      setCollapsingId(id);
       showToast(t('explore.myData.deleteSuccess'), 'success');
-      await loadWorkbench();
+      window.setTimeout(() => {
+        setUploads((prev) => prev.filter((u) => u.id !== id));
+        setCollapsingId(null);
+        if (viewingId === id) setViewingId(null);
+        loadWorkbench();
+      }, 240);
     } catch (e) {
       showToast(e.message || 'Delete failed', 'error');
     } finally {
@@ -1705,7 +1710,17 @@ export default function MyDataTab({ reviewSignal = 0 }) {
             )}
           </div>
 
-          {uploadsLoading && <LoadingBox h={320} />}
+          {uploadsLoading && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }} data-queue-skeleton="true">
+              {[0, 1, 2].map((index) => (
+                <span
+                  key={index}
+                  className="ui-skeleton"
+                  style={{ height: 62, borderRadius: 12, animationDelay: `${index * 90}ms` }}
+                />
+              ))}
+            </div>
+          )}
 
           {!uploadsLoading && !sortedUploadContexts.length && (
             <EmptyState
@@ -1725,14 +1740,19 @@ export default function MyDataTab({ reviewSignal = 0 }) {
 
           {!uploadsLoading && filteredUploadContexts.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, maxHeight: 820, overflowY: 'auto', paddingRight: 2 }}>
-              {filteredUploadContexts.map((ctx) => (
-                <CompactQueueItem
+              {filteredUploadContexts.map((ctx, index) => (
+                <div
                   key={ctx.upload.id}
-                  ctx={ctx}
-                  selected={viewingId === ctx.upload.id}
-                  onSelect={() => onSelectDataset(ctx.upload.id)}
-                  copy={copy}
-                />
+                  className={`motion-stagger-item${collapsingId === ctx.upload.id ? ' motion-collapsing' : ''}`}
+                  style={staggerStyle(index)}
+                >
+                  <CompactQueueItem
+                    ctx={ctx}
+                    selected={viewingId === ctx.upload.id}
+                    onSelect={() => onSelectDataset(ctx.upload.id)}
+                    copy={copy}
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -1767,7 +1787,7 @@ export default function MyDataTab({ reviewSignal = 0 }) {
               viewingSignal={viewingSignal}
               viewActionLoading={viewActionLoading}
               onContribute={() => setContributeOpen(true)}
-              onDelete={() => setConfirmDelete(viewingUpload.id)}
+              onDelete={() => handleDeleteConfirm(viewingUpload.id)}
               advancedOpen={advancedOpen}
               onToggleAdvanced={() => setAdvancedOpen((value) => !value)}
               viewData={viewData}
@@ -1777,18 +1797,6 @@ export default function MyDataTab({ reviewSignal = 0 }) {
           )}
         </GlowCard>
       </div>
-
-      {confirmDelete != null && (
-        <ConfirmDialog
-          title={t('explore.myData.confirmDeleteTitle')}
-          message={t('explore.myData.confirmDeleteMsg')}
-          confirmLabel={t('explore.myData.confirmDeleteBtn')}
-          cancelLabel={t('explore.myData.cancelBtn')}
-          confirmColor={C.mars}
-          onConfirm={handleDeleteConfirm}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      )}
 
       <>
         <ContributeModal

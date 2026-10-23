@@ -7,9 +7,18 @@ MODEL_SPEC = {
     "name": "EarthThreeHourLinear",
     "description": "Channel mixing and temporal linear forecast for TO3",
     "parameters": {"bias": {"type": "bool", "default": True}},
+    # Optional seasonal coordinate. Uncomment this block *and* change
+    # ``def forward(self, x):`` to ``def forward(self, x, ls):`` to receive the
+    # server-derived solar longitude of each input window. Leaving it out keeps
+    # the single-argument call. See docs/earth-3hourly-uploaded-model.md.
+    # For a model that actually consumes ETOPO orography, use the separate
+    # earth-3hourly-topography-model-template.py. This template stays compatible
+    # with deployments without a configured terrain asset.
+    # "derived_inputs": {"ls": {"required": True, "shape": ["batch", "window"],
+    #                           "dtype": "float32", "unit": "degree"}},
     "datasets": {
         "earth_merra2_3hourly_v1": {
-            "schema": "aresvision_earth_3hourly_uploaded_model_v1",
+            "schema": "astraatmos_earth_3hourly_uploaded_model_v1",
             "frequency_hours": 3, "step_unit": "hour", "step": 3, "time_zone": "UTC",
             "window": list(range(1, 241)), "horizon": list(range(1, 241)), "grid": [[240, 480]],
             "target": "TO3", "target_unit": "DU",

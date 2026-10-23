@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useT } from '../../i18n';
+import { staggerStyle } from '../../components/ui/motion';
 import TrainingHistory from '../../components/TrainingTags/TrainingHistory';
 import { createTrainingStatusMatcher } from '../../components/TrainingTags/trainingTagFilters';
 import {
@@ -184,16 +185,21 @@ export default function ExperimentDirectory({
           onRetry: onRetryTasks,
         }}
         renderTask={(task, tagControls, rowControls) => (
-          <ExperimentDirectoryRow
+          <div
             key={task.id}
-            task={task}
-            tagControls={tagControls}
-            selectionControl={rowControls.selection}
-            editControl={rowControls.edit}
-            t={t}
-            isActive={task.id === activeTaskId}
-            onSelect={onSelectTask}
-          />
+            className="motion-stagger-item"
+            style={staggerStyle(Math.min(12, sortedTasks.findIndex((item) => item.id === task.id)))}
+          >
+            <ExperimentDirectoryRow
+              task={task}
+              tagControls={tagControls}
+              selectionControl={rowControls.selection}
+              editControl={rowControls.edit}
+              t={t}
+              isActive={task.id === activeTaskId}
+              onSelect={onSelectTask}
+            />
+          </div>
         )}
       />
     </div>

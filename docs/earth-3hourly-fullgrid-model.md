@@ -5,10 +5,24 @@ the complete global map in one call. Existing v1 tile models remain supported.
 Download [the PyTorch template](earth-3hourly-fullgrid-model-template.py) and upload
 it as a new model; changing an existing uploaded source invalidates its hash.
 
+Optional `MODEL_SPEC.derived_inputs` works identically for this schema: `ls`
+provides per-window `[batch, window]` solar longitude and `topography` provides
+finite float32 `[batch,1,240,480]` ETOPO orography in metres on the input device.
+The fixed calls are `model(x)`, `model(x, ls)`, `model(x, topography)` and
+`model(x, ls, topography)`. Terrain does not add a meteorological channel or a
+time axis and is not normalized using meteorological statistics. The server
+protects the shared asset from in-place model operations. `season_algorithm`
+and terrain content/grid/processing identities are frozen independently when
+declared; old checkpoints gain no new fields. Semantics, exact declarations and refusal rules are in
+[the v1 contract document](earth-3hourly-uploaded-model.md#季节坐标-derived_inputs).
+The [terrain and season template](earth-3hourly-fullgrid-topography-model-template.py)
+actually consumes both tensors. The existing SimVP remains independent of terrain.
+See [asset construction and validation](earth-topography-asset.md).
+
 | Property | Full-Grid Contract |
 | --- | --- |
-| Schema | `aresvision_earth_3hourly_fullgrid_model_v2` |
-| Implementation | `aresvision_earth_3hourly_fullgrid_runner_v2` |
+| Schema | `astraatmos_earth_3hourly_fullgrid_model_v2` |
+| Implementation | `astraatmos_earth_3hourly_fullgrid_runner_v2` |
 | Input | finite float32 `[B,window,C,240,480]` |
 | Output | finite float32 `[B,horizon,1,240,480]`, same input device |
 | Channels | TO3 first, then selected U10M, V10M, T2M, SWGDN in order |
@@ -20,7 +34,8 @@ it as a new model; changing an existing uploaded source invalidates its hash.
 The feed uses the same fields as v1, with the v2 schema and
 `spatial_tile_shape=[240,480]`. This retained field name describes the actual call
 size; v2 does not spatially subdivide inputs, outputs or diagnostic permutations.
-No coordinates, separate time embeddings or halo arguments are supplied.
+No coordinate arrays or halo arguments are supplied. Optional derived tensors
+are explicit arguments outside the meteorological channel list.
 
 The SimVP template has lighter defaults: spatial hidden dimension 8, temporal
 hidden dimension 16 and 2 temporal blocks. Original 32/64/3 parameters remain
@@ -34,7 +49,10 @@ that a model or GPU can hold 64 global windows. The server never
 silently reduces resolution, batch or precision when a task runs out of memory.
 
 Upload checks all 16 channel combinations on complete maps, using declared short
-windows 2->1 when available, otherwise the first declared values. Reports record
+windows 2->1 when available, otherwise the first declared values. A terrain
+declaration requires the configured verified asset for every probe; a missing or
+invalid asset fails only models that declare it, without a zero-field fallback.
+Reports record
 `validation_scope=declared_channels_probe_windows`; admission is not proof for
 every time configuration. Task creation reuses the report saved by upload or
 manual revalidation. It checks ownership, valid status, evidence for the concrete
@@ -45,16 +63,42 @@ parameters. Training still checks outputs and finite gradients, and checkpoint
 strict reload still checks eval sample independence with the saved batch.
 The upload's isolated CPU check does not guarantee CUDA memory capacity or that
 every task configuration can run.
-Upload/revalidation uses `USER_MODEL_VALIDATION_TIMEOUT_SECONDS` (default 120
-seconds). Explicit `earth_probe` calls can still check a complete configuration;
-the full-grid probe uses the larger of that budget and
-`USER_MODEL_FULL_GRID_VALIDATION_TIMEOUT_SECONDS` (default 300 seconds); both must
-be positive integers. This full-grid budget is retained for explicit probes and
-is not used during task creation. The probe receives the frozen schema from the
-upload report and checks it against the executed model declaration. Explicit
-validator budgets, including short test timeouts and the in-process `None`
-override, keep their original semantics. Tile/Mars checks keep the ordinary
-budget. Unknown or failed saved upload reports prohibit training.
+Upload/revalidation begins with `USER_MODEL_VALIDATION_TIMEOUT_SECONDS`
+(default 120 seconds). After the isolated child imports the source, normalizes
+its dataset declaration and validates its parameter schema, it announces a
+full-grid contract to the parent. The parent then uses the larger of the ordinary
+budget and `USER_MODEL_FULL_GRID_VALIDATION_TIMEOUT_SECONDS` (default 900 seconds).
+The deadline is measured from process start; phase messages cannot reset it.
+The parent never imports uploaded source to select a budget. A hung import or
+invalid declaration cannot obtain the extension. Both settings must be positive
+integers. Upload/revalidation waits for the isolated process in a background
+thread so unrelated API requests remain responsive.
+
+Explicit `earth_probe` calls still check the requested complete configuration;
+full-grid probes use the same larger budget, with their frozen schema checked
+against the executed model declaration. Explicit validator budgets, including
+short test timeouts and the in-process `None` override, retain their original
+semantics. Tile/Mars checks keep the ordinary budget. Task creation reuses the
+saved report and does not run these probes. Unknown or failed saved upload
+reports prohibit training. The full 240x480 grid, all 16 channel combinations,
+default model parameters and all forward/backward and eval independence checks
+remain enabled. A 900-second limit is a bounded CPU validation allowance, not a
+promise that every architecture or requested training configuration will fit.
+
+On 2026-10-16, the uploaded shared terrain-affine gate architecture with its
+original defaults (16/64/128 hidden dimensions, two temporal blocks, gate width
+32) passed the complete isolated CPU float32 upload check in **700.78 seconds**
+(two PyTorch threads). This exercised all 16 channel combinations, 2->1 temporal
+windows, full 240x480 inputs/outputs, B=1/2, seasonal coordinates, verified ETOPO
+terrain, finite gradients and eval sample independence. Its source bytes,
+identity, version and display name were preserved; the existing service saved
+the successful report after a SQLite backup. This is an upload compatibility
+check, not a full training or forecast-accuracy result. Grouped backend regression
+runs cover 209 unique tests, including deadline extension/termination, large
+reports, composed declarations, responsive upload/revalidation, ownership,
+downloads and cached training admission. Run the relevant tests from
+`AstraAtmos_backend/backend/` with the configured AstraAtmos interpreter and
+`-m pytest --asyncio-mode=auto`; the async service tests need this option.
 
 An available upload report covers its declared short windows, not an arbitrary
 20->20 configuration or requested batch. An explicit probe timeout is reported as
@@ -89,8 +133,13 @@ The server freezes the schema in the model reference and
 checkpoint schema must agree. The three-hour artifact container stays compatible,
 while the v2 model implementation and full spatial call size are independently
 recorded. Strict reload and eval independence use full maps. The parent completion
-and recovery check use the configured validation budget for v2; v1 retains its
-separate 30-second checkpoint gate. Old weights are not automatically promoted.
+and restart recovery checks use the larger of the generic and global validation
+budgets (global default 900 seconds), including the independent 36x72 full-grid
+contract. Explicit reload deadlines take priority. V1 spatial tiles retain their
+separate 30-second checkpoint gate. The saved-batch CPU round trip and strict
+model/weight checks remain unchanged. Already failed timeout-only tasks require
+[explicit verified recovery](earth-metrics-task-recovery.md#重载超时恢复).
+Old weights are not automatically promoted.
 
 The normalized cache is time-major `[time,C,240,480]`, tagged
 `earth_full_grid_v1` with explicit schema/version, data identity and normalization.
@@ -103,6 +152,8 @@ Historical prediction uses one model call per origin. Diagnostics/PFI process on
 complete origin at a time, preserve whole-window channel permutation and DU
 metrics, and keep at most the recipient/source windows resident. The final global
 evaluation covers all selected leads/cells. V1 continues using spatial tiles.
+PFI retains the recipient's static terrain while permuting meteorological inputs;
+terrain is not automatically added to the channel permutation list.
 
 The local 8 GB RTX 4060 passed a synthetic float32 20->20, five-channel, batch-1
 forward/backward probe with 32/64/3 parameters. This short GPU-only probe is not an
@@ -111,3 +162,5 @@ memory and throughput for the selected model and task configuration.
 
 See [task partitions](earth-task-splits.md), [metrics](earth-evaluation-metrics.md)
 and [v1 compatibility](earth-3hourly-uploaded-model.md).
+
+独立的三小时 **36×72（5°）** 训练发布、完整全球窗口与上传模型契约见 [5° 数据集](earth-merra2-5deg.md)；本文件的原 0.75° 契约继续兼容。

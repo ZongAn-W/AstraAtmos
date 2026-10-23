@@ -1,8 +1,8 @@
 # AstraAtmos Windows 一键分发说明
 
-平台原名 AresVision；分发脚本、包目录与运行配置沿用原名称，现有安装无需迁移。
+平台统一使用 AstraAtmos 命名；本次为硬切换，分发脚本、包目录、运行配置与环境变量前缀均已更新，现有安装需按新命名重新打包或迁移，旧数据与 checkpoint 不兼容。
 
-目标：把项目打成压缩包，接收方只需双击 `start-aresvision.bat` 即可启动。
+目标：把项目打成压缩包，接收方只需双击 `start-astraatmos.bat` 即可启动。
 
 ## 推荐打包命令
 
@@ -20,7 +20,7 @@ powershell -ExecutionPolicy Bypass -File .\build_portable_windows.ps1 -SkipNpmCi
 
 ## 启动机制
 
-- `start-aresvision.bat` 会优先使用包内 `python_runtime\python.exe`。
+- `start-astraatmos.bat` 会优先使用包内 `python_runtime\python.exe`。
 - 启动前自动执行 `repair-runtime.ps1 -Repair`：
   - `.venv` 可用则直接启动；
   - `.venv` 不可用则自动重建并安装依赖。

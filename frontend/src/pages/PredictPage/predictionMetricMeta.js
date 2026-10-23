@@ -31,8 +31,12 @@ export function getMetricAggregationLabel(metrics, isZh = true) {
 export function getSplitLabel(metrics, isZh = true) {
   const splitMeta = metrics?.split_meta;
   if (splitMeta?.source === 'published_manifest_splits' && splitMeta.test_range) return isZh
-    ? `发布测试分区：${splitMeta.test_range.date_start} — ${splitMeta.test_range.date_end} · ${splitMeta.window_count} 个窗口`
-    : `Published test split: ${splitMeta.test_range.date_start} — ${splitMeta.test_range.date_end} · ${splitMeta.window_count} windows`;
+    ? `发布测试分区：${splitMeta.test_range.date_start} — ${splitMeta.test_range.date_end} · ${splitMeta.test_range.window_count} 个窗口`
+    : `Published test split: ${splitMeta.test_range.date_start} — ${splitMeta.test_range.date_end} · ${splitMeta.test_range.window_count} windows`;
+  // Earth 任务级自定义划分与发布分区同样带真实边界，直接给边界而不退回比例行。
+  if (splitMeta?.source === 'earth_task_split_v1' && splitMeta.test_range) return isZh
+    ? `任务自定义测试分区：${splitMeta.test_range.date_start} — ${splitMeta.test_range.date_end} · ${splitMeta.test_range.window_count} 个窗口`
+    : `Task test split: ${splitMeta.test_range.date_start} — ${splitMeta.test_range.date_end} · ${splitMeta.test_range.window_count} windows`;
   if (!splitMeta?.ratios) return '';
 
   if (splitMeta.legacy_compatibility) {

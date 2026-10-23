@@ -2,8 +2,8 @@
 
 Run from the backend directory so the backend package is importable:
 
-    cd AresVision_backend/backend
-    & 'D:\\Anaconda\\envs\\AresVision\\python.exe' ..\\..\\scripts\\audit\\report-earth-tasks.py
+    cd AstraAtmos_backend/backend
+    & (Join-Path $env:CONDA_PREFIX 'python.exe') ../../scripts/audit/report-earth-tasks.py
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import sys
 
 # The backend package root is the current directory when run as documented; add it
 # explicitly so the script also works when invoked from the project root.
-BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "AresVision_backend", "backend"))
+BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "AstraAtmos_backend", "backend"))
 for candidate in (os.getcwd(), BACKEND_DIR):
     if os.path.isdir(os.path.join(candidate, "database")) and candidate not in sys.path:
         sys.path.insert(0, candidate)

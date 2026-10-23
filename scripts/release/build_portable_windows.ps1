@@ -1,5 +1,5 @@
 param(
-    [string]$OutputDir = "release/AresVision-Portable-Windows",
+    [string]$OutputDir = "release/AstraAtmos-Portable-Windows",
     [switch]$SkipNpmCi,
     [switch]$SkipVenv,
     [switch]$SkipDotEnv,
@@ -11,9 +11,9 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptDir "..\..")).Path
 
 $frontendDir = Join-Path $repoRoot "frontend"
-$backendDir = Join-Path $repoRoot "AresVision_backend\backend"
+$backendDir = Join-Path $repoRoot "AstraAtmos_backend\backend"
 $outputPath = Join-Path $repoRoot $OutputDir
-$outputBackend = Join-Path $outputPath "AresVision_backend\backend"
+$outputBackend = Join-Path $outputPath "AstraAtmos_backend\backend"
 
 function Require-Command([string]$CommandName, [string]$Hint) {
     if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
@@ -186,8 +186,8 @@ if (Test-Path $outputPath) {
 New-Item -ItemType Directory -Path $outputPath | Out-Null
 
 Write-Host "[4/7] Copying backend files..." -ForegroundColor Cyan
-$null = New-Item -ItemType Directory -Path (Join-Path $outputPath "AresVision_backend") -Force
-$excludeFiles = @("*.pyc", "*.pyo", "aresvision.db")
+$null = New-Item -ItemType Directory -Path (Join-Path $outputPath "AstraAtmos_backend") -Force
+$excludeFiles = @("*.pyc", "*.pyo", "astraatmos.db")
 if ($SkipDotEnv) {
     $excludeFiles += ".env"
 }
@@ -226,8 +226,8 @@ if ($SkipDotEnv) {
     Write-Host "Using real .env from source package." -ForegroundColor Green
 }
 
-Copy-Item (Join-Path $scriptDir "start-aresvision.bat") (Join-Path $outputPath "start-aresvision.bat") -Force
-Copy-Item (Join-Path $scriptDir "stop-aresvision.bat") (Join-Path $outputPath "stop-aresvision.bat") -Force
+Copy-Item (Join-Path $scriptDir "start-astraatmos.bat") (Join-Path $outputPath "start-astraatmos.bat") -Force
+Copy-Item (Join-Path $scriptDir "stop-astraatmos.bat") (Join-Path $outputPath "stop-astraatmos.bat") -Force
 Copy-Item (Join-Path $scriptDir "repair-runtime.ps1") (Join-Path $outputPath "repair-runtime.ps1") -Force
 
 Write-Host "[6/7] Preparing bundled bootstrap Python runtime..." -ForegroundColor Cyan
@@ -277,7 +277,7 @@ Write-Host ""
 Write-Host "Distribution steps:" -ForegroundColor Green
 Write-Host "  1) Zip the folder: $outputPath"
 Write-Host "  2) Receiver unzips it"
-Write-Host "  3) Receiver double-clicks start-aresvision.bat"
+Write-Host "  3) Receiver double-clicks start-astraatmos.bat"
 Write-Host ""
 Write-Host "Tip: for best cross-machine compatibility, keep bundled python_runtime and optionally build with -SkipVenv to let first startup create .venv automatically." -ForegroundColor Yellow
 Write-Host "Security reminder: package includes backend .env by default. Use -SkipDotEnv if you do not want to share real secrets." -ForegroundColor Yellow

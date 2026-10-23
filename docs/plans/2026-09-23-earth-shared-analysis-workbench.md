@@ -28,7 +28,7 @@
 
 这是第二步二维地球总览的扩展，称为“共用分析工作台”。用户已确认范围包含三维地球和全部三类分析模式，不能仅交付右侧一张季节热力图或另一个独立简版 Earth 页面。
 
-本工作区为 `D:\_Aresvision`，项目为 `D:\_Aresvision\Aresvision`。下文源码路径相对项目根目录，后端简称以 `AresVision_backend/backend/` 开头。执行前读父目录 AGENTS.md、[README](../../README.md) 的接手章节、[地球总览已实现协议](../earth-overview.md)、[数据集注册协议](../dataset-registry.md)和[数据小包](../earth-compact-dataset.md)。
+本工作区为 `<工作区>`，项目为 `AstraAtmos`。下文源码路径相对项目根目录，后端简称以 `AstraAtmos_backend/backend/` 开头。执行前读父目录 AGENTS.md、[README](../../README.md) 的接手章节、[地球总览已实现协议](../earth-overview.md)、[数据集注册协议](../dataset-registry.md)和[数据小包](../earth-compact-dataset.md)。
 
 第二步已交付二维地图、日期/变量选择、逐日播放、点位序列、覆盖区域均值、UTC 日期与过期请求保护。当前工作树仍有前两步未提交源码；不得从不含这些文件的 HEAD 新建 worktree 后误判它们不存在，也不得覆盖为初始版本。
 
@@ -469,12 +469,12 @@ def test_anomaly_is_spatial_and_correlation_can_be_undefined():
 
 ## 9. 验证命令与完成标准
 
-后端目录 `AresVision_backend/backend/`，使用项目 `AresVision` 环境。pytest 逐文件运行，使用从未存在的新英文目录，避免 NetCDF 路径问题与 pytest 重用 basetemp 时的递归清理：
+后端目录 `AstraAtmos_backend/backend/`，使用项目 `AstraAtmos` 环境。pytest 逐文件运行，使用从未存在的新英文目录，避免 NetCDF 路径问题与 pytest 重用 basetemp 时的递归清理：
 
 ```powershell
 function Invoke-EarthWorkbenchTests {
     param([Parameter(Mandatory = $true)][string[]]$TestFiles)
-    $earthWorkbenchTemp = Join-Path 'D:\_Aresvision' ('.earth-workbench-test-' + [guid]::NewGuid().ToString('N'))
+    $earthWorkbenchTemp = Join-Path $env:TEMP ('.earth-workbench-test-' + [guid]::NewGuid().ToString('N'))
     python -m pytest @TestFiles -q --basetemp "$earthWorkbenchTemp"
     if ($LASTEXITCODE -ne 0) { throw "Earth workbench verification failed: $TestFiles" }
 }

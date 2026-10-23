@@ -76,7 +76,7 @@ test('stop training only appears for pending or running tasks and is labelled', 
 });
 
 test('training context keeps task polling, log polling and websocket ownership', () => {
-  assert.match(contextSource, /setInterval\(\(\) => loadTasks\(\)\.catch\(\(\) => \{\}\), 5000\)/);
+  assert.match(contextSource, /setInterval\(\(\) => loadTasks\(\{ reusePending: true \}\)\.catch\(\(\) => \{\}\), 5000\)/);
   assert.match(contextSource, /setInterval\(pollLogs, 3000\)/);
   assert.match(contextSource, /new WebSocket\(wsUrl\)/);
   assert.match(contextSource, /training_update/);

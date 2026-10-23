@@ -12,19 +12,19 @@
 
 ## File Map
 
-- Modify `AresVision_backend/backend/config.py`: canonical MOLA asset path with an environment override.
-- Modify `AresVision_backend/backend/training_backbones/uploaded_model_contract.py`: strict `ls`/`topography` metadata, validation, batch expansion, and four-way dispatch.
-- Create `AresVision_backend/backend/training_backbones/mola_topography.py`: asset validation, target-grid validation, periodic resampling, and static tensor preparation.
-- Modify `AresVision_backend/backend/training_backbones/user_model_runner.py`: preserve target coordinates and reuse static topography during all training phases.
-- Modify `AresVision_backend/backend/services/user_model_validator.py`: real-MOLA topography dry-run.
-- Modify `AresVision_backend/backend/services/inference_service.py`: formal prediction, test metrics/results, and permutation importance propagation.
-- Create `AresVision_backend/backend/scripts/build_mola_topography_asset.py`: reproducible PDS download, verification, 5-degree aggregation, NetCDF generation, and validation mode.
-- Create `AresVision_backend/backend/data/assets/mola_topography_5deg.nc`: verified platform asset.
-- Create `AresVision_backend/backend/tests/test_mola_topography.py`: resampling and asset validation tests.
-- Modify `AresVision_backend/backend/tests/test_uploaded_model_runner.py`: contract, grid propagation, training, batch expansion, and compatibility tests.
-- Modify `AresVision_backend/backend/tests/test_user_model_validator.py`: topography-only and combined dry-run tests.
-- Modify `AresVision_backend/backend/tests/test_uploaded_model_ls_inference.py`: all inference path and permutation-isolation tests, renamed only if useful during implementation.
-- Modify `AresVision_backend/backend/tests/test_user_model_downloads.py`: template/guide contract tests.
+- Modify `AstraAtmos_backend/backend/config.py`: canonical MOLA asset path with an environment override.
+- Modify `AstraAtmos_backend/backend/training_backbones/uploaded_model_contract.py`: strict `ls`/`topography` metadata, validation, batch expansion, and four-way dispatch.
+- Create `AstraAtmos_backend/backend/training_backbones/mola_topography.py`: asset validation, target-grid validation, periodic resampling, and static tensor preparation.
+- Modify `AstraAtmos_backend/backend/training_backbones/user_model_runner.py`: preserve target coordinates and reuse static topography during all training phases.
+- Modify `AstraAtmos_backend/backend/services/user_model_validator.py`: real-MOLA topography dry-run.
+- Modify `AstraAtmos_backend/backend/services/inference_service.py`: formal prediction, test metrics/results, and permutation importance propagation.
+- Create `AstraAtmos_backend/backend/scripts/build_mola_topography_asset.py`: reproducible PDS download, verification, 5-degree aggregation, NetCDF generation, and validation mode.
+- Create `AstraAtmos_backend/backend/data/assets/mola_topography_5deg.nc`: verified platform asset.
+- Create `AstraAtmos_backend/backend/tests/test_mola_topography.py`: resampling and asset validation tests.
+- Modify `AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py`: contract, grid propagation, training, batch expansion, and compatibility tests.
+- Modify `AstraAtmos_backend/backend/tests/test_user_model_validator.py`: topography-only and combined dry-run tests.
+- Modify `AstraAtmos_backend/backend/tests/test_uploaded_model_ls_inference.py`: all inference path and permutation-isolation tests, renamed only if useful during implementation.
+- Modify `AstraAtmos_backend/backend/tests/test_user_model_downloads.py`: template/guide contract tests.
 - Modify `docs/uploaded-model-template.py`: comment-only topography opt-in examples.
 - Modify `docs/uploaded-model-training.md`: public topography contract and behavior.
 - Create `docs/mola-topography-asset.md`: source product, checksum, resolution, and preprocessing record.
@@ -32,8 +32,8 @@
 ### Task 1: Extend The Shared Uploaded-Model Contract
 
 **Files:**
-- Modify: `AresVision_backend/backend/training_backbones/uploaded_model_contract.py`
-- Modify: `AresVision_backend/backend/tests/test_uploaded_model_runner.py`
+- Modify: `AstraAtmos_backend/backend/training_backbones/uploaded_model_contract.py`
+- Modify: `AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py`
 
 - [ ] **Step 1: Write failing metadata and dispatch tests**
 
@@ -130,7 +130,7 @@ def test_static_topography_expands_without_copy_for_changing_batch_size():
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py -k "topography or auxiliary_input_metadata" -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py -k "topography or auxiliary_input_metadata" -q
 ```
 
 Expected: collection or assertions fail because topography metadata,
@@ -234,7 +234,7 @@ Do not inspect `forward`, catch `TypeError`, or retry.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py -k "topography or auxiliary or required_ls or legacy_uploaded or ls_uploaded" -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py -k "topography or auxiliary or required_ls or legacy_uploaded or ls_uploaded" -q
 ```
 
 Expected: all selected tests pass.
@@ -242,16 +242,16 @@ Expected: all selected tests pass.
 - [ ] **Step 5: Commit Task 1**
 
 ```powershell
-git add AresVision_backend/backend/training_backbones/uploaded_model_contract.py AresVision_backend/backend/tests/test_uploaded_model_runner.py
+git add AstraAtmos_backend/backend/training_backbones/uploaded_model_contract.py AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py
 git commit -m "feat: extend uploaded model auxiliary contract"
 ```
 
 ### Task 2: Implement Coordinate-Aware MOLA Runtime Resampling
 
 **Files:**
-- Modify: `AresVision_backend/backend/config.py`
-- Create: `AresVision_backend/backend/training_backbones/mola_topography.py`
-- Create: `AresVision_backend/backend/tests/test_mola_topography.py`
+- Modify: `AstraAtmos_backend/backend/config.py`
+- Create: `AstraAtmos_backend/backend/training_backbones/mola_topography.py`
+- Create: `AstraAtmos_backend/backend/tests/test_mola_topography.py`
 
 - [ ] **Step 1: Write deterministic resampling and validation tests**
 
@@ -411,7 +411,7 @@ positions agree within interpolation tolerance.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_mola_topography.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_mola_topography.py -q
 ```
 
 Expected: collection fails because `mola_topography.py` does not exist.
@@ -423,7 +423,7 @@ In `config.py`, add:
 ```python
 MOLA_TOPOGRAPHY_PATH = Path(
     os.getenv(
-        "ARESVISION_MOLA_TOPOGRAPHY_PATH",
+        "ASTRAATMOS_MOLA_TOPOGRAPHY_PATH",
         DATA_DIR / "assets" / "mola_topography_5deg.nc",
     )
 )
@@ -519,7 +519,7 @@ Return `torch.from_numpy(output).unsqueeze(0)` with shape `[1, H, W]`.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_mola_topography.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_mola_topography.py -q
 ```
 
 Expected: all tests pass.
@@ -527,15 +527,15 @@ Expected: all tests pass.
 - [ ] **Step 6: Commit Task 2**
 
 ```powershell
-git add AresVision_backend/backend/config.py AresVision_backend/backend/training_backbones/mola_topography.py AresVision_backend/backend/tests/test_mola_topography.py
+git add AstraAtmos_backend/backend/config.py AstraAtmos_backend/backend/training_backbones/mola_topography.py AstraAtmos_backend/backend/tests/test_mola_topography.py
 git commit -m "feat: add coordinate-aware MOLA resampling"
 ```
 
 ### Task 3: Preserve And Validate Dataset Coordinates
 
 **Files:**
-- Modify: `AresVision_backend/backend/training_backbones/user_model_runner.py`
-- Modify: `AresVision_backend/backend/tests/test_uploaded_model_runner.py`
+- Modify: `AstraAtmos_backend/backend/training_backbones/user_model_runner.py`
+- Modify: `AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py`
 
 - [ ] **Step 1: Write failing coordinate propagation tests**
 
@@ -571,7 +571,7 @@ existing 37-to-36 latitude conversion.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py -k "coordinate or grid or raw_3h" -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py -k "coordinate or grid or raw_3h" -q
 ```
 
 Expected: `return_coordinates` is unsupported and invalid grids are not
@@ -629,7 +629,7 @@ after `height, width`; require coordinate lengths to match the post-loading
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py -k "prepare_tensors or coordinate or grid or raw_3h" -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py -k "prepare_tensors or coordinate or grid or raw_3h" -q
 ```
 
 Expected: new coordinate tests and all existing six-/seven-item return tests
@@ -638,17 +638,17 @@ pass.
 - [ ] **Step 5: Commit Task 3**
 
 ```powershell
-git add AresVision_backend/backend/training_backbones/user_model_runner.py AresVision_backend/backend/tests/test_uploaded_model_runner.py
+git add AstraAtmos_backend/backend/training_backbones/user_model_runner.py AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py
 git commit -m "feat: preserve uploaded training spatial grids"
 ```
 
 ### Task 4: Build And Commit The Verified 36 x 72 MOLA Asset
 
 **Files:**
-- Create: `AresVision_backend/backend/scripts/build_mola_topography_asset.py`
-- Create: `AresVision_backend/backend/data/assets/mola_topography_5deg.nc`
+- Create: `AstraAtmos_backend/backend/scripts/build_mola_topography_asset.py`
+- Create: `AstraAtmos_backend/backend/data/assets/mola_topography_5deg.nc`
 - Create: `docs/mola-topography-asset.md`
-- Modify: `AresVision_backend/backend/tests/test_mola_topography.py`
+- Modify: `AstraAtmos_backend/backend/tests/test_mola_topography.py`
 
 - [ ] **Step 1: Write a failing committed-asset integrity test**
 
@@ -672,7 +672,7 @@ with netCDF4.Dataset(config.MOLA_TOPOGRAPHY_PATH) as dataset:
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_mola_topography.py -k committed -q
+python -m pytest AstraAtmos_backend/backend/tests/test_mola_topography.py -k committed -q
 ```
 
 Expected: failure because the committed asset does not exist.
@@ -717,8 +717,8 @@ on any mismatch.
 Run:
 
 ```powershell
-python AresVision_backend/backend/scripts/build_mola_topography_asset.py --output AresVision_backend/backend/data/assets/mola_topography_5deg.nc
-python AresVision_backend/backend/scripts/build_mola_topography_asset.py --output AresVision_backend/backend/data/assets/mola_topography_5deg.nc --validate
+python AstraAtmos_backend/backend/scripts/build_mola_topography_asset.py --output AstraAtmos_backend/backend/data/assets/mola_topography_5deg.nc
+python AstraAtmos_backend/backend/scripts/build_mola_topography_asset.py --output AstraAtmos_backend/backend/data/assets/mola_topography_5deg.nc --validate
 ```
 
 Expected: the first command downloads/verifies the 2,073,600-byte PDS image
@@ -737,7 +737,7 @@ schema, and exact reproduction/validation commands from Step 4.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_mola_topography.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_mola_topography.py -q
 ```
 
 Expected: all unit and committed-asset tests pass.
@@ -745,15 +745,15 @@ Expected: all unit and committed-asset tests pass.
 - [ ] **Step 7: Commit Task 4**
 
 ```powershell
-git add AresVision_backend/backend/scripts/build_mola_topography_asset.py AresVision_backend/backend/data/assets/mola_topography_5deg.nc AresVision_backend/backend/tests/test_mola_topography.py docs/mola-topography-asset.md
+git add AstraAtmos_backend/backend/scripts/build_mola_topography_asset.py AstraAtmos_backend/backend/data/assets/mola_topography_5deg.nc AstraAtmos_backend/backend/tests/test_mola_topography.py docs/mola-topography-asset.md
 git commit -m "feat: add verified MOLA topography asset"
 ```
 
 ### Task 5: Use Real MOLA During Uploaded-Model Dry-Run
 
 **Files:**
-- Modify: `AresVision_backend/backend/services/user_model_validator.py`
-- Modify: `AresVision_backend/backend/tests/test_user_model_validator.py`
+- Modify: `AstraAtmos_backend/backend/services/user_model_validator.py`
+- Modify: `AstraAtmos_backend/backend/tests/test_user_model_validator.py`
 
 - [ ] **Step 1: Write failing topography validator tests**
 
@@ -810,7 +810,7 @@ dry-run target shape `(8, 16)`.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_user_model_validator.py -k "topography or legacy_and_ls" -q
+python -m pytest AstraAtmos_backend/backend/tests/test_user_model_validator.py -k "topography or legacy_and_ls" -q
 ```
 
 Expected: topography models fail because dry-run dispatch has no terrain.
@@ -854,7 +854,7 @@ wrapping so missing/corrupt asset details appear after `Model dry-run failed:`.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_user_model_validator.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_user_model_validator.py -q
 ```
 
 Expected: all tests pass.
@@ -862,15 +862,15 @@ Expected: all tests pass.
 - [ ] **Step 5: Commit Task 5**
 
 ```powershell
-git add AresVision_backend/backend/services/user_model_validator.py AresVision_backend/backend/tests/test_user_model_validator.py
+git add AstraAtmos_backend/backend/services/user_model_validator.py AstraAtmos_backend/backend/tests/test_user_model_validator.py
 git commit -m "feat: validate uploaded models with real MOLA terrain"
 ```
 
 ### Task 6: Reuse Static Topography During Training, Validation, And Metrics
 
 **Files:**
-- Modify: `AresVision_backend/backend/training_backbones/user_model_runner.py`
-- Modify: `AresVision_backend/backend/tests/test_uploaded_model_runner.py`
+- Modify: `AstraAtmos_backend/backend/training_backbones/user_model_runner.py`
+- Modify: `AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py`
 
 - [ ] **Step 1: Write failing runner propagation tests**
 
@@ -893,7 +893,7 @@ non-flat tensor and record that it is called exactly once per `main()` run.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py -k "topography and (forward or main or training or window)" -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py -k "topography and (forward or main or training or window)" -q
 ```
 
 Expected: training never prepares or passes topography.
@@ -954,7 +954,7 @@ model state dict or checkpoint.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_model_runner.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py -q
 ```
 
 Expected: all runner tests pass.
@@ -962,15 +962,15 @@ Expected: all runner tests pass.
 - [ ] **Step 6: Commit Task 6**
 
 ```powershell
-git add AresVision_backend/backend/training_backbones/user_model_runner.py AresVision_backend/backend/tests/test_uploaded_model_runner.py
+git add AstraAtmos_backend/backend/training_backbones/user_model_runner.py AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py
 git commit -m "feat: pass static MOLA terrain through uploaded training"
 ```
 
 ### Task 7: Propagate Topography Through All Uploaded Inference Paths
 
 **Files:**
-- Modify: `AresVision_backend/backend/services/inference_service.py`
-- Modify: `AresVision_backend/backend/tests/test_uploaded_model_ls_inference.py`
+- Modify: `AstraAtmos_backend/backend/services/inference_service.py`
+- Modify: `AstraAtmos_backend/backend/tests/test_uploaded_model_ls_inference.py`
 
 - [ ] **Step 1: Write failing inference path tests**
 
@@ -1039,7 +1039,7 @@ to the baseline terrain while only `x` changes.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_model_ls_inference.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_ls_inference.py -q
 ```
 
 Expected: tuple unpacking or model calls fail because coordinates/topography
@@ -1094,7 +1094,7 @@ Permutation `score(batch)` closes over unchanged `ls_sample` and
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_model_ls_inference.py AresVision_backend/backend/tests/test_trained_model_predict_contract.py AresVision_backend/backend/tests/test_prediction_horizon_contract.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_model_ls_inference.py AstraAtmos_backend/backend/tests/test_trained_model_predict_contract.py AstraAtmos_backend/backend/tests/test_prediction_horizon_contract.py -q
 ```
 
 Expected: all tests pass.
@@ -1102,7 +1102,7 @@ Expected: all tests pass.
 - [ ] **Step 6: Commit Task 7**
 
 ```powershell
-git add AresVision_backend/backend/services/inference_service.py AresVision_backend/backend/tests/test_uploaded_model_ls_inference.py
+git add AstraAtmos_backend/backend/services/inference_service.py AstraAtmos_backend/backend/tests/test_uploaded_model_ls_inference.py
 git commit -m "feat: pass MOLA terrain through uploaded inference"
 ```
 
@@ -1111,7 +1111,7 @@ git commit -m "feat: pass MOLA terrain through uploaded inference"
 **Files:**
 - Modify: `docs/uploaded-model-template.py`
 - Modify: `docs/uploaded-model-training.md`
-- Modify: `AresVision_backend/backend/tests/test_user_model_downloads.py`
+- Modify: `AstraAtmos_backend/backend/tests/test_user_model_downloads.py`
 
 - [ ] **Step 1: Write failing template and guide tests**
 
@@ -1136,7 +1136,7 @@ Also assert the downloaded text contains canonical topography metadata,
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_user_model_downloads.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_user_model_downloads.py -q
 ```
 
 Expected: new content assertions fail.
@@ -1177,7 +1177,7 @@ provenance and reproduction details.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_user_model_downloads.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_user_model_downloads.py -q
 ```
 
 Expected: all tests pass, including the executable AST assertion.
@@ -1185,7 +1185,7 @@ Expected: all tests pass, including the executable AST assertion.
 - [ ] **Step 6: Commit Task 8**
 
 ```powershell
-git add docs/uploaded-model-template.py docs/uploaded-model-training.md AresVision_backend/backend/tests/test_user_model_downloads.py
+git add docs/uploaded-model-template.py docs/uploaded-model-training.md AstraAtmos_backend/backend/tests/test_user_model_downloads.py
 git commit -m "docs: document uploaded model topography input"
 ```
 
@@ -1199,7 +1199,7 @@ git commit -m "docs: document uploaded model topography input"
 Run:
 
 ```powershell
-python AresVision_backend/backend/scripts/build_mola_topography_asset.py --output AresVision_backend/backend/data/assets/mola_topography_5deg.nc --validate
+python AstraAtmos_backend/backend/scripts/build_mola_topography_asset.py --output AstraAtmos_backend/backend/data/assets/mola_topography_5deg.nc --validate
 ```
 
 Expected: exact 36 x 72 shape, canonical coordinates, `float32` meter values,
@@ -1210,7 +1210,7 @@ finite data, complete provenance, and source checksum all validate.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_mola_topography.py AresVision_backend/backend/tests/test_uploaded_model_runner.py AresVision_backend/backend/tests/test_user_model_validator.py AresVision_backend/backend/tests/test_uploaded_model_ls_inference.py AresVision_backend/backend/tests/test_user_model_downloads.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_mola_topography.py AstraAtmos_backend/backend/tests/test_uploaded_model_runner.py AstraAtmos_backend/backend/tests/test_user_model_validator.py AstraAtmos_backend/backend/tests/test_uploaded_model_ls_inference.py AstraAtmos_backend/backend/tests/test_user_model_downloads.py -q
 ```
 
 Expected: zero failures and no new warnings.
@@ -1220,7 +1220,7 @@ Expected: zero failures and no new warnings.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests/test_uploaded_training_contract.py AresVision_backend/backend/tests/test_training_dataset_loader.py AresVision_backend/backend/tests/test_training_model_artifacts.py AresVision_backend/backend/tests/test_trained_model_test_set_metrics.py AresVision_backend/backend/tests/test_prediction_horizon_contract.py AresVision_backend/backend/tests/test_trained_model_predict_contract.py -q
+python -m pytest AstraAtmos_backend/backend/tests/test_uploaded_training_contract.py AstraAtmos_backend/backend/tests/test_training_dataset_loader.py AstraAtmos_backend/backend/tests/test_training_model_artifacts.py AstraAtmos_backend/backend/tests/test_trained_model_test_set_metrics.py AstraAtmos_backend/backend/tests/test_prediction_horizon_contract.py AstraAtmos_backend/backend/tests/test_trained_model_predict_contract.py -q
 ```
 
 Expected: zero failures.
@@ -1230,7 +1230,7 @@ Expected: zero failures.
 Run:
 
 ```powershell
-python -m pytest AresVision_backend/backend/tests -q
+python -m pytest AstraAtmos_backend/backend/tests -q
 ```
 
 Expected: zero failures. Record any environment-only skip or failure with its
@@ -1241,7 +1241,7 @@ exact test name and error rather than claiming the suite passed.
 Run:
 
 ```powershell
-rg -n "inspect\.signature|except TypeError|topography.*repeat|cat\(.*topography|zeros.*topography|rand.*topography" AresVision_backend/backend
+rg -n "inspect\.signature|except TypeError|topography.*repeat|cat\(.*topography|zeros.*topography|rand.*topography" AstraAtmos_backend/backend
 ```
 
 Expected: no uploaded-model dispatch fallback, time repetition, feature-channel

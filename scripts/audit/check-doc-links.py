@@ -2,7 +2,7 @@
 
 Run from the project root with the project interpreter:
 
-    & 'D:\\Anaconda\\envs\\AresVision\\python.exe' scripts\\audit\\check-doc-links.py
+    & (Join-Path $env:CONDA_PREFIX 'python.exe') scripts/audit/check-doc-links.py
 
 Only relative file links are checked; anchors, http(s) URLs and mailto are skipped.
 Exits non-zero when a link points at a missing path.

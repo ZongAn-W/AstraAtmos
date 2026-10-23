@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
   buildEarthFieldPayload,
   buildEarthPredictKey,
+  buildEarthSplitLabelSource,
   earthLeadLabel,
+  earthSplitRanges,
   getEarthCadence,
   getEarthTrainingModelOptions,
   isEarthTask,
@@ -231,4 +233,41 @@ test('Earth task selection only offers completed Earth tasks with weights', () =
   assert.equal(isEarthTask(tasks[1]), false);
   assert.equal(isEarthTask(tasks[3]), true);
   assert.equal(isEarthTask(null), false);
+});
+
+test('Earth split label source normalizes published and task-split boundaries without inventing counts', () => {
+  const published = {
+    split_policy: 'published_manifest_splits',
+    split_ranges: {
+      train: { date_start: '2020-01-01T01:30:00Z', date_end: '2021-06-30T22:30:00Z', window_count: 4200 },
+      test: { date_start: '2021-11-01T01:30:00Z', date_end: '2021-12-28T22:30:00Z', window_count: 128 },
+    },
+  };
+  assert.deepEqual(buildEarthSplitLabelSource(published), { split_meta: {
+    source: 'published_manifest_splits',
+    test_range: { date_start: '2021-11-01T01:30:00Z', date_end: '2021-12-28T22:30:00Z', window_count: 128 },
+  } });
+  // Daily-era manifests used start/end instead of date_start/date_end.
+  const legacyKeys = { split_policy: 'published_manifest_splits',
+    split_ranges: { test: { start: '2021-01-01', end: '2021-01-31', window_count: 24 } } };
+  assert.equal(buildEarthSplitLabelSource(legacyKeys).split_meta.test_range.date_start, '2021-01-01');
+
+  const taskSplit = {
+    split_policy: 'earth_task_split_v1',
+    split_ratios: { train_ratio: .7, validation_ratio: .2, test_ratio: .1 },
+    task_split: { policy: 'earth_task_split_v1', ranges: {
+      test: { date_start: '2021-11-05T00:00:00Z', date_end: '2021-12-28T21:00:00Z', step_count: 440, window_count: 361 },
+    } },
+  };
+  const built = buildEarthSplitLabelSource(taskSplit);
+  assert.equal(built.split_meta.source, 'earth_task_split_v1');
+  assert.equal(built.split_meta.test_range.window_count, 361);
+  assert.deepEqual(built.split_meta.ratios, taskSplit.split_ratios);
+
+  // Unsupported policy, missing test range and missing boundaries must not produce a split line.
+  assert.deepEqual(earthSplitRanges({ split_ranges: { test: { date_start: '2021-01-01' } } }), {});
+  assert.equal(buildEarthSplitLabelSource({ split_policy: 'legacy_compatibility',
+    split_ranges: published.split_ranges }), null);
+  assert.equal(buildEarthSplitLabelSource({}), null);
+  assert.equal(buildEarthSplitLabelSource(null), null);
 });

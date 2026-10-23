@@ -88,7 +88,7 @@ Earth 的年度分析接口位于 `/api/analysis/earth/overview/*`，与火星 `
 | 适配器契约 | [OverviewAdapter.js](../frontend/src/pages/DataOverviewPage/workbench/OverviewAdapter.js)、[marsOverviewAdapter.js](../frontend/src/pages/DataOverviewPage/workbench/marsOverviewAdapter.js)、[earthOverviewAdapter.js](../frontend/src/pages/DataOverviewPage/workbench/earthOverviewAdapter.js) |
 | 三维场景 | [OverviewScene.jsx](../frontend/src/pages/DataOverviewPage/workbench/OverviewScene.jsx)、[SphericalFieldCanvas.jsx](../frontend/src/components/SphericalFieldCanvas.jsx)、[sphericalRegionalGrid.js](../frontend/src/components/sphericalRegionalGrid.js)、[sphericalEarthBaseMap.js](../frontend/src/components/sphericalEarthBaseMap.js) |
 | Earth 场景与卡片 | [EarthWorkbenchScene.jsx](../frontend/src/pages/DataOverviewPage/EarthOverview/EarthWorkbenchScene.jsx)（数据源/图层/点位/显示面板、年度分析条件与分析区组装）、[EarthResearchViews.jsx](../frontend/src/pages/DataOverviewPage/EarthOverview/EarthResearchViews.jsx)、[earthResearchModel.js](../frontend/src/pages/DataOverviewPage/EarthOverview/earthResearchModel.js)、[earthResearchClient.js](../frontend/src/pages/DataOverviewPage/EarthOverview/earthResearchClient.js)、[EarthInsightPanel.jsx](../frontend/src/pages/DataOverviewPage/EarthOverview/EarthInsightPanel.jsx) |
-| Earth 后端接口 | [earth_analysis.py](../AresVision_backend/backend/routers/earth_analysis.py)、[earth_research_service.py](../AresVision_backend/backend/services/earth_research_service.py)、[earth_research.py](../AresVision_backend/backend/schemas/earth_research.py) |
+| Earth 后端接口 | [earth_analysis.py](../AstraAtmos_backend/backend/routers/earth_analysis.py)、[earth_research_service.py](../AstraAtmos_backend/backend/services/earth_research_service.py)、[earth_research.py](../AstraAtmos_backend/backend/schemas/earth_research.py) |
 | Mars 观测台控件 | [DataOverviewPage.jsx](../frontend/src/pages/DataOverviewPage.jsx)（页面状态、手势 rect 映射、分析区组装）、[ObservatoryMars.jsx](../frontend/src/pages/DataOverviewPage/ObservatoryMars.jsx)（条件栏槽位与四个面板）、[MarsSourceControls.jsx](../frontend/src/pages/DataOverviewPage/MarsSourceControls.jsx)（官方/个人 MCD、OpenMARS、NOMAD）、[MarsObservationRail.jsx](../frontend/src/pages/DataOverviewPage/workbench/MarsObservationRail.jsx)（两侧曲线与 Ls 交互）、[marsObservationRail.js](../frontend/src/pages/DataOverviewPage/workbench/marsObservationRail.js)（刻度、单位、每轨独立数值范围与缺测路径） |
 | Mars 分析条件与错误恢复 | [MarsAnalysisSettings.jsx](../frontend/src/pages/DataOverviewPage/workbench/MarsAnalysisSettings.jsx)（页面级条件记忆）、[marsAnalysisSettings.js](../frontend/src/pages/DataOverviewPage/workbench/marsAnalysisSettings.js)（条件适用范围与纬带选项）、[ChartRequestError.jsx](../frontend/src/pages/DataOverviewPage/OverviewCharts/ChartRequestError.jsx)（图表请求错误与重试） |
 | 点位结果 | [PointProbeContent.jsx](../frontend/src/pages/DataOverviewPage/PointProbeContent.jsx)（分析区嵌入与独立弹窗共用同一份实现）、[PointProbeModal.jsx](../frontend/src/pages/DataOverviewPage/PointProbeModal.jsx) |
@@ -352,10 +352,10 @@ Earth 的能力声明中 `diurnal` 固定为 `false`，原因码为 `daily_data_
 
 ## 测试
 
-后端（从 `AresVision_backend/backend/` 执行，使用全新的纯英文 `--basetemp` 目录）：
+后端（从 `AstraAtmos_backend/backend/` 执行，使用全新的纯英文 `--basetemp` 目录）：
 
 ```powershell
-python -m pytest tests/test_earth_research_service.py tests/test_earth_research_routes.py -q --basetemp "$(Join-Path 'D:\_Aresvision' ('.earth-research-' + [guid]::NewGuid().ToString('N')))"
+python -m pytest tests/test_earth_research_service.py tests/test_earth_research_routes.py -q --basetemp "$(Join-Path $env:TEMP ('.earth-research-' + [guid]::NewGuid().ToString('N')))"
 ```
 
 前端（从 `frontend/` 执行）：
@@ -500,7 +500,7 @@ rgb(252,255,164) → rgb(171,49,91) → rgb(60,60,64)     四条轨完全相同
   `data-observatory-view="observe"` 时分析区实测 `0x0` 且不可见，切到分析档后三个入口与主图一起出现。
 - **响应式**：390 / 768 / 1024 / 1280 / 1920 五种宽度下页面横向溢出均为 0px；
   宽度 < 1024px 或工作区 < 576px 时进入文档流布局，观测档球体 420px、分析档 280px。
-- 验收截图保存在工作区 `D:\_Aresvision\_shot\`（`rail-*.png`、`no3d-*.png`、`transparent-*.png`、`v3-*.png`、`v4-*.png` 等，含分析档版式整理前后的对照）；临时 CDP 脚本不属于仓库内容，验证结束后逐个删除。
+- 验收截图保存在工作区 `<工作区>\_shot\`（`rail-*.png`、`no3d-*.png`、`transparent-*.png`、`v3-*.png`、`v4-*.png` 等，含分析档版式整理前后的对照）；临时 CDP 脚本不属于仓库内容，验证结束后逐个删除。
 - 本轮验收发现并修复的真实缺陷：布局尺寸回灌自身高度导致工作区越排越高（改为「窗口高度 − 实测导航高度」并钉死 Grid 行高）；
   `toolsSlot` 在 `toolContent` 之前求值触发 TDZ 崩溃（地球场景整体白屏）；
   `flowSceneHeight` 常量缺失使文档流下的画布高度变成 `undefined`；
@@ -555,7 +555,7 @@ rgb(252,255,164) → rgb(171,49,91) → rgb(60,60,64)     四条轨完全相同
 
 ### 2026-09-24 记录（布局改版前的三栏工作台）
 
-2026-09-24 在本地实际执行，使用 conda 环境 `AresVision` 的解释器与系统 Edge（`playwright-core`，headless）。
+2026-09-24 在本地实际执行，使用 conda 环境 `AstraAtmos` 的解释器与系统 Edge（`playwright-core`，headless）。
 
 - **后端测试**：`tests/test_earth_research_service.py` + `tests/test_earth_research_routes.py` **92 passed**；
   `tests/test_earth_overview_service.py` + `tests/test_earth_overview_routes.py` + `tests/test_dataset_registry.py` + `tests/test_dataset_routes.py` **152 passed**（合计 244）。
@@ -578,7 +578,7 @@ rgb(252,255,164) → rgb(171,49,91) → rgb(60,60,64)     四条轨完全相同
   （相机位置在切走切回前后一致、重置视角后不再复活旧视角），见上文“场景切换的开销与无缝程度”。
 - **真实 v2 数据规模**：`probe_suite_size.py` 实测 `/research-suite` 2020 响应 1.55 MiB，
   `seasonal` 占 79.7%，服务端计算仅 63 ms —— 瓶颈是序列化与传输，不是 NumPy。
-- 验收脚本与截图保存在工作区 `D:\_Aresvision\.workbench-verification\`（`workbench-verify.mjs`、`report.json`、`screenshots/`），运行产物不属于仓库内容。
+- 验收脚本与截图保存在工作区 `<工作区>\.workbench-verification\`（`workbench-verify.mjs`、`report.json`、`screenshots/`），运行产物不属于仓库内容。
 - 该轮验收发现并修复的真实缺陷：共用控制器缺少 `cardUnsupported` 导入导致地球场景崩溃；
   分析栏 flex `min-height:auto` 导致卡片列表覆盖下方面板；底部时间轴跨满视口遮挡右侧按钮；
   重复选择同一变量会清空场景；Plotly 以日期字符串作为散点颜色导致 `<rect height="NaN">`；

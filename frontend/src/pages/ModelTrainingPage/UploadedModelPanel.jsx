@@ -108,6 +108,7 @@ export default function UploadedModelPanel({
   selectionDisabled = false,
   guideDownloadUrl,
   templateDownloadUrl,
+  sharedGateTemplateDownloadUrl,
   inlineError = '',
   statusLabel = '',
   statusTone = 'ok',
@@ -192,6 +193,11 @@ export default function UploadedModelPanel({
         {templateDownloadUrl ? (
           <a href={templateDownloadUrl} download className="experiment-uploaded-link is-quiet">
             {labels.downloadTemplate}
+          </a>
+        ) : null}
+        {sharedGateTemplateDownloadUrl ? (
+          <a href={sharedGateTemplateDownloadUrl} download className="experiment-uploaded-link is-quiet">
+            {labels.downloadSharedGateTemplate}
           </a>
         ) : null}
       </div>

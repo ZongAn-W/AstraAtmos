@@ -42,10 +42,10 @@ function installEnvironment(fetchImpl) {
   globalThis.localStorage = {
     token: 'expired-token',
     getItem(key) {
-      return key === 'aresvision_token' ? this.token : null;
+      return key === 'astraatmos_token' ? this.token : null;
     },
     removeItem(key) {
-      if (key === 'aresvision_token') {
+      if (key === 'astraatmos_token') {
         this.token = null;
         operations.push(`remove:${key}`);
       }
@@ -85,10 +85,10 @@ for (const { name, call } of earthRequests) {
       return true;
     });
 
-    assert.equal(storage.getItem('aresvision_token'), null);
+    assert.equal(storage.getItem('astraatmos_token'), null);
     assert.deepEqual(operations, [
-      'remove:aresvision_token',
-      'event:aresvision:logout',
+      'remove:astraatmos_token',
+      'event:astraatmos:logout',
     ]);
   });
 }
@@ -103,14 +103,14 @@ test('Earth 401 cleanup prevents a later request from carrying the old Authoriza
   });
 
   await assert.rejects(fetchEarthPredictContext(31), (error) => error.status === 401);
-  assert.equal(storage.getItem('aresvision_token'), null);
+  assert.equal(storage.getItem('astraatmos_token'), null);
   await fetchEarthPredictContext(31);
 
   assert.equal(requests[0].options.headers.Authorization, 'Bearer expired-token');
   assert.equal(requests[1].options.headers.Authorization, undefined);
   assert.deepEqual(operations, [
-    'remove:aresvision_token',
-    'event:aresvision:logout',
+    'remove:astraatmos_token',
+    'event:astraatmos:logout',
   ]);
 });
 
@@ -143,8 +143,8 @@ test('the same 401 response is cleaned up and broadcast only once', () => {
   assert.equal(handleUnauthorizedResponse(response), true);
   assert.equal(handleUnauthorizedResponse(response), true);
   assert.deepEqual(operations, [
-    'remove:aresvision_token',
-    'event:aresvision:logout',
+    'remove:astraatmos_token',
+    'event:astraatmos:logout',
   ]);
 });
 
@@ -156,6 +156,6 @@ test('Earth AbortError propagates without clearing authentication or dispatching
   });
 
   await assert.rejects(fetchEarthDiagnosticContext(31), (error) => error.name === 'AbortError');
-  assert.equal(storage.getItem('aresvision_token'), 'expired-token');
+  assert.equal(storage.getItem('astraatmos_token'), 'expired-token');
   assert.deepEqual(operations, []);
 });

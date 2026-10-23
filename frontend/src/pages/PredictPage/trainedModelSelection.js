@@ -1,6 +1,6 @@
 import { isEarthTask } from './earthPredictModel.js';
 
-export const TRAINING_TASK_HANDOFF_KEY = 'aresvision_predict_training_task';
+export const TRAINING_TASK_HANDOFF_KEY = 'astraatmos_predict_training_task';
 
 const ARCHITECTURE_LABELS = {
   predrnnv2: 'PredRNNv2',

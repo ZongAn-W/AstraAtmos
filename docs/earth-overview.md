@@ -247,17 +247,17 @@ point identity         = [dataset_id, fingerprint, variable, requested_lat, requ
 
 ## 手工验证
 
-从后端目录（`AresVision_backend/backend/`）执行，只读、不启动数据库或训练：
+从后端目录（`AstraAtmos_backend/backend/`）执行，只读、不启动数据库或训练：
 
 ```powershell
-conda run -n AresVision python -B -c "from config import EARTH_MERRA2_DIR, EARTH_MERRA2_V1_DIR; from services.dataset_registry import DatasetRegistry; from services.earth_overview_service import EarthOverviewService; r = DatasetRegistry(EARTH_MERRA2_DIR, earth_dataset_id='earth_merra2_daily_v2', legacy_earth_package_dir=EARTH_MERRA2_V1_DIR); d = r.get_dataset('earth_merra2_daily_v2'); s = EarthOverviewService(r); f = s.get_field(dataset_id=d['dataset_id'], expected_fingerprint=d['dataset_fingerprint'], date='2020-02-29', variable='TO3'); print(f['date'], len(f['field']), len(f['field'][0]), f['units'], f['coverage'], f['statistics']['regional_mean'])"
+& "$env:CONDA_PREFIX\python.exe" -B -c "from config import EARTH_MERRA2_DIR, EARTH_MERRA2_V1_DIR; from services.dataset_registry import DatasetRegistry; from services.earth_overview_service import EarthOverviewService; r = DatasetRegistry(EARTH_MERRA2_DIR, earth_dataset_id='earth_merra2_daily_v2', legacy_earth_package_dir=EARTH_MERRA2_V1_DIR); d = r.get_dataset('earth_merra2_daily_v2'); s = EarthOverviewService(r); f = s.get_field(dataset_id=d['dataset_id'], expected_fingerprint=d['dataset_fingerprint'], date='2020-02-29', variable='TO3'); print(f['date'], len(f['field']), len(f['field'][0]), f['units'], f['coverage'], f['statistics']['regional_mean'])"
 ```
 
 测试：
 
 ```powershell
-$earthOverviewTemp = Join-Path 'D:\_Aresvision' ('.earth-overview-test-' + [guid]::NewGuid().ToString('N'))
-conda run -n AresVision python -m pytest tests/test_earth_overview_service.py tests/test_earth_overview_routes.py -q --basetemp "$earthOverviewTemp"
+$earthOverviewTemp = Join-Path $env:TEMP ('.earth-overview-test-' + [guid]::NewGuid().ToString('N'))
+& "$env:CONDA_PREFIX\python.exe" -m pytest tests/test_earth_overview_service.py tests/test_earth_overview_routes.py -q --basetemp "$earthOverviewTemp"
 ```
 
 前端（从 `frontend/` 执行）：
@@ -281,12 +281,12 @@ npm run build
 
 ## v1 历史验证记录
 
-2026-09-23 在本地实际执行，使用 conda 环境 `AresVision` 的解释器：
+2026-09-23 在本地实际执行，使用 conda 环境 `AstraAtmos` 的解释器：
 
 - **v1 真实数据只读比对**：对 `2020-01-01`、`2020-02-29`、`2021-12-31` × 五个变量，逐值比对 `field` 与本地 NetCDF（数组完全相等），**45 个点位值**与 NetCDF 完全一致，**15 个区域均值**与独立手算的纬度余弦加权结果一致（`rtol=1e-10`），另核对 15 组单位与坐标轴。
 - **后端测试**：`test_earth_overview_service.py`（77）与 `test_earth_overview_routes.py`（44）通过；第一步与火星总览回归（`test_dataset_registry.py`、`test_dataset_routes.py`、`test_earth_dataset.py`、`test_training_dataset_identity.py`、`test_analysis_overview_uploaded_sources.py`、`test_mcd_overview_service.py`）共 94 项通过，Earth 训练拒绝测试保持通过。
 - **前端测试与构建**：`node --test` 全量 345 项通过；`npm run build` 成功。
 - **真实浏览器验收**（系统 Edge + `playwright-core`，headless，1440/900/390px）：**43/43 项通过**，该次记录覆盖当时默认火星、切换地球、初始日期与 DU、1519 个数据格、闰日 `2020-02-29`、五变量原始单位、火星单位设置不改变地球数值、地图点选与标记、覆盖区外提示且不发点位请求、逐日播放不跳日、暂停与从首日重播、慢网下“正在加载所选日期”且不把旧值标成新日期、快速切换日期与变量后只保留最后选择、Earth→Mars→Earth 保留选择、中英文与深浅主题、无横向溢出、底图仅来自本地资源、控制台无新增错误。当前入口已改为默认地球。
-- 截图保存在工作区 `D:\_Aresvision\earth-overview-verification\screenshots\`（桌面地图、点位选中、区域外无数据、浅色英文、900px、390px），运行截图不属于仓库内容。
+- 截图保存在工作区 `<工作区>\earth-overview-verification\screenshots\`（桌面地图、点位选中、区域外无数据、浅色英文、900px、390px），运行截图不属于仓库内容。
 
 交接复核说明：上述浏览器 JSON 中 43 项确实均标记通过，但“火星单位设置不改变 Earth 数值”一项记录为 `-- DU → -- DU`，测试发生在选中有效点位之前。该断言仅证明占位文本相同，真实数值的单位隔离仍需固定日期、指纹及网格点、等待有限数值后补测；已纳入[第三步训练接入方案](plans/2026-09-23-earth-dlinear-training.md)的联调验收。第二步报告摘要的“120 passed”也与 service 77 + routes 44（合计 121）不一致，汇总数字应以实际测试输出为准。本次复核检查了源码与已有验收记录，没有重新运行浏览器或全量回归。

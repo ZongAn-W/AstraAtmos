@@ -1,4 +1,8 @@
-"""Standalone SimVP for complete normalized Earth three-hour global fields."""
+"""Standalone SimVP for complete normalized Earth three-hour global fields.
+
+For an example consuming both ls and physical ETOPO terrain, use the separate
+earth-3hourly-fullgrid-topography-model-template.py; this SimVP declares neither.
+"""
 
 import torch
 from torch import nn
@@ -19,7 +23,7 @@ MODEL_SPEC = {
     },
     "datasets": {
         "earth_merra2_3hourly_v1": {
-            "schema": "aresvision_earth_3hourly_fullgrid_model_v2",
+            "schema": "astraatmos_earth_3hourly_fullgrid_model_v2",
             "frequency_hours": 3,
             "step_unit": "hour",
             "step": 3,
@@ -209,7 +213,7 @@ def build_model(config):
 
     expected_metadata = {
         "dataset_id": "earth_merra2_3hourly_v1",
-        "contract_schema": "aresvision_earth_3hourly_fullgrid_model_v2",
+        "contract_schema": "astraatmos_earth_3hourly_fullgrid_model_v2",
         "global_grid_shape": [240, 480],
         "spatial_tile_shape": [240, 480],
         "target_channel": "TO3",

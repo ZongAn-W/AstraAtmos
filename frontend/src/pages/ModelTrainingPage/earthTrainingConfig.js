@@ -11,6 +11,7 @@
 
 import {
   TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1,
+  TRAINING_DATASET_EARTH_MERRA2_3HOURLY_5DEG_V1,
   isRetiredEarthDataset,
   sanitizeNonNegativeInteger,
   sanitizePositiveInteger,
@@ -19,9 +20,11 @@ import {
 import { isUploadedModelValidationTimeout, UPLOADED_MODEL_VALIDATION_TIMEOUT } from './uploadedModelValidation.js';
 
 export const EARTH_3HOURLY_DATASET_ID = TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1;
+export const EARTH_3HOURLY_5DEG_DATASET_ID = TRAINING_DATASET_EARTH_MERRA2_3HOURLY_5DEG_V1;
 export const EARTH_DATASET_ID = EARTH_3HOURLY_DATASET_ID;
-export const EARTH_3HOURLY_UPLOAD_SCHEMA = 'aresvision_earth_3hourly_uploaded_model_v1';
-export const EARTH_3HOURLY_FULL_GRID_SCHEMA = 'aresvision_earth_3hourly_fullgrid_model_v2';
+export const EARTH_3HOURLY_UPLOAD_SCHEMA = 'astraatmos_earth_3hourly_uploaded_model_v1';
+export const EARTH_3HOURLY_5DEG_SCHEMA = 'astraatmos_earth_3hourly_5deg_model_v1';
+export const EARTH_3HOURLY_FULL_GRID_SCHEMA = 'astraatmos_earth_3hourly_fullgrid_model_v2';
 export const EARTH_MODEL_ARCHITECTURE = 'dlinear';
 /** 上传模型的架构标记；真正的代码由服务端固定的模型引用决定。 */
 export const EARTH_UPLOADED_ARCHITECTURE = 'uploaded';
@@ -46,6 +49,10 @@ export const EARTH_TARGET_CHANNEL = 'TO3';
 export const EARTH_TARGET_UNIT = 'DU';
 
 export const EARTH_DATASET_PROFILES = Object.freeze({
+  [EARTH_3HOURLY_5DEG_DATASET_ID]: Object.freeze({
+    datasetId: EARTH_3HOURLY_5DEG_DATASET_ID, frequencyHours: 3, stepUnit: 'hour', step: 3,
+    window: 56, horizon: 24, gridShape: [36, 72], modelSources: EARTH_MODEL_SOURCES,
+  }),
   [EARTH_3HOURLY_DATASET_ID]: Object.freeze({
     datasetId: EARTH_3HOURLY_DATASET_ID,
     frequencyHours: EARTH_3HOURLY_FREQUENCY_HOURS,
@@ -213,9 +220,9 @@ export function readEarthUploadedModelCompatibility(compatibility) {
   const reasons = Array.isArray(compatibility.reasons) ? compatibility.reasons.filter(Boolean) : [];
   const timedOut = isUploadedModelValidationTimeout(compatibility);
   const contracts = compatibility.contract || compatibility.earth_contract
-    || (compatibility.dataset_id === EARTH_3HOURLY_DATASET_ID
+    || ([EARTH_3HOURLY_DATASET_ID, EARTH_3HOURLY_5DEG_DATASET_ID].includes(compatibility.dataset_id)
       || (!compatibility.dataset_id && compatibility.datasets?.earth_merra2_3hourly_v1)
-      ? compatibility.datasets?.earth_merra2_3hourly_v1 : compatibility.datasets?.earth_merra2) || {};
+      ? (compatibility.datasets?.[compatibility.dataset_id] || compatibility.datasets?.earth_merra2_3hourly_v1) : compatibility.datasets?.earth_merra2) || {};
   return {
     known: !timedOut && compatibility.status !== 'unknown',
     compatible: !timedOut && compatibility.compatible === true && compatibility.status !== 'unknown',
@@ -246,10 +253,10 @@ export function getEarthUploadedSelectionBlocker({ modelSource, uploadedModelId,
   if (compatibility?.package_id && compatibility.package_id !== uploadedModelId) return 'earth_compatibility_unknown';
   if (verdict.reason === UPLOADED_MODEL_VALIDATION_TIMEOUT) return UPLOADED_MODEL_VALIDATION_TIMEOUT;
   if (!verdict.known) return 'earth_compatibility_unknown';
-  if (profile.datasetId === EARTH_3HOURLY_DATASET_ID && verdict.dataset !== profile.datasetId) return 'earth_compatibility_unknown';
+  if (isEarthTrainingDataset(profile.datasetId) && verdict.dataset !== profile.datasetId) return 'earth_compatibility_unknown';
   if (!verdict.compatible) return verdict.reason || 'uploaded_model_not_earth_compatible';
-  if (profile.datasetId === EARTH_3HOURLY_DATASET_ID
-    && (compatibility.status !== 'available' || ![EARTH_3HOURLY_UPLOAD_SCHEMA, EARTH_3HOURLY_FULL_GRID_SCHEMA].includes(verdict.contractSchema))) return 'earth_compatibility_unknown';
+  if (isEarthTrainingDataset(profile.datasetId)
+    && (compatibility.status !== 'available' || !(profile.datasetId === EARTH_3HOURLY_5DEG_DATASET_ID ? [EARTH_3HOURLY_5DEG_SCHEMA] : [EARTH_3HOURLY_UPLOAD_SCHEMA, EARTH_3HOURLY_FULL_GRID_SCHEMA]).includes(verdict.contractSchema))) return 'earth_compatibility_unknown';
   if (verdict.contractSchema === EARTH_3HOURLY_FULL_GRID_SCHEMA
       && batchSize !== undefined && (!Number.isInteger(Number(batchSize))
         || Number(batchSize) < EARTH_PARAM_BOUNDS.batch_size.min

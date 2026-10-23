@@ -14,12 +14,14 @@ import PredictPage from './pages/PredictPage';
 import AIPage from './pages/AIPage';
 import AboutPage from './pages/AboutPage';
 import ModelTrainingPage from './pages/ModelTrainingPage';
+import UiKitPage from './pages/UiKitPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import './components/ui/motion.css';
 import BrandMark from './components/BrandMark';
 import { TrainingProvider } from './contexts/TrainingContext';
 import { getCurrentPageFromHash } from './router/hashRoute';
 
-const VALID_PAGES = ['home', 'overview', 'explore', 'predict', 'training', 'ai', 'about'];
+const VALID_PAGES = ['home', 'overview', 'explore', 'predict', 'training', 'ai', 'about', 'uikit'];
 
 function getPageFromHash() {
   return getCurrentPageFromHash(VALID_PAGES);
@@ -111,6 +113,7 @@ export default function App() {
           {page === 'training' && <ModelTrainingPage />}
           {page === 'ai' && <AIPage />}
           {page === 'about' && <AboutPage />}
+          {page === 'uikit' && <UiKitPage />}
         </div>
       </ErrorBoundary>
 

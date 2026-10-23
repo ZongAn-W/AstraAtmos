@@ -1,5 +1,5 @@
 /**
- * AresVision 设计 Token — 颜色常量
+ * AstraAtmos 设计 Token — 颜色常量
  * 所有组件统一从这里引用颜色，方便全局调整
  * 主题感知颜色使用 CSS 变量，accent 色保持固定
  */

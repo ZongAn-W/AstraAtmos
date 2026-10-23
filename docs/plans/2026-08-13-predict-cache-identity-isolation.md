@@ -123,7 +123,7 @@ export function endAuthenticatedPredictionSession() {
 }
 ```
 
-`AuthContext` calls `begin...` before exposing a successfully validated/logged-in user. Manual logout, logout events, missing-token initialization, and initialization failure call `end...` before clearing state or completing loading. `api.js` calls `end...` synchronously before dispatching `aresvision:logout` on 401. No token enters either cache/session module.
+`AuthContext` calls `begin...` before exposing a successfully validated/logged-in user. Manual logout, logout events, missing-token initialization, and initialization failure call `end...` before clearing state or completing loading. `api.js` calls `end...` synchronously before dispatching `astraatmos:logout` on 401. No token enters either cache/session module.
 
 - [ ] **Step 4: Run tests and verify GREEN**
 

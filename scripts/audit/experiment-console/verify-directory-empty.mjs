@@ -133,10 +133,10 @@ async function openDirectory({ token, failTasks = false }) {
   await new Promise((r) => setTimeout(r, 1200));
   const stored = await evaluate(`
     try {
-      localStorage.removeItem('aresvision_token');
-      localStorage.setItem('aresvision_settings', JSON.stringify({ language: 'zh', theme: 'dark' }));
-      ${token ? `localStorage.setItem('aresvision_token', ${JSON.stringify(token)});` : "localStorage.removeItem('aresvision_token');"}
-      return (localStorage.getItem('aresvision_token') || '').length;
+      localStorage.removeItem('astraatmos_token');
+      localStorage.setItem('astraatmos_settings', JSON.stringify({ language: 'zh', theme: 'dark' }));
+      ${token ? `localStorage.setItem('astraatmos_token', ${JSON.stringify(token)});` : "localStorage.removeItem('astraatmos_token');"}
+      return (localStorage.getItem('astraatmos_token') || '').length;
     } catch (e) { return -1; }
   `);
   if (stored < 0) throw new Error('无法写入 localStorage');

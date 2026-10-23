@@ -4,9 +4,9 @@ This is a developer smoke check, not part of the pytest suite: it validates the
 sample model, trains it on the real Earth release through the same runner the web
 task uses, then rebuilds it and predicts from the checkpoint alone.
 
-Run from ``AresVision_backend/backend``::
+Run from ``AstraAtmos_backend/backend``::
 
-    & 'D:\\Anaconda\\envs\\AresVision\\python.exe' ..\\..\\scripts\\audit\\earth-uploaded-model-smoke.py
+    & (Join-Path $env:CONDA_PREFIX 'python.exe') ../../scripts/audit/earth-uploaded-model-smoke.py
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-BACKEND_DIR = Path(__file__).resolve().parents[2] / "AresVision_backend" / "backend"
+BACKEND_DIR = Path(__file__).resolve().parents[2] / "AstraAtmos_backend" / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 
 import numpy as np  # noqa: E402

@@ -527,14 +527,14 @@ npm run build
 
 ### 10.2 本地运行
 
-优先复用已有健康服务。需要启动时遵循工作区 `AGENTS.md`：后端必须使用已配置的 conda `AresVision` 环境，不能换成系统 Python 或其他虚拟环境。环境权限遵循当前工具的有效配置；已处于完整权限时不附加工具禁止的参数。
+优先复用已有健康服务。需要启动时遵循工作区 `AGENTS.md`：后端必须使用已配置的 conda `AstraAtmos` 环境，不能换成系统 Python 或其他虚拟环境。环境权限遵循当前工具的有效配置；已处于完整权限时不附加工具禁止的参数。
 
 下面的后端命令针对当前 Windows 工作区，解释器路径来自工作区 `AGENTS.md` 的固定运行约定；不得通过 `Get-Command python` 选择另一套环境。跨机器部署应遵循部署文档，不将此路径写入应用源码或 README 的通用示例。
 
-后端工作目录：仓库内 `AresVision_backend/backend`；仅当 `.env` 不存在时复制 `.env.example`，不覆盖现有配置。
+后端工作目录：仓库内 `AstraAtmos_backend/backend`；仅当 `.env` 不存在时复制 `.env.example`，不覆盖现有配置。
 
 ```powershell
-& 'D:\Anaconda\envs\AresVision\python.exe' -m uvicorn main:app --reload --reload-dir . --host 0.0.0.0 --port 8000
+& "$env:CONDA_PREFIX\python.exe" -m uvicorn main:app --reload --reload-dir . --host 0.0.0.0 --port 8000
 ```
 
 上式由自动化后台进程执行，不使用开启可见新窗口的一键启动脚本。前端先在 `frontend` 完成构建，再从仓库根目录设置 `ROOT=frontend/dist`、`PORT=5173`、`API_PORT=8000`，后台运行 `node scripts/serve-prod.mjs`。不要终止不属于本任务的服务进程。

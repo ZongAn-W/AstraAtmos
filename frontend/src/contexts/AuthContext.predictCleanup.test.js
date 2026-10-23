@@ -31,6 +31,6 @@ test('missing and invalid startup tokens clear any outgoing prediction session b
   );
   assert.match(
     source,
-    /\.catch\(\(\) => \{[\s\S]*?endAuthenticatedPredictionSession\(\)[\s\S]*?localStorage\.removeItem\('aresvision_token'\)/
+    /\.catch\(\(\) => \{[\s\S]*?endAuthenticatedPredictionSession\(\)[\s\S]*?localStorage\.removeItem\('astraatmos_token'\)/
   );
 });

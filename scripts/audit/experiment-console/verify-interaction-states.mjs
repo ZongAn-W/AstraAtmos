@@ -122,8 +122,8 @@ await call('Emulation.setDeviceMetricsOverride', { ...VIEW, deviceScaleFactor: 1
 await call('Page.navigate', { url: `${BASE}/` });
 await new Promise((r) => setTimeout(r, 1200));
 await evaluate(`
-  localStorage.setItem('aresvision_settings', JSON.stringify({ language: 'zh', theme: 'dark' }));
-  ${TOKEN ? `localStorage.setItem('aresvision_token', ${JSON.stringify(TOKEN)});` : "localStorage.removeItem('aresvision_token');"}
+  localStorage.setItem('astraatmos_settings', JSON.stringify({ language: 'zh', theme: 'dark' }));
+  ${TOKEN ? `localStorage.setItem('astraatmos_token', ${JSON.stringify(TOKEN)});` : "localStorage.removeItem('astraatmos_token');"}
   return true;
 `);
 await call('Page.reload', { ignoreCache: true });

@@ -17,7 +17,7 @@ npm --version     # 应显示 9.x.x 或更高
 
 ### 2. 在 PyCharm 中打开项目
 
-1. 用 PyCharm 打开整个 `AresVision/` 目录
+1. 用 PyCharm 打开整个 `AstraAtmos/` 目录
 2. PyCharm 会自动识别 `frontend/` 为前端子项目
 3. 建议安装 PyCharm 的 **JavaScript and TypeScript** 插件（通常自带）
 
@@ -56,8 +56,8 @@ npm run dev
 ## 项目结构说明
 
 ```
-AresVision/
-├── AresVision_backend/
+AstraAtmos/
+├── AstraAtmos_backend/
 │   └── backend/                 ← FastAPI 后端
 │       ├── main.py              ← 应用入口 + lifespan 初始化
 │       ├── config.py            ← 全局配置常量
@@ -156,7 +156,7 @@ AresVision/
 
 桌面精修沿用既有令牌：导航常态 13px / 500，当前项 600、冰蓝文字和 2px 底部线；中文正文保持 14px，辅助信息至少 12px / 18px 行高。总览关键名称提供完整名称 `title`，主要面板与内部区域分别使用 default / subtle 边框或分隔线，辅助工具保留入口并降低强调。
 
-单模型预测通过 `prediction-display--empty` 显示约 140px 的引导面板，暂不显示三张空结果卡片；有模型时定位已有选择器，无模型时进入现有训练页。禁用的预测动作通过相邻说明和 `aria-describedby` 解释原因。训练页底部条默认约 56px，检查器登录提示为辅助文字，实验登录动作集中在底栏；正文仍根据实测条高预留空间，以适应字号缩放。真实预测的数据、图表、全屏和导出路径继续沿用既有实现。
+单模型预测通过 `prediction-display--empty` 显示约 140px 的引导面板，暂不显示三张空结果卡片；有模型时定位已有选择器，无模型时进入现有训练页。禁用的预测动作通过相邻说明和 `aria-describedby` 解释原因。地球与火星的单模型页面共用同一套区块与文案：地球不再输出标题、说明段、`TO3 · DU` 胶囊、上下文折叠块、起点说明行、参考场说明段和「刷新起点范围」按钮，主按钮为共用的 `🚀 开始预测`；完整测试集卡片下的分区行由 `earthSplitRanges`/`buildEarthSplitLabelSource` 与共用的 `getSplitLabel` 渲染。训练页底部条默认约 56px，检查器登录提示为辅助文字，实验登录动作集中在底栏；正文仍根据实测条高预留空间，以适应字号缩放。真实预测的数据、图表、全屏和导出路径继续沿用既有实现。
 
 登录、确认弹窗和设置/通知抽屉使用 `useDialogFocus`：打开后焦点进入，Tab 循环、Esc 关闭，关闭后返回可用触发项；堆叠弹窗只处理最上层。设置快捷菜单支持键盘选择，通知请求失败单独显示错误和重试，不作为空列表显示。
 
@@ -165,7 +165,7 @@ AresVision/
 ## 运行后端
 
 ```bash
-cd AresVision_backend/backend
+cd AstraAtmos_backend/backend
 pip install -r requirements.txt
 pip install torch==2.5.1       # CPU；或安装对应 CUDA 版本
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
@@ -176,10 +176,10 @@ Windows 当前工作区不要在启用 reload 时直接调用 `uvicorn`：Uvicor
 `vite.config.js` 已配置代理：前端所有 `/api/*` 请求自动转发到 `http://localhost:8000`。
 
 **开发时需同时运行两个终端：**
-- 终端 1：`cd AresVision_backend/backend && uvicorn main:app --reload`
+- 终端 1：`cd AstraAtmos_backend/backend && uvicorn main:app --reload`
 - 终端 2：`cd frontend && npm run dev`
 
-**环境变量**（`AresVision_backend/backend/.env`，不提交 git）：
+**环境变量**（`AstraAtmos_backend/backend/.env`，不提交 git）：
 
 ```env
 AI_API_KEY=your_gemini_api_key

@@ -1,53 +1,53 @@
 import { useMemo } from 'react';
-import { Panel } from '../../components/ui/Controls';
 import { useSettings } from '../../contexts/SettingsContext';
-import { describeEarthModelIdentity, readEarthResponseModelIdentity } from './earthPredictModel';
 import SingleModelWorkbench from './SingleModelWorkbench';
 import ForecastMetricDetails from './ForecastMetricDetails';
 import EarthDiagnosticPanel from './EarthDiagnosticPanel';
 import PredictStatus from './PredictStatus';
+import { buildEarthSplitLabelSource } from './earthPredictModel';
 import { createEarthPredictionPresentation } from './predictionPresentation';
-import './earthPredictPanel.css';
 
-/** Earth owns adaptation and context details; the workspace owns all display interactions. */
-export default function EarthPredictPanel({ copy, adapter, context, result, loading, selectedDay, onSelectDay,
-  selectedTaskId, taskOptions, identityKey, origin, scope, modelsLoading = false,
+/**
+ * Earth keeps only its own context identity, result adaptation and manual
+ * diagnostics. Every block that Mars shows — panels, steps, metrics, charts and
+ * the fullscreen shell — comes from the shared workbench, so this component
+ * adds no introduction panel of its own.
+ */
+export default function EarthPredictPanel({ adapter, context, result, loading, selectedDay, onSelectDay,
+  selectedTaskId, taskOptions, identityKey, identityScope, modelsLoading = false,
   modelsError = null, onRetryModels }) {
   const { settings } = useSettings();
+  const isZh = settings.language !== 'en';
+  const colormap = settings.colormap;
   const normalized = useMemo(() => adapter.normalizeResult(result), [adapter, result]);
-  const modelIdentity = readEarthResponseModelIdentity(result || context);
   const warnings = result?.warnings?.length ? result.warnings : context?.warnings;
-  const inputs = result?.input_timestamps || result?.input_dates || [];
-  const workbenchAdapter = { ...adapter, secondaryMetrics: context ? {
-    data: context.metrics?.splits?.test,
-    presentation: createEarthPredictionPresentation({ settings, scope: 'full_test' }).metrics,
-  } : null };
+  /**
+   * 完整测试集分区沿用火星的 `split_meta` 形状：Earth 契约把边界放在 split_ranges /
+   * task_split.ranges，这里整理成共用 `getSplitLabel` 能读的结构，读不到就不显示该行。
+   */
+  const workbenchAdapter = useMemo(() => {
+    const splitLabelSource = buildEarthSplitLabelSource({
+      split_policy: context?.metrics?.split_policy,
+      split_ranges: context?.metrics?.split_ranges,
+      split_ratios: context?.metrics?.split_ratios,
+      task_split: context?.metrics?.task_split,
+    })?.split_meta || null;
+    return { ...adapter,
+      presentation: { ...adapter.presentation,
+        metrics: createEarthPredictionPresentation({ isZh, colormap, splitLabelSource }).metrics },
+      secondaryMetrics: context ? {
+        data: context.metrics?.splits?.test,
+        presentation: createEarthPredictionPresentation({ isZh, colormap, scope: 'full_test', splitLabelSource }).metrics,
+      } : null };
+  }, [adapter, colormap, context, isZh]);
   return <div className="earth-predict-panel" data-earth-predict-panel="true">
-    {context ? <Panel className="prediction-panel">
-      <header className="earth-predict-head"><div><h2>{copy.title}</h2><p className="earth-predict-note">{copy.threeHourlyNote || copy.note}</p></div>
-        <span className="earth-predict-unit" data-earth-unit="DU">TO3 · DU</span></header>
-      <details className="prediction-context-details"><summary>{settings.language === 'en' ? 'Model and dataset context' : '模型与数据集上下文'}</summary>
-        <dl className="earth-predict-facts">
-          <div><dt>{copy.factModel}</dt><dd data-earth-context-model data-model-source={modelIdentity.modelSource}>{describeEarthModelIdentity(modelIdentity, copy)}</dd></div>
-          <div><dt>{copy.factDataset}</dt><dd>{context.dataset_id} · {context.dataset_version}</dd></div>
-          <div><dt>{copy.factGrid}</dt><dd>{context.grid?.shape?.join(' × ')}</dd></div>
-          <div><dt>{copy.factWindow}</dt><dd>{context.window} → {context.horizon} {copy.stepUnit}</dd></div>
-          <div><dt>{copy.factFrequency}</dt><dd>3h UTC</dd></div>
-          <div><dt>{copy.factChannels}</dt><dd>{context.input_channel_order?.join(', ')}</dd></div>
-          <div><dt>{copy.factBestEpoch}</dt><dd>{context.run?.best_epoch ?? '—'}</dd></div>
-        </dl>
-      </details>
-      {result ? <p className="earth-predict-origin-line" data-earth-origin-line>{copy.originLine(result.forecast_origin, inputs[0], inputs.at(-1), true, result.window, result.horizon)}
-        {result.origin_split ? ` · ${copy.originSplit(result.origin_split)}` : ''}</p> : null}
-      {Array.isArray(warnings) && warnings.length ? <PredictStatus message={warnings.join(' · ')} /> : null}
-    </Panel> : null}
+    {Array.isArray(warnings) && warnings.length ? <PredictStatus message={warnings.join(' · ')} /> : null}
     <SingleModelWorkbench adapter={workbenchAdapter} result={normalized} metrics={result?.metrics} loading={loading}
       activeStep={selectedDay} onStepChange={onSelectDay} identityKey={identityKey}
       hasAvailableModels={taskOptions.length > 0} modelsLoading={modelsLoading}
       modelsError={modelsError} onRetryModels={onRetryModels}>
       {result ? <ForecastMetricDetails result={result} adapter={adapter} precision={settings.precision} /> : null}
-      {result ? <p className="earth-predict-note" data-earth-reference-note>{copy.referenceNote}</p> : null}
-      <EarthDiagnosticPanel key={`${scope}:${selectedTaskId || 'no-task'}`} taskId={selectedTaskId}
+      <EarthDiagnosticPanel key={`${identityScope}:${selectedTaskId || 'no-task'}`} taskId={selectedTaskId}
         identity={{ ...(taskOptions.find(option => Number(option.id) === Number(selectedTaskId))?.task || {}), ...(context || {}) }} />
     </SingleModelWorkbench>
   </div>;

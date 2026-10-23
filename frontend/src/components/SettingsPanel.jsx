@@ -5,6 +5,7 @@ import { useT } from '../i18n';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { DEFAULT_TRAINING_DEFAULTS } from '../utils/trainingDefaults';
+import JellyToggle from './ui/JellyToggle';
 import './ui/overlay.css';
 
 /* ─── 小工具组件 ─── */
@@ -94,13 +95,13 @@ function InlinePill({ options, value, onChange }) {
   );
 }
 
-/** Checkbox */
+/** Checkbox：与全站一致改用果冻滑块，点击文字同样可切换 */
 function Checkbox({ label, checked, onChange }) {
   return (
-    <label className="av-checkbox">
-      <input type="checkbox" checked={Boolean(checked)} onChange={event => onChange(event.target.checked)} />
-      <span>{label}</span>
-    </label>
+    <div className="av-checkbox av-checkbox--switch">
+      <JellyToggle checked={Boolean(checked)} onChange={onChange} label={label} />
+      <span className="av-checkbox__text" onClick={() => onChange(!checked)}>{label}</span>
+    </div>
   );
 }
 
@@ -442,7 +443,7 @@ export default function SettingsPanel({ open, onClose }) {
           <button
             onClick={() => {
               if (window.confirm(t('settings.resetConfirm'))) {
-                localStorage.removeItem('aresvision_settings');
+                localStorage.removeItem('astraatmos_settings');
                 window.location.reload();
               }
             }}

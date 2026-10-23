@@ -1,8 +1,10 @@
-# Earth 指标契约失败任务的显式恢复
+# Earth 校验失败任务的显式恢复
 
-本工具仅处理一种已知故障：三小时任务冻结 v2，但保存的完整运行实际采用 v3 球面面积加权，最后因 `Checkpoint metrics do not match the task's required metrics contract` 失败。它不是通用“标记成功”入口，不会修改 checkpoint、重训或迁移其他历史任务。普通任务创建、队列恢复和模型读取都继续严格匹配冻结版本；统计语义见[地球评价指标](earth-evaluation-metrics.md)。
+本工具显式支持两种已知故障：默认处理三小时任务冻结 v2、完整产物采用 v3 球面面积加权的指标契约错误；`--failure-kind reload-timeout` 处理完整 v3 产物在后端完成验收时发生的重载超时。两种模式都要求精确匹配失败原因并重新通过严格验证，不会修改 checkpoint 或重训。普通任务创建、队列恢复和模型读取继续严格匹配冻结版本；统计语义见[地球评价指标](earth-evaluation-metrics.md)。
 
 ## 恢复门禁
+
+以下 v2→v3 规则仅适用于默认 `--failure-kind metrics-contract` 模式；重载超时模式见后文。
 
 必须显式指定任务 ID 和 checkpoint SHA-256，任务须为已结束的 failed 三小时任务，失败码和原因必须精确匹配此故障。工具先只读加载原任务、权重和失败日志，验证原 v2 声明与冻结划分，再对**拟迁移为 v3 的任务副本**执行正常的严格 checkpoint 读取。不会修改权重或把 v3 名称改成 v2。
 
@@ -18,15 +20,35 @@
 
 ## 执行
 
-工作目录为 `AresVision_backend/backend`，使用部署中 `AresVision` conda 环境的 Python。先审计（默认只读）：
+工作目录为 `AstraAtmos_backend/backend`，使用部署中 `AstraAtmos` conda 环境的 Python。先审计（默认只读）：
 
 ```powershell
-& '<AresVision-conda-python.exe>' scripts/recover_earth_metrics_task.py --task-id <id> --checkpoint-sha256 <sha256>
+& '<AstraAtmos-conda-python.exe>' scripts/recover_earth_metrics_task.py --task-id <id> --checkpoint-sha256 <sha256>
 ```
 
-显式写入时加 `--apply`；写入模式会重新执行完整只读验证后备份并迁移，不信任上一次审计结果。默认数据库为配置 DATA_DIR 下的 `aresvision.db`，默认发布目录来自 `ARESVISION_EARTH_MERRA2_3HOURLY_DIR`；独立副本可通过 `--database`、`--package-dir`、`--audit-root` 指定。不要对运行中的任务调用，也不要用恢复工具补造不完整指标。
+显式写入时加 `--apply`；写入模式会重新执行完整只读验证后备份并迁移，不信任上一次审计结果。默认数据库为配置 DATA_DIR 下的 `astraatmos.db`，默认发布目录来自 `ASTRAATMOS_EARTH_MERRA2_3HOURLY_DIR`；独立副本可通过 `--database`、`--package-dir`、`--audit-root` 指定。不要对运行中的任务调用，也不要用恢复工具补造不完整指标。
 
-实现：[恢复门禁与事务](../AresVision_backend/backend/services/earth_training_recovery.py)、[命令行入口](../AresVision_backend/backend/scripts/recover_earth_metrics_task.py)。合成回归入口为 `tests/test_earth_training_recovery.py`；契约链路回归为 `test_earth_metrics_execution_contract.py` 与 `test_earth_metrics_task_contract.py`。
+实现：[恢复门禁与事务](../AstraAtmos_backend/backend/services/earth_training_recovery.py)、[命令行入口](../AstraAtmos_backend/backend/scripts/recover_earth_metrics_task.py)。合成回归入口为 `tests/test_earth_training_recovery.py`；契约链路回归为 `test_earth_metrics_execution_contract.py` 与 `test_earth_metrics_task_contract.py`。
+
+## 重载超时恢复
+
+`--failure-kind reload-timeout` 只接受已结束且状态为 failed 的三小时 Earth v3 面积加权任务，支持原 0.75° 与独立 5° 发布；失败码须为 `invalid_earth_training_artifact`、原因须精确为 `Earth checkpoint model reload timed out`。原日志须同时保留保存成功、训练完成和该超时原因。用户停止、任意其他失败、旧 v2、未验证身份或已完成记录均拒绝。
+
+它复用完整的参数/源码/数据 snapshot/指标门禁，强制重算发布文件 SHA-256、科学字段/掩码与原任务 train-only 归一化，再在隔离 CPU 进程执行完整重载、eval 独立性和保存 batch 的输出 round trip。全部通过才调用 SQLite backup API、保存原失败日志副本与审计，并只更新该任务的完成状态、100% 进度、pid、checkpoint 原有指标及 `_earth_reload_recovery` 审计字段。冻结参数、v3 指标契约、start/end time、epoch、loss history、原权重/日志和其他任务保持原样。它不会将超时直接当成成功，也不从日志拼造完整指标。
+
+从后端目录执行以下只读审计，`$releaseDirectory` 必须是该任务对应的实际发布目录；5° 任务不能使用 CLI 默认的 0.75° 包。加 `--apply` 会重新验证、备份后执行恢复：
+
+```powershell
+& '<AstraAtmos-conda-python.exe>' scripts/recover_earth_metrics_task.py `
+  --task-id <id> --checkpoint-sha256 <sha256> `
+  --failure-kind reload-timeout --package-dir $releaseDirectory
+```
+
+2026-10-17 起，上传全图 checkpoint 的常规完成验收与重启恢复统一采用全图预算（默认 900 秒，和通用预算取较大值），覆盖 240×480 与 36×72；显式 `timeout_seconds` 仍优先。CPU 复核可能接近原 30 秒上限，Windows 子进程启动和瞬时负载会影响总耗时。隔离执行、强制超时终止、保存 batch 与科学契约检查均保留。这一修复不改变模型结构、训练窗口或评价定义。
+
+2026-10-17 任务 90（T11）实际完成 20 轮、最佳 epoch 15，并保存完整验证/测试指标，随后父进程因 30 秒重载超时标为 failed。原权重在单独重试中约 25.0 秒通过保存 batch 32 的 CPU 隔离重载，说明旧预算余量不足；未据此宣称每次均在 30 秒内完成。随后只读审计和写入前验证均通过完整 5° 发布 SHA-256/五变量扫描、原 4094 个 train 时间步归一化复算、冻结源码/参数/划分与 CPU 重载，任务恢复 completed/100%，未重训。
+
+操作 ID 为 `823833af-0a66-4856-b2b1-9ed990e20b9f`，本机证据保存在 `data/recovery/task_90_<该操作ID>/`。与 SQLite backup 对照，其他 48 条任务逐字段不变；任务 90 只改变 hyperparameters（新增恢复审计）、metrics、status、progress 和 pid，原 start/end time、20 轮 loss history、模型源码与训练日志保留。checkpoint SHA-256 恢复前后均为 `43671849f9242c0fcd187867f7acd47cf8a06f322adc0a7c2b9dfa623881e0d7`；完整 test MSE 118.77625397629144 DU²、RMSE 10.898451907325711 DU、MAE 6.569735192166636 DU、R² 0.9246617671003742、MAPE 2.3065663815784894%、SMAPE 2.3016256963789394% 均直接恢复自该产物。恢复后通过普通任务序列化的 model_available 检查，并实际完成一次 36×72、20 步 CPU 历史回测；没有重新推理完整测试集或改写保存指标。超时预算/恢复/全图 round-trip 59 项和父进程完成/真实超时终止/runner 16 项相关回归通过。
 
 ## 验证记录
 

@@ -12,9 +12,11 @@
 
 本轮只修复测试夹具与测试依赖隔离，没有改变应用装配、运行时权限、训练或预测行为。旧数据库迁移的专门测试继续保留；当前身份测试的数据库不是旧结构迁移夹具。
 
+`test_netcdf_read_lock_contract.py` 的静态读取点检查跟随实际读取模块 `services/mars_data_service.py`；`inference_service.py` 调用该模块，不再直接构造 NetCDF Dataset。测试继续核对上传加载器、MOLA 与官方数据服务使用同一把进程级锁，并覆盖官方/上传各自及相互并发时 Dataset 打开区间不重叠。
+
 ## 组合运行
 
-在 `AresVision_backend/backend/` 使用工作区指定的 AresVision conda 解释器运行 pytest，启用 `--asyncio-mode=auto`，禁用 pytest 缓存，并为每次执行指定仓库外**新的**英文 `--basetemp`。重复使用已有目录会触发 pytest 清理，因此不得复用临时路径。
+在 `AstraAtmos_backend/backend/` 使用工作区指定的 工作区约定的 Conda 解释器运行 pytest，启用 `--asyncio-mode=auto`，禁用 pytest 缓存，并为每次执行指定仓库外**新的**英文 `--basetemp`。重复使用已有目录会触发 pytest 清理，因此不得复用临时路径。
 
 以下是传给该解释器的参数；最后的临时目录需由运行者换成新的绝对路径：
 

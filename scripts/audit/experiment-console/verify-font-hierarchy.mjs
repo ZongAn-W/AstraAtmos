@@ -191,8 +191,8 @@ async function openConfigure() {
   await call('Page.navigate', { url: `${BASE}/` });
   await new Promise((r) => setTimeout(r, 1200));
   await evaluate(`
-    localStorage.setItem('aresvision_settings', JSON.stringify({ language: 'zh', theme: ${JSON.stringify(THEME)} }));
-    ${TOKEN ? `localStorage.setItem('aresvision_token', ${JSON.stringify(TOKEN)});` : "localStorage.removeItem('aresvision_token');"}
+    localStorage.setItem('astraatmos_settings', JSON.stringify({ language: 'zh', theme: ${JSON.stringify(THEME)} }));
+    ${TOKEN ? `localStorage.setItem('astraatmos_token', ${JSON.stringify(TOKEN)});` : "localStorage.removeItem('astraatmos_token');"}
     return true;
   `);
   await call('Page.reload', { ignoreCache: true });

@@ -220,6 +220,7 @@ export default function ModelTrainingPage() {
       datasetOpenMarsMcd: isZh ? 'OpenMARS + MCD 融合' : 'OpenMARS + MCD',
       datasetMcdOverview: isZh ? 'MCD 全量 MY24-MY35' : 'Full MCD MY24-MY35',
       datasetEarthMerra2V2: isZh ? '地球 MERRA-2 全球 5°' : 'Earth MERRA-2 global 5°',
+      datasetEarthMerra25Degree: isZh ? '地球 MERRA-2 · 3 小时 · 36 × 72（5°）' : 'Earth MERRA-2 · 3-hour · 36 × 72 (5°)',
       datasetEarthMerra23HourlyV1: isZh ? '地球 MERRA-2 全球 0.75° · 3 小时' : 'Earth MERRA-2 global 0.75° · 3-hourly',
       // 地球数据集契约由服务端校验并绑定；配置画布显示频率、网格和窗口，
       // 就绪检查继续负责不可用状态与阻塞提示。
@@ -231,9 +232,9 @@ export default function ModelTrainingPage() {
       earthModelFixedNote: isZh
         ? 'Earth 官方模型固定为 DLinear（线性隐藏层数可在「超参数」里调整）。'
         : 'The official Earth model is fixed to DLinear; adjust the linear hidden layers under Hyperparameters.',
-      earthThreeHourlyModelFixedNote: isZh
-        ? 'TO3 (DU) · UTC 三小时 · 240×480；输入与输出窗口可自定义。'
-        : 'TO3 (DU) · UTC 3-hourly · 240×480; configurable input and output windows.',
+      earthThreeHourlyModelFixedNote: (shape) => isZh
+        ? `TO3 (DU) · UTC 三小时 · ${shape.join('×')}；输入与输出窗口可自定义。`
+        : `TO3 (DU) · UTC 3-hourly · ${shape.join('×')}; configurable input and output windows.`,
       earthUploadedCompatibleNote: isZh
         ? '该上传模型已通过 Earth 兼容性校验：数据集、频率、网格以及声明的可用窗口均匹配。训练时会固定当前模型版本与内容指纹。'
         : 'This uploaded model passed the Earth compatibility check: dataset, frequency, grid and declared window choices match. The current version and content hash are pinned when training starts.',
@@ -448,6 +449,7 @@ export default function ModelTrainingPage() {
       uploadModel: isZh ? '上传 .py' : 'Upload .py',
       downloadModelGuide: isZh ? '下载说明' : 'Guide',
       downloadModelTemplate: isZh ? '下载模板' : 'Template',
+      downloadSharedGateTemplate: isZh ? '共享门控模板' : 'Shared gate template',
       uploadingModel: isZh ? '上传中...' : 'Uploading...',
       revalidateModel: isZh ? '重新校验' : 'Revalidate',
       deleteUploadedModel: isZh ? '删除' : 'Delete',
@@ -715,7 +717,7 @@ export default function ModelTrainingPage() {
   );
   // Earth 使用规范通道顺序；火星保持原有 U/V/D/S/T 顺序。
   const activeChannelOrder = earthMode
-    ? (trainingDataset === EARTH_3HOURLY_DATASET_ID ? EARTH_OPTIONAL_CHANNELS : EARTH_CHANNEL_ORDER)
+    ? (getEarthTrainingProfile(trainingDataset).frequencyHours === 3 ? EARTH_OPTIONAL_CHANNELS : EARTH_CHANNEL_ORDER)
     : channelOrder;
   const activeChannelMap = useMemo(
     () => (earthMode
@@ -2245,10 +2247,13 @@ export default function ModelTrainingPage() {
         architecturePickerOpen,
         advancedOpen,
         modelArchitectures: MODEL_ARCHITECTURES,
-        guideDownloadUrl: getUserModelDownloadUrl(earthMode && trainingDataset === TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1
+        guideDownloadUrl: getUserModelDownloadUrl(trainingDataset === 'earth_merra2_3hourly_5deg_v1' ? 'earth-3hourly-5deg-guide' : earthMode && trainingDataset === TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1
           ? selectedUploadedModel?.validation_report?.datasets?.[EARTH_3HOURLY_DATASET_ID]?.schema === EARTH_3HOURLY_FULL_GRID_SCHEMA ? 'earth-3hourly-fullgrid-guide' : 'earth-3hourly-guide' : 'guide'),
-        templateDownloadUrl: getUserModelDownloadUrl(earthMode && trainingDataset === TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1
+        templateDownloadUrl: getUserModelDownloadUrl(trainingDataset === 'earth_merra2_3hourly_5deg_v1' ? 'earth-3hourly-5deg-template' : earthMode && trainingDataset === TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1
           ? selectedUploadedModel?.validation_report?.datasets?.[EARTH_3HOURLY_DATASET_ID]?.schema === EARTH_3HOURLY_FULL_GRID_SCHEMA ? 'earth-3hourly-fullgrid-template' : 'earth-3hourly-template' : 'template'),
+        sharedGateTemplateDownloadUrl: earthMode && trainingDataset === TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1
+          && selectedUploadedModel?.validation_report?.datasets?.[EARTH_3HOURLY_DATASET_ID]?.schema !== EARTH_3HOURLY_FULL_GRID_SCHEMA
+          ? getUserModelDownloadUrl('earth-3hourly-shared-gate-template') : null,
         earthDatasetAvailability: earthAvailability,
         datasetCatalogError,
         earthUploadedInlineError,
@@ -2346,6 +2351,7 @@ export default function ModelTrainingPage() {
         modelArchitecture: normalizedModelArchitecture,
         useSphere,
         trainingDatasetLabel: trainingDataset === TRAINING_DATASET_EARTH_MERRA2_V2 ? copy.datasetEarthMerra2V2
+          : trainingDataset === 'earth_merra2_3hourly_5deg_v1' ? copy.datasetEarthMerra25Degree
           : trainingDataset === EARTH_3HOURLY_DATASET_ID ? copy.datasetEarthMerra23HourlyV1
           : trainingDataset === TRAINING_DATASET_MCD_OVERVIEW ? copy.datasetMcdOverview : copy.datasetOpenMarsMcd,
       }}

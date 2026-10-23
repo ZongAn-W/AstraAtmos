@@ -9,6 +9,7 @@ export const TRAINING_DATASET_OPENMARS_MCD = 'openmars_mcd';
 export const TRAINING_DATASET_MCD_OVERVIEW = 'mcd_overview';
 export const TRAINING_DATASET_EARTH_MERRA2_V2 = 'earth_merra2_daily_v2';
 export const TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1 = 'earth_merra2_3hourly_v1';
+export const TRAINING_DATASET_EARTH_MERRA2_3HOURLY_5DEG_V1 = 'earth_merra2_3hourly_5deg_v1';
 export const RETIRED_EARTH_DATASET_IDS = ['earth_merra2_daily_v1', TRAINING_DATASET_EARTH_MERRA2_V2];
 export function isRetiredEarthDataset(datasetId) {
   return RETIRED_EARTH_DATASET_IDS.includes(String(datasetId || '').trim().toLowerCase());
@@ -17,12 +18,14 @@ export function isRetiredEarthDataset(datasetId) {
 export const MARS_TRAINING_DATASET_IDS = [TRAINING_DATASET_OPENMARS_MCD, TRAINING_DATASET_MCD_OVERVIEW];
 export const EARTH_TRAINING_DATASET_IDS = [
   TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1,
+  TRAINING_DATASET_EARTH_MERRA2_3HOURLY_5DEG_V1,
 ];
 /** 注册表已登记、训练页可选的全部数据集（顺序即选项顺序）。 */
 export const TRAINING_DATASET_IDS = [
   TRAINING_DATASET_OPENMARS_MCD,
   TRAINING_DATASET_MCD_OVERVIEW,
   TRAINING_DATASET_EARTH_MERRA2_3HOURLY_V1,
+  TRAINING_DATASET_EARTH_MERRA2_3HOURLY_5DEG_V1,
 ];
 
 export const MODEL_STRUCTURE_PARAM_CONFIG = {

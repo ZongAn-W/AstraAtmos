@@ -8,7 +8,7 @@ prediction/reference/residual plus metrics.
 
 Usage (from the repository root, backend already served on 127.0.0.1:8000)::
 
-    & 'D:\\Anaconda\\envs\\AresVision\\python.exe' scripts\\audit\\earth-uploaded-acceptance.py
+    & (Join-Path $env:CONDA_PREFIX 'python.exe') scripts/audit/earth-uploaded-acceptance.py
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ def main() -> int:
 
     suffix = uuid.uuid4().hex[:8]
     source = SAMPLE.read_bytes()
-    boundary = f"----aresvision{suffix}"
+    boundary = f"----astraatmos{suffix}"
     status, uploaded = request(
         "POST", "/user-models", token=token,
         raw=multipart("file", SAMPLE.name, source, boundary),
@@ -164,7 +164,7 @@ def main() -> int:
     # endpoint: "validated for Mars" is not "usable on Earth".
     mars_only = Path(__file__).with_name("test_models") / "MarsOnlyBaseline.py"
     mars_bytes = mars_only.read_bytes()
-    boundary = f"----aresvision{suffix}b"
+    boundary = f"----astraatmos{suffix}b"
     status, mars_uploaded = request(
         "POST", "/user-models", token=token,
         raw=multipart("file", mars_only.name, mars_bytes, boundary),
