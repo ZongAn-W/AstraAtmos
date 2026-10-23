@@ -15,7 +15,7 @@ const zh = {
   },
 
   footer: {
-    copyright: '© 2025 AstraAtmos 行星大气实验室',
+    copyright: '© 2026 AstraAtmos 行星大气实验室',
     powered: 'OpenMARS · MCD 6.1 · MERRA-2 · PyTorch',
   },
 

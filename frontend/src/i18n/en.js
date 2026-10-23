@@ -15,7 +15,7 @@ const en = {
   },
 
   footer: {
-    copyright: '© 2025 AstraAtmos',
+    copyright: '© 2026 AstraAtmos',
     powered: 'OpenMARS · MCD 6.1 · MERRA-2 · PyTorch',
   },
 
