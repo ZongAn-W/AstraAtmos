@@ -6,6 +6,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { useToast } from '../../contexts/ToastContext';
 import GlowCard from '../../components/GlowCard';
 import HoldToDeleteButton from '../../components/ui/HoldToDeleteButton';
+import { staggerStyle } from '../../components/ui/motion';
 import ContributeModal from '../../components/ContributeModal';
 import ContributeHistoryPanel from '../../components/ContributeHistoryPanel';
 import {
@@ -1214,6 +1215,7 @@ export default function MyDataTab({ reviewSignal = 0 }) {
   });
   const [viewLs, setViewLs] = useState(90);
   const [actionLoading, setActionLoading] = useState({});
+  const [collapsingId, setCollapsingId] = useState(null);
   const [contributeOpen, setContributeOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -1490,10 +1492,15 @@ export default function MyDataTab({ reviewSignal = 0 }) {
     setActionLoading((prev) => ({ ...prev, [id]: true }));
     try {
       await deleteUpload(id);
-      setUploads((prev) => prev.filter((u) => u.id !== id));
-      if (viewingId === id) setViewingId(null);
+      // 先播放收起动画，再从列表移除，避免条目瞬间消失
+      setCollapsingId(id);
       showToast(t('explore.myData.deleteSuccess'), 'success');
-      await loadWorkbench();
+      window.setTimeout(() => {
+        setUploads((prev) => prev.filter((u) => u.id !== id));
+        setCollapsingId(null);
+        if (viewingId === id) setViewingId(null);
+        loadWorkbench();
+      }, 240);
     } catch (e) {
       showToast(e.message || 'Delete failed', 'error');
     } finally {
@@ -1703,7 +1710,17 @@ export default function MyDataTab({ reviewSignal = 0 }) {
             )}
           </div>
 
-          {uploadsLoading && <LoadingBox h={320} />}
+          {uploadsLoading && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }} data-queue-skeleton="true">
+              {[0, 1, 2].map((index) => (
+                <span
+                  key={index}
+                  className="ui-skeleton"
+                  style={{ height: 62, borderRadius: 12, animationDelay: `${index * 90}ms` }}
+                />
+              ))}
+            </div>
+          )}
 
           {!uploadsLoading && !sortedUploadContexts.length && (
             <EmptyState
@@ -1723,14 +1740,19 @@ export default function MyDataTab({ reviewSignal = 0 }) {
 
           {!uploadsLoading && filteredUploadContexts.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, maxHeight: 820, overflowY: 'auto', paddingRight: 2 }}>
-              {filteredUploadContexts.map((ctx) => (
-                <CompactQueueItem
+              {filteredUploadContexts.map((ctx, index) => (
+                <div
                   key={ctx.upload.id}
-                  ctx={ctx}
-                  selected={viewingId === ctx.upload.id}
-                  onSelect={() => onSelectDataset(ctx.upload.id)}
-                  copy={copy}
-                />
+                  className={`motion-stagger-item${collapsingId === ctx.upload.id ? ' motion-collapsing' : ''}`}
+                  style={staggerStyle(index)}
+                >
+                  <CompactQueueItem
+                    ctx={ctx}
+                    selected={viewingId === ctx.upload.id}
+                    onSelect={() => onSelectDataset(ctx.upload.id)}
+                    copy={copy}
+                  />
+                </div>
               ))}
             </div>
           )}

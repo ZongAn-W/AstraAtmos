@@ -278,6 +278,28 @@ export default function Navbar({ current, onChange, onOpenAdmin, onOpenFeedback,
   // 待审核数量（仅 admin 用户拉取）
   const [pendingCount, setPendingCount] = useState(0);
 
+  // 活动项下划指示条：跟随当前页面/语言/字号滑动
+  const linksRef = useRef(null);
+  const linkRefs = useRef(new Map());
+  const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
+
+  useEffect(() => {
+    const measure = () => {
+      const node = linkRefs.current.get(current);
+      const container = linksRef.current;
+      if (!node || !container) return;
+      setIndicator({ left: node.offsetLeft, width: node.offsetWidth, ready: true });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    if (observer && linksRef.current) observer.observe(linksRef.current);
+    return () => {
+      window.removeEventListener('resize', measure);
+      observer?.disconnect();
+    };
+  }, [current, settings.language, settings.fontScale]);
+
   const fetchPendingCount = useCallback(async () => {
     if (!isAdmin) return;
     try {
@@ -363,11 +385,27 @@ export default function Navbar({ current, onChange, onOpenAdmin, onOpenFeedback,
       </button>
 
       {/* Nav Links */}
-      <div className="home-nav__links" style={{ display: 'flex', gap: 2, alignItems: 'center', marginLeft: 'auto' }}>
+      <div
+        ref={linksRef}
+        className="home-nav__links"
+        style={{ display: 'flex', gap: 2, alignItems: 'center', marginLeft: 'auto', position: 'relative' }}
+      >
+        {indicator.ready && (
+          <span
+            className="nav-indicator"
+            aria-hidden="true"
+            data-nav-indicator="true"
+            style={{ transform: `translateX(${indicator.left}px)`, width: indicator.width }}
+          />
+        )}
         {NAV_IDS.map((id) => (
           <button
             type="button"
             key={id}
+            ref={(node) => {
+              if (node) linkRefs.current.set(id, node);
+              else linkRefs.current.delete(id);
+            }}
             className={`nav-link${current === id ? ' is-active' : ''}`}
             aria-current={current === id ? 'page' : undefined}
             onClick={() => onChange(id)}

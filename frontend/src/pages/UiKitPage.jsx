@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useT } from '../i18n';
+import { useToast } from '../contexts/ToastContext';
 import MorphSubmitButton from '../components/ui/MorphSubmitButton';
 import JellyToggle from '../components/ui/JellyToggle';
 import HoldToDeleteButton from '../components/ui/HoldToDeleteButton';
+import { staggerStyle, useAnimatedNumber } from '../components/ui/motion';
 import './UiKitPage/uikitPage.css';
 
 const DEMO_ROWS = ['demo-row-a', 'demo-row-b'];
@@ -19,9 +21,13 @@ function Card({ title, desc, children }) {
 
 export default function UiKitPage() {
   const t = useT();
+  const { showToast } = useToast();
   const [submitCount, setSubmitCount] = useState(0);
   const [jettyOn, setJettyOn] = useState(false);
   const [removed, setRemoved] = useState([]);
+  const [metricValue, setMetricValue] = useState(0.8123);
+  const [staggerKey, setStaggerKey] = useState(0);
+  const animatedMetric = useAnimatedNumber(metricValue, { duration: 500 });
 
   const handleSubmit = async () => {
     await new Promise(resolve => setTimeout(resolve, 700));
@@ -99,6 +105,52 @@ export default function UiKitPage() {
               {t('uikit.holdRestore')}
             </button>
           )}
+        </Card>
+      </div>
+
+      <h2 className="uikit-section-title">{t('uikit.motionSectionTitle')}</h2>
+      <div className="uikit-grid">
+        <Card title={t('uikit.numberTitle')} desc={t('uikit.numberDesc')}>
+          <div className="uikit-inline">
+            <strong className="uikit-number" data-demo-number="true">{animatedMetric.toFixed(4)}</strong>
+            <span className="uikit-state">{t('uikit.numberState')}</span>
+          </div>
+          <div className="uikit-inline">
+            <button type="button" className="uikit-restore" onClick={() => setMetricValue(0.8123)}>0.8123</button>
+            <button type="button" className="uikit-restore" onClick={() => setMetricValue(0.9461)}>0.9461</button>
+            <button type="button" className="uikit-restore" onClick={() => setMetricValue(0.5127)}>0.5127</button>
+          </div>
+        </Card>
+
+        <Card title={t('uikit.skeletonTitle')} desc={t('uikit.skeletonDesc')}>
+          <div className="uikit-skeleton-demo" data-skeleton-demo="true">
+            <span className="ui-skeleton" style={{ height: 18, width: '58%' }} />
+            <span className="ui-skeleton ui-skeleton--line" style={{ width: '84%' }} />
+            <span className="ui-skeleton ui-skeleton--block" />
+          </div>
+        </Card>
+
+        <Card title={t('uikit.staggerTitle')} desc={t('uikit.staggerDesc')}>
+          <div className="uikit-rows" key={staggerKey} data-stagger-demo="true">
+            {[1, 2, 3, 4].map(index => (
+              <div key={index} className="uikit-row motion-stagger-item" style={staggerStyle(index - 1)}>
+                <span className="uikit-row__name">{t('uikit.staggerRow', { n: index })}</span>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="uikit-restore" onClick={() => setStaggerKey(key => key + 1)}>
+            {t('uikit.staggerReplay')}
+          </button>
+        </Card>
+
+        <Card title={t('uikit.toastTitle')} desc={t('uikit.toastDesc')}>
+          <button
+            type="button"
+            className="uikit-restore"
+            onClick={() => showToast(t('uikit.toastMessage'), 'success')}
+          >
+            {t('uikit.toastShow')}
+          </button>
         </Card>
       </div>
     </main>

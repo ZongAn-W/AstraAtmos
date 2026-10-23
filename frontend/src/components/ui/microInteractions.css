@@ -419,6 +419,11 @@
   line-height: 1.1;
 }
 
+/* 紧凑尺寸放不下提示语，保留在 aria-label 里供读屏使用 */
+.hold-delete--compact .hold-delete__hint {
+  display: none;
+}
+
 .hold-delete--compact .hold-delete__check {
   width: 17px;
   height: 17px;

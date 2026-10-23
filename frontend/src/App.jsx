@@ -16,6 +16,7 @@ import AboutPage from './pages/AboutPage';
 import ModelTrainingPage from './pages/ModelTrainingPage';
 import UiKitPage from './pages/UiKitPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import './components/ui/motion.css';
 import BrandMark from './components/BrandMark';
 import { TrainingProvider } from './contexts/TrainingContext';
 import { getCurrentPageFromHash } from './router/hashRoute';

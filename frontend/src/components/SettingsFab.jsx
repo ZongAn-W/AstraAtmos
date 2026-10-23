@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useId } from 'react';
+import { flushSync } from 'react-dom';
+import { withThemeReveal } from './ui/motion';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined';
 import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined';
@@ -158,7 +160,15 @@ export default function SettingsFab({ onOpenSettings }) {
               {subOptions[activeSubmenu].map(option => (
                 <button key={option.value} type="button" tabIndex={-1} role="menuitemradio"
                   aria-checked={settings[activeSubmenu] === option.value} className="av-quick-item"
-                  onClick={() => updateSetting(activeSubmenu, option.value)}>
+                  onClick={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const apply = () => flushSync(() => updateSetting(activeSubmenu, option.value));
+                    if (activeSubmenu === 'theme') {
+                      withThemeReveal(apply, { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+                    } else {
+                      apply();
+                    }
+                  }}>
                   <span>{option.label}</span>
                   {settings[activeSubmenu] === option.value && <CheckOutlined fontSize="small" />}
                 </button>

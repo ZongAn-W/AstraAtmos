@@ -1,0 +1,91 @@
+/* 全站共享动效：错落入场、骨架屏流光、删除收起、弹窗入场、主题扩散 */
+
+@keyframes motion-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.motion-stagger-item {
+  animation: motion-fade-up 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--stagger-delay, 0ms);
+}
+
+@keyframes motion-shimmer {
+  0% { background-position: 160% 0; }
+  100% { background-position: -60% 0; }
+}
+
+.ui-skeleton {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 20%,
+    color-mix(in srgb, var(--surface-3) 82%, var(--text-primary)) 38%,
+    var(--surface-2) 56%
+  );
+  background-size: 220% 100%;
+  animation: motion-shimmer 1.4s ease-in-out infinite;
+}
+
+.ui-skeleton--text { height: calc(12px * var(--font-scale, 1)); }
+.ui-skeleton--line { height: 8px; }
+.ui-skeleton--block { height: 96px; border-radius: var(--radius-control); }
+
+@keyframes motion-collapse {
+  from { opacity: 1; max-height: 320px; transform: translateY(0); }
+  to { opacity: 0; max-height: 0; transform: translateY(-6px); }
+}
+
+.motion-collapsing {
+  overflow: hidden;
+  animation: motion-collapse 240ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes motion-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.965); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes motion-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 只作用于模态弹窗；抽屉已有自己的位移过渡 */
+.av-modal-backdrop { animation: motion-backdrop-in 180ms ease-out both; }
+.av-modal { animation: motion-modal-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* 主题切换：新画面以圆形从指针处扩散 */
+::view-transition-old(root) {
+  animation: none;
+}
+
+::view-transition-new(root) {
+  animation: motion-theme-reveal 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes motion-theme-reveal {
+  from {
+    clip-path: circle(0 at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
+  }
+  to {
+    clip-path: circle(140% at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-stagger-item,
+  .ui-skeleton,
+  .motion-collapsing,
+  .av-modal-backdrop,
+  .av-modal {
+    animation: none !important;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}

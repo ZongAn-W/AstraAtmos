@@ -5,6 +5,8 @@ async (page) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto(`${base}/?perf=${Date.now()}#/uikit`);
   await page.getByRole('heading', { name: '微交互演示', exact: true }).waitFor();
+  // 等首屏加载收尾，避免把页面初始化开销算进动效采样
+  await page.waitForTimeout(900);
 
   await page.evaluate(() => {
     window.__frames = [];
@@ -18,15 +20,13 @@ async (page) => {
     requestAnimationFrame(loop);
   });
 
-  // 1) 提交三连变
-  const morph = page.locator('[data-morph-submit="true"]');
+  const morph = page.locator('.uikit-page [data-morph-submit="true"]');
   await morph.click();
   await page.waitForTimeout(1500);
-  await page.locator('[data-morph-submit][data-phase="idle"]').waitFor({ timeout: 5000 });
+  await page.locator('.uikit-page [data-morph-submit][data-phase="idle"]').waitFor({ timeout: 5000 });
   await page.waitForTimeout(400);
 
-  // 2) 果冻开关：快速往返拖动
-  const jelly = page.locator('[data-jelly-toggle="true"]');
+  const jelly = page.locator('.uikit-page [data-jelly-toggle="true"]');
   const track = await jelly.boundingBox();
   const y = track.y + track.height / 2;
   await page.mouse.move(track.x + 14, y);
@@ -38,14 +38,20 @@ async (page) => {
   await page.mouse.up();
   await page.waitForTimeout(500);
 
-  // 3) 长按确认删除
-  const hold = page.locator('[data-hold-delete="true"]').first();
+  const hold = page.locator('.uikit-page [data-hold-delete="true"]').first();
   const hb = await hold.boundingBox();
   await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
   await page.mouse.down();
   await page.waitForTimeout(1700);
   await page.mouse.up();
   await page.waitForTimeout(400);
+
+  await page.getByRole('button', { name: '0.9461', exact: true }).click();
+  await page.waitForTimeout(120);
+  await page.getByRole('button', { name: '重播入场', exact: true }).click();
+  await page.waitForTimeout(120);
+  await page.getByRole('button', { name: '显示一条提示', exact: true }).click();
+  await page.waitForTimeout(900);
 
   const stats = await page.evaluate(() => {
     window.__sampling = false;

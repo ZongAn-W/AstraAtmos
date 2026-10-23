@@ -130,6 +130,28 @@
   border-radius: var(--radius-control);
 }
 
+.uikit-section-title {
+  margin: 32px 0 14px;
+  font-family: var(--font-display);
+  font-size: calc(var(--type-section-title) * var(--font-scale));
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.uikit-number {
+  font-family: var(--font-mono);
+  font-size: calc(22px * var(--font-scale));
+  color: var(--brand-ice);
+  font-variant-numeric: tabular-nums;
+}
+
+.uikit-skeleton-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
 .uikit-restore {
   padding: 6px 12px;
   border: 1px solid var(--line-default);
