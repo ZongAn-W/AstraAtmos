@@ -267,7 +267,14 @@ export default function ExperimentMatrix({
     {selectedVisible.length ? <div className="experiment-matrix-bulk" role="group" aria-label={isZh ? '批量标签操作' : 'Bulk tag actions'}><span>{isZh ? `已选 ${selectedVisible.length} 条` : `${selectedVisible.length} selected`}</span><button type="button" className="experiment-matrix-text-button" onClick={selectAll}>{isZh ? '全选当前筛选结果' : 'Select filtered'}</button><TagPicker tags={tagState?.tags || []} value={bulkTagIds} onChange={setBulkTagIds} isZh={isZh} disabled={tagState?.loading || tagState?.busy} label={isZh ? '选择批量标签' : 'Choose bulk tags'} /><button type="button" className="experiment-matrix-text-button" disabled={tagState?.busy || !bulkTagIds.length} onClick={() => bulkTags('add')}>{isZh ? '添加标签' : 'Add tags'}</button><button type="button" className="experiment-matrix-text-button" disabled={tagState?.busy || !bulkTagIds.length} onClick={() => bulkTags('remove')}>{isZh ? '移除标签' : 'Remove tags'}</button></div> : null}
     <div className="experiment-matrix-layout">
       <div ref={scrollRef} className="experiment-matrix-scroll" tabIndex={0} aria-label={isZh ? '实验矩阵表格' : 'Experiment matrix table'}>
-        {state === 'loading' ? <div className="experiment-matrix-state" role="status">{isZh ? '正在加载实验…' : 'Loading experiments…'}</div> : null}
+        {state === 'loading' ? <div className="experiment-matrix-state" role="status" data-matrix-skeleton="true">
+          <span className="sr-only">{isZh ? '正在加载实验…' : 'Loading experiments…'}</span>
+          <div className="experiment-matrix-skeleton">
+            {[0, 1, 2].map((index) => (
+              <span key={index} className="ui-skeleton" style={{ height: 52, borderRadius: 10, animationDelay: `${index * 90}ms` }} />
+            ))}
+          </div>
+        </div> : null}
         {state === 'error' ? <div className="experiment-matrix-state" role="alert"><span>{isZh ? '实验矩阵加载失败。' : 'Could not load the experiment matrix.'}</span><button type="button" className="experiment-matrix-text-button" onClick={onRetryTasks}>{isZh ? '重试' : 'Retry'}</button></div> : null}
         {state === 'empty' ? <div className="experiment-matrix-state" role="status">{isZh ? '暂无训练实验。' : 'No training experiments yet.'}</div> : null}
         {state === 'no-match' ? <div className="experiment-matrix-state" role="status">{isZh ? '没有匹配的实验，请调整筛选条件。' : 'No matching experiments. Adjust the filters.'}</div> : null}

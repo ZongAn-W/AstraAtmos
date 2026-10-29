@@ -115,6 +115,14 @@ export default function TrainingHistory({ tasks, tagState, isZh, renderTask, ren
         : (tasks.length ? (isZh ? '没有匹配的实验，请调整筛选条件。' : 'No matching experiments. Adjust your filters.') : (isZh ? '暂无实验。新建实验后，实验会出现在这里。' : 'No experiments yet. Create one and it will appear here.'));
       return (
         <div className="experiment-directory-empty" data-empty-reason={reason} role={reason === 'error' ? 'alert' : 'status'}>
+          {reason === 'loading' ? (
+            // 加载态用骨架行代替纯文字，避免目录先闪一行字再变成列表
+            <div className="experiment-directory-skeleton" data-directory-skeleton="true">
+              {[0, 1, 2].map((index) => (
+                <span key={index} className="ui-skeleton" style={{ height: 64, borderRadius: 12, animationDelay: `${index * 90}ms` }} />
+              ))}
+            </div>
+          ) : null}
           <p className="experiment-directory-empty-text">{message}</p>
           {copy.showRetry && copy.onRetry ? (
             <div className="experiment-directory-empty-actions">

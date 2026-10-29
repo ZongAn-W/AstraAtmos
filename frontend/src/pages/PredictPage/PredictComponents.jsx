@@ -205,17 +205,19 @@ export function FieldCanvas({ fieldData, colorMode = 'inferno', h = 240, colorRa
 export function LoadingBox({ h = 240 }) {
   const t = useT();
   return (
-    <div style={{
-      height: h, display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(255,255,255,0.02)', borderRadius: 8,
-    }}>
-      <div style={{
-        width: 28, height: 28, border: `3px solid ${C.border}`,
-        borderTop: `3px solid ${C.mars}`, borderRadius: '50%',
-        animation: 'spin-slow 0.9s linear infinite',
-      }} />
-      <div style={{ marginTop: 10, fontSize: 'calc(12px * var(--font-scale, 1))', color: C.ice30 }}>{t('predict.computing')}</div>
+    <div
+      data-predict-loading="true"
+      style={{
+        height: h, display: 'flex', flexDirection: 'column',
+        alignItems: 'stretch', justifyContent: 'center', gap: 10,
+        padding: '0 18%',
+        background: 'rgba(255,255,255,0.02)', borderRadius: 8,
+      }}
+    >
+      {/* 用骨架块表示「正在计算」，比转圈更贴近最终内容的形状 */}
+      <span className="ui-skeleton" style={{ height: '58%', borderRadius: 8 }} />
+      <span className="ui-skeleton ui-skeleton--line" style={{ width: '46%', alignSelf: 'center' }} />
+      <div style={{ alignSelf: 'center', fontSize: 'calc(12px * var(--font-scale, 1))', color: C.ice30 }}>{t('predict.computing')}</div>
     </div>
   );
 }

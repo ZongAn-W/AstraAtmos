@@ -16,6 +16,7 @@ import {
   readExperimentMetrics,
 } from './experimentCenterModel';
 import { EARTH_METRIC_META, earthMetricUnit, getEarthMetricPolicyLabel } from '../../utils/earthMetricMeta.js';
+import AnimatedNumber from '../../components/ui/AnimatedNumber';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTrainingStatusMeta } from './trainingStatusMeta';
@@ -158,6 +159,7 @@ export default function ExperimentResultPanel({
   const metrics = EXPERIMENT_METRIC_KEYS
     .filter((key) => earth || summary.metrics[key] !== undefined)
     .map((key) => ({ key, label: earth ? EARTH_METRIC_META.find(metric => metric.key === key)[isZh ? 'zh' : 'en'] : t(METRIC_LABEL_KEYS[key]),
+      raw: summary.metrics[key],
       value: summary.metrics[key] === undefined ? t('experimentCenter.metricNotProvided') : formatExperimentMetricValue(summary.metrics[key]) }));
   const validationMetrics = earth ? readExperimentMetrics(activeTask.metrics, 'validation') : {};
   const metricPolicyLabel = earth ? getEarthMetricPolicyLabel(activeTask.metrics, isZh) : '';
@@ -227,7 +229,11 @@ export default function ExperimentResultPanel({
             {metrics.map((metric) => (
               <div className="experiment-result-metric" key={metric.key}>
                 <div className="experiment-result-metric-label">{metric.label}</div>
-                <div className="experiment-result-metric-value">{metric.value}</div>
+                <div className="experiment-result-metric-value" data-result-metric={metric.key}>
+                  {typeof metric.raw === 'number' && Number.isFinite(metric.raw)
+                    ? <AnimatedNumber value={metric.raw} format={formatExperimentMetricValue} />
+                    : metric.value}
+                </div>
                 {earth ? <small>{earthMetricUnit(metric.key, isZh)}</small> : null}
               </div>
             ))}
