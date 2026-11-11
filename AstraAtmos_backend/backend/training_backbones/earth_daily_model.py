@@ -44,21 +44,19 @@ EARTH_HORIZON = 3
 def require_earth_channel_order(input_channel_order: Sequence[str]) -> list[str]:
     """Validate and return the canonical Earth model input order.
 
-    ``TO3`` must be present and first, and every other name must be a published
-    Earth channel. A model built for a different order would silently apply the
+    Inputs must be nonempty, unique published Earth variables in catalog order.
+    The target may be absent. A model built for a different order would silently apply the
     wrong normalization vector, so this is a hard error rather than a reorder.
     """
     order = [str(name).strip().upper() for name in (input_channel_order or [])]
     if not order:
-        raise ValueError("Earth model requires at least the TO3 input channel")
-    if order[0] != TARGET_CHANNEL:
-        raise ValueError(f"Earth model input order must start with {TARGET_CHANNEL}")
+        raise ValueError("Earth model requires at least one input channel")
     if len(set(order)) != len(order):
         raise ValueError("Earth model input order contains duplicates")
     unknown = [name for name in order if name not in CHANNELS]
     if unknown:
         raise ValueError(f"Unsupported Earth input channel: {unknown[0]}")
-    canonical = canonical_input_channels(order[1:])
+    canonical = [name for name in CHANNELS if name in order]
     if canonical != order:
         raise ValueError("Earth model input order is not the canonical order")
     return order

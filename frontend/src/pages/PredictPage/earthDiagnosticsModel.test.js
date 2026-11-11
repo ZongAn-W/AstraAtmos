@@ -78,9 +78,9 @@ test('switching task or sampling cancels the old request and late responses cann
 
 test('artifact/data/window/channel changes have separate request identities', () => {
   const base = { dataset_id: 'earth_merra2_3hourly_v1', dataset_fingerprint: 'release-1', window: 56, horizon: 24,
-    input_channel_order: ['TO3', 'U'], model: { source_hash: 'a' } };
+    input_variables: ['TO3', 'U'], model: { source_hash: 'a' } };
   for (const changed of [{ dataset_fingerprint: 'release-2' }, { window: 71 }, { horizon: 9 },
-    { input_channel_order: ['TO3', 'T'] }, { model: { source_hash: 'b' } }, { checkpoint_sha256: 'weights-b' },
+    { input_variables: ['TO3', 'T'] }, { model: { source_hash: 'b' } }, { checkpoint_sha256: 'weights-b' },
     { metrics: { split_ranges: { test: [800, 1000] } } }, { dataset_id: 'different_release' }]) {
     assert.notEqual(earthDiagnosticIdentityKey(31, base), earthDiagnosticIdentityKey(31, { ...base, ...changed }));
   }
@@ -108,6 +108,24 @@ test('a current response with changed data, artifact, channels or physical unit 
   const token = guard.start('current'); token.taskId = 31; token.identity = identity;
   assert.equal(guard.accepts(token, { ...response, dataset_fingerprint: 'changed' }), false);
   assert.equal(guard.accepts(token, response), true);
+});
+
+test('Earth diagnostic identity reads computed task inputs and compares returned input variables', () => {
+  const identity = { target_variable: 'T2M', target_unit: 'K', input_variables: ['TO3', 'U10M'],
+    dataset_id: 'earth_merra2_3hourly_v1' };
+  const response = { task_id: 41, planet: 'earth', target_variable: 'T2M', target_unit: 'K',
+    input_variables: ['TO3', 'U10M'], dataset_id: identity.dataset_id };
+  assert.equal(earthDiagnosticMatchesIdentity(response, identity), true);
+  assert.equal(earthDiagnosticMatchesIdentity({ ...response, input_variables: ['TO3', 'SWGDN'] }, identity), false);
+  assert.equal(earthDiagnosticMatchesIdentity({ ...response, input_variables: undefined }, identity), false);
+  assert.equal(earthDiagnosticMatchesIdentity({ ...response, target_unit: undefined }, identity), false);
+  assert.notEqual(earthDiagnosticIdentityKey(41, identity), earthDiagnosticIdentityKey(41,
+    { ...identity, input_variables: ['TO3', 'SWGDN'] }));
+  assert.equal(earthDiagnosticMatchesIdentity({ task_id: 41, dataset_id: identity.dataset_id,
+    target_variable: 'T2M', target_unit: 'K' }, identity), false);
+  const legacyIdentity = { dataset_id: identity.dataset_id, target_variable: 'TO3', target_unit: 'DU' };
+  assert.equal(earthDiagnosticMatchesIdentity({ task_id: 41, dataset_id: identity.dataset_id,
+    target_variable: 'TO3', target_unit: 'DU' }, legacyIdentity), true);
 });
 
 test('structured failures render a readable message including availability context', () => {

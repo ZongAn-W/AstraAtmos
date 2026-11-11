@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { fetchTasks, fetchLogs } from '../services/api';
+import { fetchTasks, fetchLogs, invalidateTrainingTasksCache } from '../services/api';
 import { useAuth } from './AuthContext';
 import { reconcileActiveTrainingTaskId } from './trainingTaskSelection';
 import { requestNotificationRefresh } from '../notifications/notificationEvents';
@@ -76,7 +76,7 @@ const UserTrainingProvider = ({ children, enabled, user }) => {
     setTasksLoading(true);
     operation.promise = (async () => {
       try {
-        const data = await fetchTasks();
+        const data = await fetchTasks({ force: true });
         if (!mountedRef.current || !tasksGate.current.isCurrent(request)) return;
         setTasks(data);
         setTasksError(false);
@@ -214,6 +214,7 @@ const UserTrainingProvider = ({ children, enabled, user }) => {
             setProgressData((prev) => ({ ...prev, ...msg.data }));
           }
         } else if (msg.type === 'status_update') {
+          invalidateTrainingTasksCache();
           loadTasksRef.current?.().catch(() => {});
           if (msg.status === 'failed') {
             requestNotificationRefresh();

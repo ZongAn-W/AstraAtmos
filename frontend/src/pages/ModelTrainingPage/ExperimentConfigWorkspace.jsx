@@ -18,7 +18,6 @@ import { getUploadedModelValidationStatus } from './uploadedModelValidation';
 import './experimentCenter.css';
 
 const OPEN_INTERVAL_FLOAT_FIELDS = new Set(['initial_history_weight', 'initial_translation_weight']);
-const BASE_INPUT_CHANNEL = 'O3';
 
 /** Earth 的模型来源选项；顺序与火星一致（官方/上传由页面控制器决定标签）。 */
 const EARTH_MODEL_SOURCE_OPTIONS = [
@@ -34,6 +33,8 @@ const EARTH_MODEL_SOURCE_OPTIONS = [
  * 官方模型 → 模型结构 / 训练策略 / 迁移学习 / 实验标签。
  * 权重上传与冻结策略都在「迁移学习」里，不再单独占一个页签。
  */
+import { ENVIRONMENT_VARIABLES, environmentVariableLabel } from '../../utils/environmentVariables.js';
+
 const CONFIG_EXPERT_TABS = ['payload', 'training'];
 const UPLOADED_EXPERT_TABS = [...CONFIG_EXPERT_TABS, 'customParams', 'strategy', 'transfer', 'tags'];
 const OFFICIAL_EXPERT_TABS = [...CONFIG_EXPERT_TABS, 'structure', 'strategy', 'transfer', 'tags'];
@@ -75,6 +76,8 @@ export default function ExperimentConfigWorkspace({
     modelSource,
     selectedUploadedModelId,
     selectedChannels,
+    targetVariable,
+    inputVariables,
     modelArchitecture,
     useSphere,
     epochs,
@@ -105,6 +108,7 @@ export default function ExperimentConfigWorkspace({
     tagState,
     isProcessing,
     earthDatasetAvailability,
+    earthUploadedCompatibility,
   } = resources;
   const {
     modelNameError,
@@ -126,6 +130,7 @@ export default function ExperimentConfigWorkspace({
     onDownloadUploadedModel,
     onCustomModelParamChange,
     onChannelToggle,
+    onTargetVariableChange,
     onArchitectureSelect,
     onToggleSphere,
     onToggleArchitecturePicker,
@@ -362,7 +367,7 @@ export default function ExperimentConfigWorkspace({
               <span>{earthProfile.frequencyHours === 3 ? 'UTC · 3-hourly' : 'UTC · daily'}</span>
               <span>{`${earthProfile.gridShape[0]}×${earthProfile.gridShape[1]}`}</span>
               <span>{`${windowValue} → ${horizon} steps`}</span>
-              <span>TO3 · DU</span>
+              <span>{`${targetVariable || 'TO3'} · ${ENVIRONMENT_VARIABLES.earth[targetVariable || 'TO3']?.unit || ''}`}</span>
               {earthDatasetAvailability?.selectable === false ? (
                 <strong data-earth-unavailable="true">{earthDatasetAvailability.reason || copy.earthUnavailableFallback}</strong>
               ) : null}
@@ -555,6 +560,21 @@ export default function ExperimentConfigWorkspace({
             {activeTab === 'payload' ? (
               <div data-config-group="payload">
                 <h4 className="experiment-expert-heading">{copy.sectionPayload}</h4>
+                <label className="experiment-param-cell" data-parameter="target_variable">
+                  <span className="experiment-param-label">{isZh ? '预测目标' : 'Prediction target'}</span>
+                  <select value={targetVariable || (isEarth ? 'TO3' : 'O3')}
+                    aria-label={isZh ? '预测目标' : 'Prediction target'} disabled={transferStructureLocked}
+                    style={inputStyle} onChange={event => onTargetVariableChange(event.target.value)}>
+                    {Object.entries(ENVIRONMENT_VARIABLES[isEarth ? 'earth' : 'mars']).map(([variable, meta]) => (
+                      <option key={variable} value={variable} disabled={isEarth && modelSource === 'uploaded' && !(earthUploadedCompatibility?.supportedTargets || ['TO3']).includes(variable)}>
+                        {environmentVariableLabel(variable, isEarth ? 'earth' : 'mars', isZh)} · {meta.unit}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="experiment-expert-note">{isEarth && modelSource === 'uploaded'
+                  ? (isZh ? `可用目标：${(earthUploadedCompatibility?.supportedTargets || ['TO3']).join(' / ')}。${earthUploadedCompatibility?.supportsIndependentInputs ? '输入组合须符合模型声明与校验结果。' : '当前模型要求历史 TO3 输入。'}其他任务可选择官方模型。` : `Supported targets: ${(earthUploadedCompatibility?.supportedTargets || ['TO3']).join(' / ')}. ${earthUploadedCompatibility?.supportsIndependentInputs ? 'Inputs must match the model declaration and validation.' : 'This model requires historical TO3 input.'} Choose an official model for other tasks.`)
+                  : (isZh ? '选择一个预测目标和至少一个历史输入变量。输入可包含目标的历史值，也可仅使用其他环境变量；新目标需要重新训练。' : 'Choose one target and at least one historical input. Inputs may include past target values or only other variables. A new target requires training a new model.')}</p>
                 {isEarth ? <>
                   <div className="experiment-param-grid">
                     {parameterFields.filter((field) => ['windowValue', 'horizon'].includes(field.key)).map((field) => (
@@ -572,12 +592,8 @@ export default function ExperimentConfigWorkspace({
                   </p>
                 </> : null}
                 <div className="experiment-payload-bar" role="group" aria-label={t('modelTraining.inputChannels')}>
-                  <span className="experiment-payload-lock" data-payload-base="true">
-                    <span>{isEarth ? copy.earthBaseInput : copy.inspectorBaseInput}</span>
-                    <b>{isEarth ? 'TO3' : 'O₃'}</b>
-                  </span>
                   {channelOrder.map((channel) => {
-                    const active = selectedChannels.includes(channel);
+                    const active = (inputVariables || selectedChannels).includes(channel);
                     return (
                       <button
                         key={channel}
@@ -593,10 +609,11 @@ export default function ExperimentConfigWorkspace({
                       </button>
                     );
                   })}
-                  <span className="experiment-payload-count" data-payload-count={selectedChannels.length}>
-                    {copy.payloadCountLabel(selectedChannels.length, channelOrder.length)}
+                  <span className="experiment-payload-count" data-payload-count={(inputVariables || selectedChannels).length}>
+                    {copy.payloadCountLabel((inputVariables || selectedChannels).length, channelOrder.length)}
                   </span>
                 </div>
+                {inputVariables?.length === 0 ? <p className="experiment-result-note" data-tone="warning" role="status">{isZh ? '至少选择一个输入变量。' : 'Select at least one input variable.'}</p> : null}
               </div>
             ) : null}
 

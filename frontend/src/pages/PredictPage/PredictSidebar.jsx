@@ -188,7 +188,7 @@ function TrainedModelDropdown({
                     {option.label}
                   </span>
                   <span style={{ display: 'block', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontSize: 'calc(var(--type-helper) * var(--font-scale, 1))', lineHeight: 1.5 }}>
-                    #{summary.taskId} · {summary.architecture} · {summary.inputChannelText}
+                    #{summary.taskId} · {summary.architecture} · {isZh ? '目标' : 'Target'}: {summary.targetText} · {summary.inputChannelText}
                   </span>
                   <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontSize: 'calc(var(--type-helper) * var(--font-scale, 1))', lineHeight: 1.5 }}>
                     {summary.modelSource} · W{summary.window || '--'} · H{summary.horizon || '--'} · {summary.dataSource}
@@ -451,7 +451,7 @@ function ModelSourceControl({
                       {summary.modelName}
                     </span>
                     <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: 'calc(var(--type-helper) * var(--font-scale, 1))', lineHeight: 1.5, marginTop: 3 }}>
-                      #{summary.taskId} · {summary.architecture} · {summary.inputChannelText}
+                      #{summary.taskId} · {summary.architecture} · {isZh ? '目标' : 'Target'}: {summary.targetText} · {summary.inputChannelText}
                     </span>
                     <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: 'calc(var(--type-helper) * var(--font-scale, 1))', lineHeight: 1.5 }}>
                       {summary.modelSource} · W{summary.window || '--'} · H{summary.horizon || '--'} · {summary.dataSource}

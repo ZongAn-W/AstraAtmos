@@ -91,6 +91,11 @@ def test_research_and_spatial_http_are_daily_aggregates_with_compact_grids(resea
         assert spatial.status_code == 200, spatial.text[:1000]
         assert np.asarray(spatial.json()['anomaly']).shape == (60, 120)
         assert spatial.json()['source_grid_shape'] == [240, 480]
+        # Native longitude ramp is col*.0005. RMS must average all 480
+        # source cells before the map is reduced to its rendering grid.
+        expected_rms = .0005 * np.sqrt((480 ** 2 - 1) / 12.0)
+        for band in spatial.json()['bands']:
+            assert band['rms'] == pytest.approx(expected_rms, abs=1e-5)
         assert len(spatial.content) < 250_000
 
 

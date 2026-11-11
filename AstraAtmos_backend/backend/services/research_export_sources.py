@@ -213,9 +213,13 @@ def register_mars(result, *, task, hypers, data_dirs, user_id, analysis, horizon
     if guard is None or (expected_guard is not None and guard != expected_guard):
         return {**result, "export_ref": None}
 
+    from services.mars_variables import MARS_VARIABLE_UNITS, resolve_mars_variables
+    target, input_variables = resolve_mars_variables(hypers)
     metadata = dict(model=str(task.custom_model_name or f"Task {task.id}"), task_id=int(task.id),
                     dataset_id=hypers.get("training_dataset", "openmars_mcd"), planet="mars",
-                    source_unit="um-atm", window=int(hypers.get("window", 3)), horizon=int(horizon),
+                    target_variable=target, target_unit=MARS_VARIABLE_UNITS[target],
+                    input_variables=input_variables, source_unit=MARS_VARIABLE_UNITS[target],
+                    window=int(hypers.get("window", 3)), horizon=int(horizon),
                     selected_variables=list(variables),
                     dataset_identity_status=hypers.get("_dataset_identity_status", "legacy"))
     metadata["result_artifact_fingerprint"] = guard
@@ -255,9 +259,11 @@ def register_earth(result, task, user_id):
     data["longitude"] = np.asarray(result["grid"]["longitude"])
     keys = ("task_id", "dataset_id", "dataset_version", "dataset_fingerprint", "forecast_origin",
             "origin_split", "input_dates", "target_dates", "input_timestamps", "target_timestamps",
-            "frequency_hours", "time_zone", "window", "horizon", "model_architecture", "model_source")
+            "frequency_hours", "time_zone", "window", "horizon", "model_architecture", "model_source",
+            "target_variable", "target_unit", "input_variables")
     metadata = {key: result[key] for key in keys if key in result}
-    metadata.update(planet="earth", scope="current_prediction_window", source_unit="DU",
+    metadata.update(planet="earth", scope="current_prediction_window", source_unit=result.get("target_unit", "DU"),
+                    target_variable=result.get("target_variable", "TO3"),
                     model=str(task.custom_model_name or f"Task {task.id}"),
                     source_warnings=list(result.get("warnings") or []),
                     model_source_status=result.get("model_source_status", "official"))
@@ -279,7 +285,12 @@ def register_earth_metrics(item, task, user_id):
     result = item["metrics"]
     data = {key: result[key] for key in ("overall", "per_step", "aggregation", "split_meta")}
     metadata = {key: item[key] for key in ("task_id", "dataset_id", "dataset_version", "dataset_fingerprint")}
-    metadata.update(planet="earth", scope="full_test_set", source_unit="DU", window=item['window'], horizon=item['horizon'],
+    target = item.get("target_variable", result.get("target_variable", "TO3"))
+    from services.earth_training_contract import EARTH_CHANNEL_UNITS
+    unit = item.get("target_unit", result.get("target_unit", EARTH_CHANNEL_UNITS[target]))
+    metadata.update(planet="earth", scope="full_test_set", source_unit=unit,
+                    target_variable=target, target_unit=unit, input_variables=item.get("input_variables", []),
+                    window=item['window'], horizon=item['horizon'],
                     model=item["model_name"], split_meta=result["split_meta"], aggregation=result["aggregation"],
                     metric_source="verified_checkpoint_test_metrics", frequency_hours=3)
     for key in ("schema", "metric_units", "metric_policy"):

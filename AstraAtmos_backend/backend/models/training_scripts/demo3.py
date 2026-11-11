@@ -39,6 +39,7 @@ from services.transfer_learning_strategy import apply_freeze_strategy  # noqa: E
 from services.training_split import split_sample_ranges
 from services.mars_data_service import MarsDataError, prepare_scaled_volume, identity_snapshot
 from services.mars_checkpoint import build_mars_checkpoint
+from services.mars_variables import resolve_mars_variables
 from training_backbones.model_zoo import (  # noqa: E402
     SpherePhaseWarpFrontEnd,
     build_forecaster,
@@ -529,6 +530,8 @@ def _prepare_training_data(
     validation_ratio: float = 0.2,
     test_ratio: float = 0.1,
     strict_windows: bool = True,
+    target_variable: str | None = None,
+    input_variables: list[str] | None = None,
 ) -> PreparedTrainingData:
     selected = parse_selected_channels(selected_channels)
     dataset = normalize_training_dataset(training_dataset)
@@ -551,6 +554,8 @@ def _prepare_training_data(
             "test_ratio": float(test_ratio),
         },
         require_ls=True,
+        target_variable=target_variable,
+        input_variables=input_variables,
     )
     scaled_inputs = volume.values
     scaled_target = volume.y_scaled
@@ -619,6 +624,8 @@ def prepare_training_tensors(
     train_ratio: float = 0.7,
     validation_ratio: float = 0.2,
     test_ratio: float = 0.1,
+    target_variable: str | None = None,
+    input_variables: list[str] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int, int]:
     prepared = _prepare_training_data(
         openmars_dir=openmars_dir,
@@ -632,6 +639,8 @@ def prepare_training_tensors(
         validation_ratio=validation_ratio,
         test_ratio=test_ratio,
         strict_windows=False,
+        target_variable=target_variable,
+        input_variables=input_variables,
     )
     return prepared.x, prepared.ls, prepared.y, prepared.height, prepared.width
 
@@ -640,9 +649,10 @@ def get_model_input_dim(
     model_architecture: Any,
     selected_channels: Any,
     use_sphere: Any,
+    input_variables: list[str] | None = None,
 ) -> int:
     normalize_model_architecture(model_architecture)
-    extra_channel_count = len(parse_selected_channels(selected_channels))
+    extra_channel_count = len(input_variables) - 1 if input_variables is not None else len(parse_selected_channels(selected_channels))
     return 1 + (2 * extra_channel_count if parse_bool(use_sphere) else extra_channel_count)
 
 
@@ -686,6 +696,8 @@ def build_official_model(
 ) -> nn.Module:
     architecture = normalize_model_architecture(hyperparameters.get("model_architecture"))
     selected_channels = parse_selected_channels(hyperparameters.get("selected_channels"))
+    if hyperparameters.get("input_variables") is not None:
+        selected_channels = list(hyperparameters["input_variables"])[1:]
     hidden_dims = _parse_int_list(
         hyperparameters.get("stlstm_hidden_dims", [64, 64, 64]),
         [64, 64, 64],
@@ -786,6 +798,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--horizon", type=int, default=3)
     parser.add_argument("--early_stopping_patience", type=int, default=0)
     parser.add_argument("--selected_channels", type=str, default="")
+    parser.add_argument("--target_variable", type=str, default="O3")
+    parser.add_argument("--input_variables", type=str, default=None)
     parser.add_argument("--training_dataset", type=str, default=TRAINING_DATASET_OPENMARS_MCD)
     parser.add_argument("--seed", type=int, default=11)
     parser.add_argument("--output_path", type=str, required=True)
@@ -810,6 +824,8 @@ def _build_parser() -> argparse.ArgumentParser:
 def _normalize_parsed_hyperparameters(args: argparse.Namespace) -> dict[str, Any]:
     hyperparameters = vars(args).copy()
     hyperparameters["selected_channels"] = parse_selected_channels(args.selected_channels)
+    hyperparameters["target_variable"], hyperparameters["input_variables"] = resolve_mars_variables(hyperparameters)
+    hyperparameters["selected_channels"] = [channel for channel in hyperparameters["input_variables"] if channel != "O3"]
     hyperparameters["stlstm_hidden_dims"] = _parse_int_list(
         args.stlstm_hidden_dims,
         [64, 64, 64],
@@ -859,9 +875,11 @@ def main() -> None:
         window=args.window,
         horizon=args.horizon,
         training_dataset=args.training_dataset,
-            train_ratio=getattr(args, "train_ratio", 0.7),
-            validation_ratio=getattr(args, "validation_ratio", 0.2),
-            test_ratio=getattr(args, "test_ratio", 0.1),
+        target_variable=hyperparameters["target_variable"],
+        input_variables=hyperparameters["input_variables"],
+        train_ratio=getattr(args, "train_ratio", 0.7),
+        validation_ratio=getattr(args, "validation_ratio", 0.2),
+        test_ratio=getattr(args, "test_ratio", 0.1),
     )
     train_dataset, validation_dataset, test_dataset = _split_training_data(
         prepared,

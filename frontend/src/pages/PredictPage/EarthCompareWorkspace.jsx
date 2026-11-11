@@ -3,10 +3,11 @@ import { compareEarthModels } from '../../services/earthPredict';
 import { useT } from '../../i18n';
 import PredictSidebar from './PredictSidebar';
 import CompareTrainingModelsPanel from './CompareTrainingModels/CompareTrainingModelsPanel';
-import { getCompareSelectionState, buildCompareModelSummary } from './CompareTrainingModels/compareTrainingModelsData';
+import { compareResultMatchesTasks, getCompareSelectionState, buildCompareModelSummary } from './CompareTrainingModels/compareTrainingModelsData';
 import { getEarthTrainingModelOptions, resolveEarthPredictErrorMessage } from './earthPredictModel';
 import { PREDICT_MODEL_MODE_COMPARE } from './predictModelModes';
 import { earthPredictionAdapter } from './PredictionPlanetAdapter';
+import { sameEnvironmentTarget } from '../../utils/environmentVariables.js';
 import {
   PREDICT_REQUEST_CHANNELS,
   createPredictRequestCoordinator,
@@ -41,6 +42,10 @@ export default function EarthCompareWorkspace({ tasks, scope, tasksLoading, task
   }, [options]);
   const run = async () => {
     if (!selection.canCompare || loading) return;
+    if (!sameEnvironmentTarget(selectedOptions.map(option => option.task), 'earth')) {
+      setError(isZh ? '请选择相同预测目标的模型进行比较。' : 'Choose models with the same prediction target.');
+      return;
+    }
     const requestToken = requestCoordinator.start(PREDICT_REQUEST_CHANNELS.compareMetrics, key);
     const requestKey = key;
     // A repeated comparison for the same selection must replace the previous
@@ -50,6 +55,11 @@ export default function EarthCompareWorkspace({ tasks, scope, tasksLoading, task
     try {
       const result = await compareEarthModels(selection.ids, { signal: requestToken.signal });
       if (!requestCoordinator.isCurrent(requestToken, requestKey)) return;
+      if (!compareResultMatchesTasks(result, selectedOptions.map(option => option.task), 'earth')) {
+        throw new Error(isZh
+          ? '地球模型对比响应与所选任务的目标变量或输入变量不一致，请重新选择模型后重试。'
+          : 'The Earth comparison response does not match the selected task targets or inputs. Reselect the models and retry.');
+      }
       setData(result);
     } catch (e) {
       if (!requestCoordinator.isCurrent(requestToken, requestKey) || isAbortError(e)) return;

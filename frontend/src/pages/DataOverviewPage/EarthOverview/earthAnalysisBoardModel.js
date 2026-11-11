@@ -217,7 +217,7 @@ function dynamicsBoard({ spatial, variable, isZh }) {
   const latitude = numericAxis(anomaly?.y);
   const z = matrixValues(anomaly?.z, longitude, latitude);
   const units = anomaly?.units || EARTH_VARIABLE_UNITS[variable] || '';
-  const label = seriesLabel(variable, units, isZh);
+  const label = `${variableLabel(variable, isZh)}${isZh ? '距平' : ' anomaly'}${units ? ` (${units})` : ''}`;
   const range = [anomaly?.colorRange?.min, anomaly?.colorRange?.max].filter(Number.isFinite);
   const bound = (range.length ? range : z.flat().filter(Number.isFinite))
     .reduce((maximum, value) => Math.max(maximum, Math.abs(value)), 1e-9);
@@ -230,7 +230,7 @@ function dynamicsBoard({ spatial, variable, isZh }) {
           type: 'heatmap', x: longitude, y: latitude, z,
           colorscale: 'RdBu', reversescale: true, zmin: -bound, zmax: bound, zmid: 0,
           colorbar: { title: { text: label } }, hoverongaps: false,
-          hovertemplate: `${isZh ? '经度' : 'Longitude'} %{x}°<br>${isZh ? '纬度' : 'Latitude'} %{y}°<br>%{z:.3f} ${units}<extra></extra>`,
+          hovertemplate: `${isZh ? '经度' : 'Longitude'} %{x}°<br>${isZh ? '纬度' : 'Latitude'} %{y}°<br>${isZh ? '距平' : 'Anomaly'} %{z:.3f} ${units}<extra></extra>`,
         }],
         layout: {
           xaxis: axis(isZh ? '经度（°）' : 'Longitude (°)'),

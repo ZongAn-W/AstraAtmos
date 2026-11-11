@@ -9,6 +9,8 @@ import { getMetricAggregationLabel, getSplitLabel } from '../pages/PredictPage/p
 import EarthDiagnosticPanel from '../pages/PredictPage/EarthDiagnosticPanel.jsx';
 import { isEarthTask } from '../pages/PredictPage/earthPredictModel.js';
 import { earthDiagnosticErrorText } from '../pages/PredictPage/earthDiagnosticsModel.js';
+import { resolveEnvironmentTask, environmentVariableLabel } from '../utils/environmentVariables.js';
+import { marsModelTestResponseMatchesTask, modelTestMetricUnit, modelTestScatterRange } from './modelTestModel.js';
 
 /**
  * 模型测试结果弹窗
@@ -25,6 +27,9 @@ export default function ModelTestModal({ taskId, task, onClose }) {
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [retry, setRetry] = useState(0);
+  const target = resolveEnvironmentTask(data || task, earth ? 'earth' : 'mars');
+  const referenceAxis = `${isZh ? '参考' : 'Reference'} ${environmentVariableLabel(target.target, target.planet, isZh)} (${target.unit})`;
+  const predictionAxis = `${isZh ? '预测' : 'Prediction'} ${environmentVariableLabel(target.target, target.planet, isZh)} (${target.unit})`;
   const requestEpoch = useRef(0);
 
   // 锁定背景滚动
@@ -48,6 +53,12 @@ export default function ModelTestModal({ taskId, task, onClose }) {
       .then(res => {
         if (controller.signal.aborted || epoch !== requestEpoch.current) return;
         if (res.status === 'success') {
+          if (!marsModelTestResponseMatchesTask(res.data, task)) {
+            setError(isZh
+              ? '测试响应的预测目标与所选训练任务不一致，请重新加载任务。'
+              : 'The test response target does not match the selected training task. Reload the task and retry.');
+            return;
+          }
           setData(res.data);
         } else {
           setError(res.message || 'Unknown error');
@@ -59,7 +70,7 @@ export default function ModelTestModal({ taskId, task, onClose }) {
       })
       .finally(() => { if (!controller.signal.aborted && epoch === requestEpoch.current) setLoading(false); });
     return () => controller.abort();
-  }, [taskId, earth, retry]);
+  }, [taskId, task, earth, retry, isZh]);
 
   if (!taskId) return null;
 
@@ -120,8 +131,8 @@ export default function ModelTestModal({ taskId, task, onClose }) {
   const renderMetrics = (metrics) => {
     const items = [
       { label: 'R²', value: metrics.r2?.toFixed(4), color: C.blue },
-      { label: 'MSE', value: metrics.mse?.toFixed(6), color: C.mars },
-      { label: 'RMSE', value: metrics.rmse?.toFixed(4), color: C.ice },
+      { label: 'MSE', unit: modelTestMetricUnit('mse', target.unit), value: metrics.mse?.toFixed(6), color: C.mars },
+      { label: 'RMSE', unit: modelTestMetricUnit('rmse', target.unit), value: metrics.rmse?.toFixed(4), color: C.ice },
       { label: 'MAPE', value: metrics.mape?.toFixed(2) + '%', color: '#ff9800' },
       { label: 'SMAPE', value: metrics.smape?.toFixed(2) + '%', color: C.green }
     ];
@@ -138,7 +149,7 @@ export default function ModelTestModal({ taskId, task, onClose }) {
             flexDirection: 'column',
             gap: 2
           }}>
-            <span style={{ fontSize: 'calc(10px * var(--font-scale, 1))', fontWeight: 700, opacity: 0.5, letterSpacing: 1 }}>{it.label}</span>
+            <span style={{ fontSize: 'calc(10px * var(--font-scale, 1))', fontWeight: 700, opacity: 0.5, letterSpacing: 1 }}>{it.label}{it.unit ? ` (${it.unit})` : ''}</span>
             <span style={{ fontSize: 'calc(18px * var(--font-scale, 1))', fontWeight: 800, color: it.color }}>{it.value ?? 'N/A'}</span>
           </div>
         ))}
@@ -150,11 +161,8 @@ export default function ModelTestModal({ taskId, task, onClose }) {
   const renderScatter = (yTrue, yPred) => {
     if (!yTrue || yTrue.length === 0) return null;
 
-    // 安全计算最大值，防止 Spread operator 导致栈溢出 (RangeError: Maximum call stack size exceeded)
-    const findMax = (arr) => arr.reduce((m, v) => (v > m ? v : m), arr[0]);
-    const maxTrue = findMax(yTrue);
-    const maxPred = findMax(yPred);
-    const maxVal = Math.max(maxTrue, maxPred) * 1.1;
+    // Physical winds may be negative; range calculation also avoids spreading large arrays.
+    const range = modelTestScatterRange(yTrue, yPred);
     
     return (
       <div style={{ width: '100%', height: 450, background: 'transparent' }}>
@@ -173,11 +181,11 @@ export default function ModelTestModal({ taskId, task, onClose }) {
                 colorscale: isLight ? 'Viridis' : 'Inferno',
                 showscale: false
               },
-              hovertemplate: `${t('modelTest.scatter.xAxis')}: %{x:.2f}<br>${t('modelTest.scatter.yAxis')}: %{y:.2f}<extra></extra>`
+              hovertemplate: `${referenceAxis}: %{x:.2f}<br>${predictionAxis}: %{y:.2f}<extra></extra>`
             },
             {
-              x: [0, maxVal],
-              y: [0, maxVal],
+              x: range,
+              y: range,
               mode: 'lines',
               type: 'scatter',
               name: t('modelTest.scatter.perfectFit'),
@@ -195,18 +203,18 @@ export default function ModelTestModal({ taskId, task, onClose }) {
             paper_bgcolor: 'transparent',
             margin: { l: 60, r: 20, t: 40, b: 60 },
             xaxis: {
-              title: { text: t('modelTest.scatter.xAxis'), font: { size: 12, color: isLight ? '#666' : '#999' } },
+              title: { text: referenceAxis, font: { size: 12, color: isLight ? '#666' : '#999' } },
               gridcolor: isLight ? '#eee' : '#1a1a1a',
               zeroline: false,
               color: isLight ? '#333' : '#eee',
-              range: [0, maxVal]
+              range,
             },
             yaxis: {
-              title: { text: t('modelTest.scatter.yAxis'), font: { size: 12, color: isLight ? '#666' : '#999' } },
+              title: { text: predictionAxis, font: { size: 12, color: isLight ? '#666' : '#999' } },
               gridcolor: isLight ? '#eee' : '#1a1a1a',
               zeroline: false,
               color: isLight ? '#333' : '#eee',
-              range: [0, maxVal]
+              range,
             },
             showlegend: false,
             font: { family: 'inherit' }

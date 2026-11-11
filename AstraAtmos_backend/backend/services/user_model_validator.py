@@ -535,7 +535,7 @@ class UserModelValidator:
     def _validate_three_hour_module(module, datasets, param_schema, warnings, *, earth_probe=None):
         from training_backbones.earth_3hourly_uploaded_contract import (
             EVAL_BATCH_POLICY, RESERVED_PARAMETERS, channel_orders, contract_profile,
-            dry_run, normalize_derived_inputs,
+            dry_run, normalize_derived_inputs, forecast_configurations, declares_forecast_variables,
         )
 
         feed_key = EARTH_3HOURLY_FEED_KEY if EARTH_3HOURLY_FEED_KEY in datasets else "earth_merra2_3hourly_5deg_v1"
@@ -559,8 +559,13 @@ class UserModelValidator:
             if parameter_errors:
                 code = "invalid_earth_training_parameters"
                 raise ValueError("; ".join(parameter_errors))
-            orders = [earth_probe["input_channel_order"]] if earth_probe else channel_orders()
             feed = datasets[feed_key]
+            configurations = ([{"target_variable": earth_probe.get("target_variable", "TO3"),
+                                "input_variables": earth_probe["input_channel_order"]}] if earth_probe
+                              else forecast_configurations(feed))
+            allowed = forecast_configurations(feed)
+            if any(configuration not in allowed for configuration in configurations):
+                raise ValueError("Requested target and input variables are not declared by the uploaded model")
             if ((earth_probe or {}).get('contract_schema') is not None
                     and earth_probe['contract_schema'] != feed['schema']):
                 code = 'uploaded_model_contract_invalid'
@@ -576,11 +581,13 @@ class UserModelValidator:
                 from services.earth_topography import load_earth_topography
                 topography = (load_earth_topography(dataset_id=feed_key)
                               if feed_key == "earth_merra2_3hourly_5deg_v1" else load_earth_topography())
-            for order in orders:
+            for configuration in configurations:
+                order = configuration["input_variables"]
                 shape = dry_run(module.build_model, order, params, window=window, horizon=horizon,
                                 batch_size=(earth_probe or {}).get("batch_size", execution['default_batch_size']),
                                 contract_schema=feed['schema'], derived_inputs=derived_inputs,
-                                topography=topography)
+                                topography=topography, target_variable=configuration["target_variable"],
+                                forecast_aliases=declares_forecast_variables(feed))
         except Exception as exc:
             code = getattr(exc, "code", code)
             errors = [f"Earth three-hour dry-run failed: {exc}"]
@@ -592,6 +599,10 @@ class UserModelValidator:
             "window": locals().get('window'), "horizon": locals().get('horizon'),
             "batch_size": (earth_probe or {}).get('batch_size', locals().get('execution', {}).get('default_batch_size')),
             "validation_scope": "task_configuration" if earth_probe else "declared_channels_probe_windows",
+            "supported_targets": datasets[feed_key].get("supported_targets", ["TO3"]),
+            "supports_independent_inputs": datasets[feed_key].get("supports_independent_inputs", False),
+            "input_variable_sets": datasets[feed_key].get("input_variable_sets"),
+            "forecast_configurations": configurations if not errors else [],
         }
         if not errors and derived_inputs:
             verdict["derived_inputs"] = derived_inputs
@@ -780,6 +791,7 @@ class UserModelValidator:
 
     @staticmethod
     def _normalize_parameters(parameters: Any) -> tuple[dict[str, Any], list[str]]:
+        from training_backbones.uploaded_model_contract import FORECAST_CONFIG_KEYS
         if parameters is None:
             return {}, []
         if not isinstance(parameters, dict):
@@ -793,6 +805,9 @@ class UserModelValidator:
                 continue
             if not name.isidentifier() or keyword.iskeyword(name):
                 errors.append(f"Invalid parameter name: {name}")
+                continue
+            if name in FORECAST_CONFIG_KEYS:
+                errors.append(f"Model parameter {name} is owned by the platform forecast configuration")
                 continue
             if not isinstance(schema, dict):
                 errors.append(f"Parameter {name} must be a dict")

@@ -3,7 +3,8 @@
  * Vite proxy: 前端 /api/* → localhost:8000/api/*
  */
 
-import { handleUnauthorizedResponse } from '../stores/authPredictionSession.js';
+import { getActiveAuthenticatedPredictScope, handleUnauthorizedResponse } from '../stores/authPredictionSession.js';
+import { trainingTasksCache } from '../stores/trainingTasksCache.js';
 import { researchExportErrorMessage } from './researchExportErrors.js';
 
 const BASE = '/api';
@@ -12,6 +13,7 @@ const BASE = '/api';
 
 /** 从 localStorage 读取 token，自动附加到请求头 */
 async function authedFetch(url, options = {}) {
+  const requestScope = getActiveAuthenticatedPredictScope();
   const token = localStorage.getItem('astraatmos_token');
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers = {
@@ -21,7 +23,13 @@ async function authedFetch(url, options = {}) {
   };
   const res = await fetch(url, { ...options, headers });
   // Token 过期或无效时清理私有预测会话并触发 AuthContext 全局登出。
-  handleUnauthorizedResponse(res);
+  // An old account's late rejection must not log out the current session.
+  if (requestScope === getActiveAuthenticatedPredictScope()
+    && token === localStorage.getItem('astraatmos_token')) handleUnauthorizedResponse(res);
+  if (res.ok && requestScope && url.startsWith(`${BASE}/training/`)
+    && !['GET', 'HEAD'].includes((options.method || 'GET').toUpperCase())) {
+    trainingTasksCache.invalidate(requestScope);
+  }
   return res;
 }
 
@@ -848,9 +856,20 @@ export async function deleteUserModel(modelId) {
 }
 
 export async function fetchTasks(options = {}) {
-  const res = await authedFetch(`${BASE}/training/tasks`, options);
-  if (!res.ok) throw new Error(`${res.status}`);
-  return res.json();
+  const { signal, force = false, ...requestOptions } = options;
+  const load = async ({ signal: sharedSignal } = {}) => {
+    const res = await authedFetch(`${BASE}/training/tasks?summary=true`, { ...requestOptions, signal: sharedSignal });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const items = await res.json();
+    if (!Array.isArray(items)) throw new Error('Invalid training task list');
+    return items;
+  };
+  const scope = getActiveAuthenticatedPredictScope();
+  return scope ? trainingTasksCache.load(scope, load, { signal, force }) : load({ signal });
+}
+
+export function invalidateTrainingTasksCache() {
+  trainingTasksCache.invalidate(getActiveAuthenticatedPredictScope());
 }
 
 export async function fetchLogs(taskId) {

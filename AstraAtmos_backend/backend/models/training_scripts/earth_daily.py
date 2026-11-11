@@ -3,7 +3,7 @@
 This script deliberately does not touch any Mars data path: it reads a verified
 daily or three-hour release through the dataset registry, builds its dataset
 profile's windows with training-only normalization, trains the official
-DLinear, evaluates validation and test in DU and writes one versioned checkpoint.
+DLinear, evaluates validation and test in the target's physical units and writes one versioned checkpoint.
 
 The parent process passes everything through ``ASTRAATMOS_EARTH_TRAINING_SPEC``
 rather than the command line, so dataset identity, the release fingerprint and
@@ -239,6 +239,9 @@ def _build_loaders(
           f"elapsed={validation_seconds:.3f}s", flush=True)
 
     selected = hyperparameters["selected_channels"]
+    from services.earth_training_contract import earth_variable_selection
+    target, order = earth_variable_selection(hyperparameters)
+    independent = "input_variables" in hyperparameters or target != "TO3"
     # Fit on the frozen task train interval (manifest for legacy tasks), then
     # independently build windows inside each partition.
     task_split = spec.get("task_split")
@@ -250,8 +253,10 @@ def _build_loaders(
     if window_type is EarthThreeHourlyWindows:
         from config import EARTH_TRAINING_CACHE_DIR
         effective_cache_root = cache_root if cache_root is not None else EARTH_TRAINING_CACHE_DIR
-        normalization = fit_threehour_normalization(
-            release, ["TO3", *selected], task_split=task_split,
+        from services.earth_dataset import fit_forecast_normalization
+        fit = fit_forecast_normalization if independent else fit_threehour_normalization
+        normalization = fit(
+            release, order, **({"target": target} if independent else {}), task_split=task_split,
             cache_root=effective_cache_root,
             progress=lambda message: print(message, flush=True),
         )
@@ -267,7 +272,8 @@ def _build_loaders(
             horizon=profile["horizon"],
             selected_channels=selected,
             normalization=normalization,
-            **({"task_split": task_split} if window_type is EarthThreeHourlyWindows else {}),
+            **({"task_split": task_split, **({"input_variables": order, "target_variable": target} if independent else {})}
+               if window_type is EarthThreeHourlyWindows else {}),
         )
         for name in ("train", "validation", "test")
     }
@@ -275,13 +281,19 @@ def _build_loaders(
     cache_path = None
     cache_started = time.perf_counter()
     if window_type is EarthThreeHourlyWindows:
+        from services.earth_training_contract import EARTH_CHANNELS
+        storage_order = [name for name in EARTH_CHANNELS if name in set(order) | {target}]
+        storage_normalization = (fit_threehour_normalization(release, storage_order, task_split=task_split,
+                                                           cache_root=effective_cache_root, exact_inputs=True)
+                                 if independent else normalization)
         cache_path = build_threehour_training_cache(
-            release, ["TO3", *selected], normalization,
+            release, storage_order, storage_normalization,
             effective_cache_root,
             full_grid=full_grid, progress=lambda message: print(message, flush=True),
         )
         for dataset in splits.values():
-            dataset.use_training_cache(cache_path, progress=lambda message: print(message, flush=True))
+            dataset.use_training_cache(cache_path, progress=lambda message: print(message, flush=True),
+                                       **({"storage_normalization": storage_normalization} if independent else {}))
     cache_seconds = time.perf_counter() - cache_started
     if window_type is EarthThreeHourlyWindows:
         print(f'Earth preparation: cache stage (including integrity/attach) elapsed={cache_seconds:.3f}s', flush=True)
@@ -340,7 +352,7 @@ def _build_loaders(
         "release": release,
         "profile": profile,
         "normalization": normalization,
-        "input_channel_order": ["TO3", *selected],
+        "input_channel_order": order,
         "splits": splits,
         "counts": counts,
         "split_ranges": split_ranges,
@@ -584,7 +596,7 @@ def _evaluate_split(
     model_source: str = MODEL_SOURCE_OFFICIAL,
     acceleration: Optional[dict[str, Any]] = None,
 ) -> tuple[dict, float]:
-    """Return DU metrics plus the mean normalized MSE for a whole partition."""
+    """Return physical metrics plus the mean normalized MSE for a whole partition."""
     model.eval()
     dataset_id = (getattr(getattr(dataset, "_release", None), "metadata", {}) or {}).get("dataset_id")
     horizon = getattr(dataset, "horizon", EARTH_HORIZON)
@@ -726,6 +738,7 @@ def _run_training(
         uploaded_model=uploaded_reference if model_source == MODEL_SOURCE_UPLOADED else None,
         dataset_id=binding["dataset_id"],
         window=profile['window'], horizon=profile['horizon'],
+        target_variable=profile['target'],
     )
     try:
         model, model_build_config, model_warnings = build_earth_model_for_plan(plan)
@@ -894,7 +907,7 @@ def _run_training(
         resolved_device,
         model_source=model_source,
     )
-    print("Earth metrics unit: DU", flush=True)
+    print(f"Earth metrics unit: {profile['target_unit']}", flush=True)
     print(
         f"Earth validation RMSE={validation_metrics['overall']['rmse']:.6f} "
         f"MAE={validation_metrics['overall']['mae']:.6f}",
@@ -924,6 +937,7 @@ def _run_training(
         dataset_id=binding["dataset_id"],
         aggregation=(CELL_AREA_WEIGHTED_AGGREGATION if area_weighted else GRID_UNIFORM_AGGREGATION),
         horizon=profile['horizon'],
+        target_variable=profile['target'],
     )
     if metrics_contract is not None and any(metrics.get(key) != value for key, value in metrics_contract.items()):
         raise EarthTrainingError("Generated metrics disagree with the frozen execution contract")

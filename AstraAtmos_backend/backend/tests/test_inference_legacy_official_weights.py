@@ -119,6 +119,25 @@ def test_predict_task_supports_legacy_official_weights(tmp_path):
     assert result["metrics"]["split_meta"]["source"] == "legacy_compatibility"
 
 
+def test_legacy_script_channel_suffix_survives_missing_channel_hyperparameters(tmp_path):
+    inference_module = load_inference_module()
+    task, hypers = build_legacy_task(tmp_path)
+    hypers.pop("selected_channels")
+    task.hyperparameters = json.dumps(hypers)
+    service = inference_module.InferenceService(analysis_cache=UncachedAnalysis())
+    service.device = torch.device("cpu")
+    service._prepare_data = lambda used_mcd_vars, window, horizon, **kwargs: stub_prediction_data()
+    service._last_prepared_window_metadata = {
+        "latitude": torch.linspace(87.5, -87.5, 8).numpy(),
+        "longitude": torch.linspace(-160.0, 120.0, 8).numpy(),
+    }
+    result = service._predict_task_with_context(task, hypers, 90.0, 2)
+    assert result["input_variables"] == ["O3", "U"]
+    assert result["model_info"]["selected_channels"] == ["U"]
+    assert result["target_variable"] == "O3"
+    assert len(result["prediction"]) == 2
+
+
 def test_task_test_set_metrics_supports_legacy_official_weights(tmp_path):
     inference_module = load_inference_module()
     task, hypers = build_legacy_task(tmp_path)

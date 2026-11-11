@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createMarsPredictionPresentation, createEarthPredictionPresentation,
   predictionMetricCards, predictionScopeLabel, predictionChartTheme } from './predictionPresentation.js';
 import { fmtNum } from '../../utils/fmt.js';
@@ -10,6 +11,19 @@ const earthData = {
     residual_definition: 'prediction-reference', unit: 'DU', summary: { count: 2, mean: .5 } },
   scope: { valid_points: 2 }, sample_metrics: { overall: { rmse: 1.5, mae: 1 } },
 };
+
+test('Earth workbench binds the task context into both forecast and full-test metric presentations', () => {
+  const panel = readFileSync(new URL('./EarthPredictPanel.jsx', import.meta.url), 'utf8');
+  const calls = [...panel.matchAll(/createEarthPredictionPresentation\(\{([^}]+)\}\)/g)];
+  assert.equal(calls.length, 2);
+  for (const call of calls) assert.match(call[1], /\bcontext\b/, 'Workbench metrics must retain the target context');
+  const context = { target_variable: 'T2M', target_unit: 'K' };
+  for (const scope of ['current_window', 'full_test']) {
+    const metrics = createEarthPredictionPresentation({ context, scope, isZh: false }).metrics;
+    assert.equal(metrics.items.find(item => item.key === 'rmse').unit, 'K');
+    assert.match(metrics.describe({}).subtitle, /Physical T2M \(K\)/);
+  }
+});
 
 test('Earth cards expose six physical metrics without applying Mars unit conversion or filling missing values', () => {
   const presentation = createEarthPredictionPresentation({ settings: { language: 'en', units: { ozone: 'DU' } } }).metrics;

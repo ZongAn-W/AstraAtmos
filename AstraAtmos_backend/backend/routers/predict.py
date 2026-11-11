@@ -122,6 +122,7 @@ async def run_prediction(
         model_info.pop("requested_mars_year", None)
         model_info.pop("mars_year", None)
         return {
+            **{key: result[key] for key in ("target_variable", "target_unit", "input_variables") if key in result},
             "export_ref": result.get("export_ref"),
             "ground_truth": result["ground_truth"],
             "prediction": result["prediction"],

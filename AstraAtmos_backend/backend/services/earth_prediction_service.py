@@ -7,7 +7,7 @@ cache, and an Earth task is never routed through Mars data preparation.
 
 Daily tasks retain date-only 7-to-3 windows. Three-hour tasks use a UTC interval
 center, 56 inputs ending at that origin and 24 subsequent reference timestamps.
-Every returned field is TO3 in DU on the task's published grid.
+Every returned field uses the task's target variable and physical unit on its published grid.
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ from services.earth_dataset import (
     release_date_index,
     stack_release_cube,
     validate_normalization,
+    target_normalization,
     _threehour_path, _threehour_values, threehour_release_split_codes,
     threehour_global_cell_area_weights,
 )
@@ -42,6 +43,8 @@ from services.earth_training_artifact import (
     GRID_UNIFORM_AGGREGATION,
     EarthArtifactError,
     ErrorAccumulator,
+    metric_units_for_target,
+    metric_policy_for_target,
     available_origin_range,
     build_earth_model_from_checkpoint,
     forecast_dates,
@@ -80,6 +83,10 @@ TASK_NOT_COMPLETED = "earth_prediction_task_not_completed"
 
 VARIABLE_LABELS = {
     "TO3": "Total column ozone",
+    "U10M": "10 m zonal wind",
+    "V10M": "10 m meridional wind",
+    "T2M": "2 m air temperature",
+    "SWGDN": "Surface incoming shortwave radiation",
 }
 
 
@@ -584,7 +591,7 @@ def _threehour_checkpoint_sha(task):
                                   "The Earth checkpoint cannot be read", status_code=409) from exc
 
 
-def _read_threehour_forecast_block(release, index, order, normalization, *, window=56, horizon=24):
+def _read_threehour_forecast_block(release, index, order, normalization, *, window=56, horizon=24, target_variable="TO3"):
     """Read the task's input/reference span outside the tile loop."""
     mean, scale = validate_normalization(normalization, order)
     inputs = np.empty((window, len(order), len(release.latitude), len(release.longitude)), dtype="float32")
@@ -607,7 +614,7 @@ def _read_threehour_forecast_block(release, index, order, normalization, *, wind
                     ).astype("float32")
             for start in range(forecast, stop, 8):
                 end = min(start + 8, stop)
-                reference[start - forecast:end - forecast] = _threehour_values(ds, "TO3", start, end)
+                reference[start - forecast:end - forecast] = _threehour_values(ds, target_variable, start, end)
         _threehour_path(release)
     except DatasetRequestError:
         raise
@@ -696,15 +703,17 @@ def _run_threehour_prediction(task, origin, registry, *, device=None, cache=None
         cached["model_source_status"] = source_status
         return _serialize_threehour_result(cached)
     order = checkpoint.training_contract["input_channel_order"]
+    target = checkpoint.training_contract.get("target", "TO3")
+    target_unit = checkpoint.training_contract.get("target_unit", "DU")
     inputs, reference = _read_threehour_forecast_block(release, index, order, checkpoint.normalization,
-                                                     window=window, horizon=horizon)
+                                                     window=window, horizon=horizon, target_variable=target)
     longitude = _threehour_window_longitude(release, checkpoint, index, window)
     try:
         model, warnings = build_earth_model_from_checkpoint(checkpoint)
         resolved_device = torch.device(device) if device else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(resolved_device).eval()
         prediction = np.empty_like(reference)
-        mean, scale = checkpoint.normalization["mean"][0], checkpoint.normalization["scale"][0]
+        mean, scale = target_normalization(checkpoint.normalization, target)
         if longitude is not None:
             longitude = longitude.to(resolved_device)
         extra = {} if longitude is None else {"longitude": longitude}
@@ -736,7 +745,7 @@ def _run_threehour_prediction(task, origin, registry, *, device=None, cache=None
                         with np.errstate(over="ignore", invalid="ignore"):
                             prediction[:, lat:lat + 24, lon:lon + 48] = output[0, :, 0].cpu().numpy() * scale + mean
         if not np.isfinite(prediction).all():
-            raise EarthArtifactError("The Earth model produced non-finite DU predictions")
+            raise EarthArtifactError("The Earth model produced non-finite physical predictions")
     except (EarthArtifactError, EarthModelBuildError, UploadedModelSourceError, ValueError, RuntimeError) as exc:
         raise DatasetRequestError("invalid_earth_training_artifact", str(exc), status_code=409) from exc
     try:
@@ -753,10 +762,10 @@ def _run_threehour_prediction(task, origin, registry, *, device=None, cache=None
                            spatial_weights=spatial_weights)
         from services.earth_training_artifact import METRIC_UNITS, METRIC_POLICY
         from services.earth_training_contract import EARTH_3HOURLY_METRICS_SCHEMA_V2, EARTH_3HOURLY_METRICS_SCHEMA_V3
-        metrics = {**accumulator.result(), "unit": "DU", "target": "TO3",
+        metrics = {**accumulator.result(), "unit": target_unit, "target": target,
                    "schema": checkpoint_metrics.get("schema", EARTH_3HOURLY_METRICS_SCHEMA_V3 if area_weighted else EARTH_3HOURLY_METRICS_SCHEMA_V2),
-                   "metric_units": dict(METRIC_UNITS),
-                   "metric_policy": dict(AREA_WEIGHTED_METRIC_POLICY if area_weighted else METRIC_POLICY),
+                   "metric_units": metric_units_for_target(target),
+                   "metric_policy": metric_policy_for_target(target, area_weighted=area_weighted),
                    "aggregation": ("user_forecast_origin_lead_cell_area_weighted" if area_weighted
                                    else "user_forecast_origin_lead_grid_uniform"),
                    "reference_available": True}
@@ -770,10 +779,10 @@ def _run_threehour_prediction(task, origin, registry, *, device=None, cache=None
         "dataset_id": checkpoint.dataset_binding["dataset_id"],
         "dataset_version": checkpoint.dataset_binding["dataset_version"],
         "dataset_fingerprint": checkpoint.dataset_binding["dataset_fingerprint"],
-        "target": "TO3", "target_unit": "DU", "window": window, "horizon": horizon,
+        "target": target, "target_variable": target, "target_unit": target_unit, "window": window, "horizon": horizon,
         "frequency_hours": 3, "step_unit": "hour", "step": 3, "time_zone": "UTC",
         "timestamp_rule": "interval_center", "forecast_origin": normalized_origin,
-        "origin_split": split_name, "input_channel_order": list(order),
+        "origin_split": split_name, "input_channel_order": list(order), "input_variables": list(order),
         "input_units": checkpoint.training_contract["input_units"],
         "input_dates": [iso(value) for value in release.dates[index - window + 1:index + 1]],
         "input_timestamps": [iso(value) for value in release.dates[index - window + 1:index + 1]],
@@ -784,7 +793,8 @@ def _run_threehour_prediction(task, origin, registry, *, device=None, cache=None
         "grid": {"shape": [len(release.latitude), len(release.longitude)], "latitude": release.latitude.tolist(), "longitude": release.longitude.tolist(),
                  **{name: published_grid.get(name) for name in (
                      "latitude_range", "longitude_range", "latitude_step", "longitude_step", "coverage", "wrap_longitude")}},
-        "variables": [{"id": "TO3", "label": VARIABLE_LABELS["TO3"], "units": "DU", "role": "target_and_input"}],
+        "variables": [{"id": target, "label": VARIABLE_LABELS[target], "units": target_unit,
+                       "role": "target_and_input" if target in order else "target"}],
         "_prediction_du": prediction, "_reference_du": reference, "_residual_du": residual,
     }
     # Check the bound package again after inference, before publishing/cache insertion.
@@ -831,7 +841,7 @@ def compare_earth_test_metrics(tasks: list[Any], registry: DatasetRegistry) -> d
             "schema": checkpoint.metrics["schema"],
             "overall": dict(test["overall"]),
             "per_step": [{"step": row["lead_step"], **row} for row in test["by_lead"]],
-            "by_horizon": test["by_horizon"], "unit": "DU",
+            "by_horizon": test["by_horizon"], "unit": contract["target_unit"],
             "aggregation": checkpoint.metrics["aggregation"],
             "split_meta": {"source": contract["split_policy"], "test_range": current["test_range"],
                            "window_count": test["window_count"]},
@@ -842,6 +852,8 @@ def compare_earth_test_metrics(tasks: list[Any], registry: DatasetRegistry) -> d
         items.append({"task_id": task.id, "model_name": task.custom_model_name or f"Task #{task.id}",
                       "planet": "earth", "dataset_id": current["dataset_id"],
                       "window": contract['window'], "horizon": contract['horizon'],
+                      "target": contract["target"], "target_variable": contract["target"], "target_unit": contract["target_unit"],
+                      "input_variables": list(contract["input_channel_order"]),
                       "dataset_version": current["version"], "dataset_fingerprint": current["fingerprint"],
                       "model_source": checkpoint.model_source, "architecture": identity.get("model_architecture"),
                       "selected_channels": list(contract["input_channel_order"]), "hyperparameters": hypers,

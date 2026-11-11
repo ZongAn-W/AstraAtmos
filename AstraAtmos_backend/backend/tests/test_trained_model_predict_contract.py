@@ -16,6 +16,132 @@ from schemas.predict import PredictRequest  # noqa: E402
 AUTHENTICATED_USER = types.SimpleNamespace(id=7, role="user")
 
 
+def test_response_serialization_preserves_temperature_target_and_input_identity():
+    from schemas.predict import (
+        PredictResponse, EvalMetricsResponse, TrainingModelMetrics, TrainingModelCompareItem,
+        TrainingModelCompareResponse, ErrorDistributionResponse, PermutationImportanceResponse,
+    )
+
+    metadata = {"target_variable": "T", "target_unit": "K", "input_variables": ["O3", "U"]}
+    step = {"step": 1, "rmse": 2.0, "mae": 1.0, "r2": 0.5, "ssim": 0.8}
+    metrics = {**metadata, "overall": step, "per_step": [step]}
+    field = {"field": [[280.0]], "minVal": 280.0, "maxVal": 280.0}
+    item = {**metadata, "task_id": 1, "model_name": "Temperature", "model_source": "official",
+            "architecture": "dlinear", "metrics": metrics}
+    histogram = {"bin_edges": [0.0, 1.0], "counts": [1]}
+    cases = [
+        (PredictResponse, {"ground_truth": [field], "prediction": [field], "residual": [field],
+                           "selected_variables": ["Ozone", "U_Wind"], "horizon": 1, "ls_values": [1.0]}),
+        (EvalMetricsResponse, metrics),
+        (TrainingModelMetrics, metrics),
+        (TrainingModelCompareItem, item),
+        (TrainingModelCompareResponse, {"items": [item, {**item, "task_id": 2}]}),
+        (ErrorDistributionResponse, {"scatter": {"trues": [280.0], "preds": [281.0], "density": [1.0]},
+                                     "hist_trues": histogram, "hist_preds": histogram, "hist_errors": histogram,
+                                     "mae": 1.0, "rmse": 1.0}),
+        (PermutationImportanceResponse, {"items": [], "baseline_metric": "r2", "baseline_value": 0.5}),
+    ]
+    for schema, payload in cases:
+        serialized = schema.model_validate({**payload, **metadata}).model_dump()
+        assert {key: serialized[key] for key in metadata} == metadata
+    comparison = TrainingModelCompareResponse.model_validate({**metadata, "items": [item]}).model_dump()
+    assert comparison["items"][0]["metrics"]["target_unit"] == "K"
+
+
+@pytest.mark.parametrize("metadata", [
+    {"target_variable": "O3", "target_unit": "um-atm", "input_variables": ["O3", "U", "T"]},
+    {"target_variable": "T", "target_unit": "K", "input_variables": ["O3", "U"]},
+    {"target_variable": "U", "target_unit": "m/s", "input_variables": ["T"]},
+])
+def test_prediction_http_response_keeps_service_variable_identity(metadata):
+    """Exercise route response assembly as well as FastAPI serialization.
+
+    The service payload can be either a newly computed result or a cache hit;
+    transport must preserve its actual target and complete model input order.
+    """
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from auth.dependencies import get_optional_user
+
+    class Service:
+        async def predict_task(self, **kwargs):
+            return {
+                **metadata,
+                "ground_truth": [_field(280.0)],
+                "prediction": [_field(281.0)],
+                "residual": [_field(1.0)],
+                "selected_variables": ["Ozone", "U_Wind"],
+                "horizon": 1,
+                "ls_values": [95.0],
+                "model_info": {**metadata, "training_task_id": kwargs["task_id"]},
+            }
+
+    app = FastAPI()
+    app.state.training_inference_service = Service()
+    app.dependency_overrides[get_optional_user] = lambda: AUTHENTICATED_USER
+    app.include_router(predict.router, prefix="/api")
+    with TestClient(app) as client:
+        response = client.post("/api/predict/run", json={"training_task_id": 12, "horizon": 1})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert {key: body[key] for key in metadata} == metadata
+    assert {key: body["model_info"][key] for key in metadata} == metadata
+
+
+@pytest.mark.parametrize("metadata", [
+    {"target_variable": "T", "target_unit": "K", "input_variables": ["O3", "U"]},
+    {"target_variable": "U", "target_unit": "m/s", "input_variables": ["T", "O3"]},
+])
+def test_analysis_http_responses_preserve_variable_identity(metadata):
+    """Metadata must survive each prediction-analysis route's response model."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from auth.dependencies import get_optional_user
+
+    step = {"step": 1, "rmse": 2.0, "mae": 1.0, "r2": 0.5, "ssim": 0.8}
+    histogram = {"bin_edges": [0.0, 1.0], "counts": [1]}
+    metrics = {**metadata, "overall": step, "per_step": [step]}
+
+    class Service:
+        async def task_test_set_metrics(self, **kwargs):
+            return metrics
+
+        async def task_error_distribution(self, **kwargs):
+            return {**metadata, "scatter": {"trues": [280.0], "preds": [281.0], "density": [1.0]},
+                    "hist_trues": histogram, "hist_preds": histogram, "hist_errors": histogram,
+                    "mae": 1.0, "rmse": 1.0}
+
+        async def task_permutation_importance(self, **kwargs):
+            return {**metadata, "items": [{"name": "U_Wind", "importance": 0.2}],
+                    "baseline_metric": "r2", "baseline_value": 0.8}
+
+        async def compare_task_test_set_metrics(self, **kwargs):
+            item = {**metadata, "task_id": 12, "model_name": "T model", "model_source": "official",
+                    "architecture": "dlinear", "selected_channels": ["U"], "hyperparameters": {},
+                    "metrics": metrics}
+            return {**metadata, "items": [item, {**item, "task_id": 18}]}
+
+    app = FastAPI()
+    app.state.training_inference_service = Service()
+    app.dependency_overrides[get_optional_user] = lambda: AUTHENTICATED_USER
+    app.include_router(predict.router, prefix="/api")
+    with TestClient(app) as client:
+        cases = [
+            client.post("/api/predict/metrics", json={"training_task_id": 12, "horizon": 1}),
+            client.get("/api/predict/error-distribution?training_task_id=12&horizon=1"),
+            client.get("/api/predict/permutation-importance?training_task_id=12&horizon=1"),
+            client.post("/api/predict/training-models/compare", json={"task_ids": [12, 18], "horizon": 1}),
+        ]
+
+    for response in cases:
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert {key: body[key] for key in metadata} == metadata
+    comparison = cases[-1].json()
+    assert all({key: item[key] for key in metadata} == metadata for item in comparison["items"])
+    assert comparison["items"][0]["metrics"]["target_unit"] == metadata["target_unit"]
+
+
 class FakeTrainingInferenceService:
     def __init__(self):
         self.prediction_calls = []

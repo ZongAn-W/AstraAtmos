@@ -21,13 +21,14 @@ function EarthPredictionField({ fieldData, colorMode, colorRange, precision, col
   const range = colorRange || fieldData.payload.color_range;
   const name = colorMode === 'rdbu' ? 'rdbu' : colormap;
   const payload = { ...fieldData.payload, color_range: range, colormap: name };
-  return <div className="prediction-earth-field" data-unit="DU" data-colormap={name}
+  const unit = payload.unit || 'DU';
+  return <div className="prediction-earth-field" data-unit={unit} data-colormap={name}
     style={{ minHeight: typeof height === 'number' ? Math.min(height, 340) : undefined }}>
     <EarthMap2D field={payload} colormap={name} selectedPoint={null} />
-    <div className="prediction-colorbar" aria-label={`DU ${fmtNum(range.min, precision)} – ${fmtNum(range.max, precision)}`}>
+    <div className="prediction-colorbar" aria-label={`${unit} ${fmtNum(range.min, precision)} – ${fmtNum(range.max, precision)}`}>
       <span>{fmtNum(range.min, precision)}</span>
       <i style={{ background: makeGradient(name).replace('180deg', '270deg') }} />
-      <span>{fmtNum(range.max, precision)} {colorMode === 'rdbu' ? 'ΔDU' : 'DU'}</span>
+      <span>{fmtNum(range.max, precision)} {colorMode === 'rdbu' ? `Δ${unit}` : unit}</span>
     </div>
   </div>;
 }
@@ -48,6 +49,6 @@ export function marsPredictionAdapter(options) {
     return fullscreen ? <SphericalFieldCanvas planet="mars" fieldData={displayField}
       geometry={{ latCenters: grid.latitude, lonCenters: grid.longitude }} colorMode={colorMode}
       h="100%" zoom={3.25} showMars={false} />
-      : <FieldCanvas fieldData={fieldData} colorMode={colorMode} h={height} colorRange={colorRange} />;
+      : <FieldCanvas fieldData={fieldData} colorMode={colorMode} h={height} colorRange={colorRange} presentation={adapter} />;
   } };
 }

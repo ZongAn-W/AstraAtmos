@@ -9,6 +9,7 @@ import { fmtNum } from '../../utils/fmt.js';
 import { useSettings } from '../../contexts/SettingsContext.jsx';
 import useEarthDiagnostics from './useEarthDiagnostics.js';
 import { earthDiagnosticPfiItems } from './earthDiagnosticsModel.js';
+import { resolveEnvironmentTask } from '../../utils/environmentVariables.js';
 import './earthDiagnostics.css';
 
 const jsonLabel = (item) => typeof item === 'string' ? item : item == null ? '—' : JSON.stringify(item);
@@ -24,9 +25,11 @@ export default function EarthDiagnosticPanel({ taskId, identity, autoLoad = fals
   const { settings } = useSettings();
   const d = t('predict.earthDiagnostics');
   const value = (number) => Number.isFinite(number) ? fmtNum(number, settings.precision) : '—';
-  const presentation = useMemo(() => createEarthPredictionPresentation({ settings }), [settings]);
-  const fullPresentation = useMemo(() => createEarthPredictionPresentation({ settings, scope: 'full_test' }).metrics, [settings]);
-  const samplePresentation = useMemo(() => createEarthPredictionPresentation({ settings, scope: 'sampled_diagnostic' }).metrics, [settings]);
+  const targetUnit = resolveEnvironmentTask(identity, 'earth').unit;
+  const targetText = text => typeof text === 'string' ? text.replaceAll('DU', targetUnit).replaceAll('TO3', resolveEnvironmentTask(identity, 'earth').target) : text;
+  const presentation = useMemo(() => createEarthPredictionPresentation({ settings, identity }), [settings, identity]);
+  const fullPresentation = useMemo(() => createEarthPredictionPresentation({ settings, identity, scope: 'full_test' }).metrics, [settings, identity]);
+  const samplePresentation = useMemo(() => createEarthPredictionPresentation({ settings, identity, scope: 'sampled_diagnostic' }).metrics, [settings, identity]);
   const [windows, setWindows] = useState(4);
   const [repeats, setRepeats] = useState(3);
   const options = useMemo(() => ({ sample_windows: windows, pfi_repeats: repeats }), [windows, repeats]);
@@ -46,8 +49,8 @@ export default function EarthDiagnosticPanel({ taskId, identity, autoLoad = fals
     <section className="earth-diagnostics" data-earth-diagnostics="true" aria-label={d.title}>
       <header className="prediction-chart-header">
         <div><h3 className="prediction-chart-title">{d.title}</h3>
-          <p className="prediction-chart-subtitle">{d.subtitle}</p></div>
-        <strong className="earth-diagnostic-unit">DU</strong>
+          <p className="prediction-chart-subtitle">{targetText(d.subtitle)}</p></div>
+        <strong className="earth-diagnostic-unit">{resolveEnvironmentTask(identity, 'earth').unit}</strong>
       </header>
       <div className="earth-diagnostic-controls">
         <label>{d.windowCount}
@@ -99,7 +102,7 @@ export default function EarthDiagnosticPanel({ taskId, identity, autoLoad = fals
           <PermutationImportanceChart data={pfi} presentation={presentation.pfi} precision={settings.precision} />
           <p className="earth-diagnostic-note">{pfi.window_count ?? pfi.scope?.window_count ?? '—'} {d.pfiScopeSuffix} {timeLabel(pfi.scope?.time_range)} · seed {pfi.seed ?? 42}</p>
           <div className="earth-diagnostic-table-scroll"><table>
-            <thead><tr>{[d.pfiChannel, d.pfiBaseline, d.pfiMean, d.pfiEachRmse, d.pfiEachDelta].map((text) => <th key={text}>{text}</th>)}</tr></thead>
+            <thead><tr>{[d.pfiChannel, d.pfiBaseline, d.pfiMean, d.pfiEachRmse, d.pfiEachDelta].map((text) => <th key={text}>{targetText(text)}</th>)}</tr></thead>
             <tbody>{pfiItems.map((item) => <tr key={item.channel}><th>{item.channel}</th><td>{value(item.baseline_rmse)}</td><td>{Number.isFinite(item.importance_mean) ? `${value(item.importance_mean)} ± ${value(item.importance_std)}` : jsonLabel(item.reason || d.pfiNotComputable)}</td><td>{item.repeats.map((repeat) => typeof repeat === 'number' ? value(repeat) : value(repeat.permuted_rmse ?? repeat.rmse)).join(', ') || '—'}</td><td>{item.repeats.map((repeat) => value(typeof repeat === 'number' ? repeat - item.baseline_rmse : repeat.delta_rmse ?? repeat.importance)).join(', ') || '—'}</td></tr>)}</tbody>
           </table></div>
         </> : <p className="earth-diagnostic-status">{jsonLabel(pfi?.reason?.message || pfi?.reason || pfi?.message || d.pfiUnavailable)}</p>}

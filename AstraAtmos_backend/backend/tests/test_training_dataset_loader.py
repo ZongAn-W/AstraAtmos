@@ -193,6 +193,36 @@ def test_official_training_loader_builds_tensors_from_raw_3h_mcd_dataset(tmp_pat
     assert width == 72
 
 
+def test_raw_mcd_temperature_target_uses_native_kelvin_without_target_input(tmp_path):
+    from services.mars_data_service import prepare_scaled_volume
+
+    raw_dir = tmp_path / "raw_mcd"
+    _write_raw_3h_mcd_file(raw_dir / "MCD_MY24.nc", 0.0)
+    volume = prepare_scaled_volume(
+        training_dataset="mcd_overview", openmars_dir=tmp_path / "openmars", mcd_dir=tmp_path / "mcd",
+        raw_dir=raw_dir, selected_channels=["U"], target_variable="T", input_variables=["U"],
+        window=2, horizon=2, split_ratios={"train_ratio": 0.7, "validation_ratio": 0.2, "test_ratio": 0.1},
+    )
+    source = np.arange(10 * 37 * 72, dtype=np.float32).reshape(10, 37, 72) + 20.0
+    expected = (source[:, :-1] + source[:, 1:]) / 2
+    assert volume.values.shape == (10, 36, 72, 1)
+    np.testing.assert_allclose(volume.y_scaled * (volume.y_std + 1e-6) + volume.y_mean,
+                               expected, rtol=1e-5, atol=1e-3)
+
+
+def test_raw_mcd_missing_target_is_rejected_even_when_not_selected_as_input(tmp_path):
+    from services.mars_data_service import prepare_scaled_volume
+
+    raw_dir = tmp_path / "raw_mcd"
+    _write_raw_3h_mcd_file(raw_dir / "MCD_MY24.nc", 0.0, include_dust=False)
+    with pytest.raises(ValueError, match="Dust_Optical_Depth|Dust variable|channel D"):
+        prepare_scaled_volume(
+            training_dataset="mcd_overview", openmars_dir=tmp_path / "openmars", mcd_dir=tmp_path / "mcd",
+            raw_dir=raw_dir, selected_channels=[], target_variable="D", input_variables=["O3"],
+            window=2, horizon=2, split_ratios={"train_ratio": 0.7, "validation_ratio": 0.2, "test_ratio": 0.1},
+        )
+
+
 def test_raw_mcd_dust_channel_is_rejected_when_field_is_missing(tmp_path):
     raw_dir = tmp_path / "MCD_Output_global_10m_ls_lst"
     path = raw_dir / "MCD_MY24_global_3h_5deg_10m_ls_lst.nc"

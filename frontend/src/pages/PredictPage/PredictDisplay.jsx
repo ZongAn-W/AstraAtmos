@@ -112,7 +112,7 @@ export default function PredictDisplay({
         onChange={setViewMode}
       />
       {adapter?.capabilities?.triptychExport !== false && (
-        <ResearchExportButton sources={[results?.export_ref]} kind="triptych" step={activeHorizon} disabled={loading} />
+        <ResearchExportButton sources={[results?.export_ref]} kind="triptych" step={activeHorizon} disabled={loading} targetVariable={adapter?.target} targetUnit={adapter?.unit} />
       )}
 
       {results && results.horizon > 1 && (

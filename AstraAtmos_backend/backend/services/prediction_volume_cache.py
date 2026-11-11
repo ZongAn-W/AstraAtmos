@@ -61,6 +61,8 @@ class ScaledVolume:
     split_ranges: dict[str, dict[str, Any]] | None = None
     split_window_starts: dict[str, tuple[int, ...]] | None = None
     split_policy: str = "legacy_compatibility"
+    target_variable: str = "O3"
+    input_variables: tuple[str, ...] = ()
 
 
 _cache: "OrderedDict[tuple, ScaledVolume]" = OrderedDict()

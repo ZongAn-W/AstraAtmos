@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AstraAtmos 相似市场产品对比表（答辩一页版）</title>
+<style>
+  :root{
+    --ink:#132033; --muted:#5a6a7e; --line:#d8e0ea;
+    --accent:#1e6fd9; --accent2:#0d9488;
+    --full:#0f766e; --part:#b45309; --none:#94a3b8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#e8edf4}
+  body{font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB","Noto Sans CJK SC",sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page{
+    width:1123px;min-height:794px;margin:16px auto;padding:18px 22px 12px;background:#fff;
+    box-shadow:0 6px 30px rgba(15,30,60,.12);position:relative;
+  }
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;border-bottom:2px solid var(--accent);padding-bottom:7px}
+  .title h1{font-size:19px;letter-spacing:.2px}
+  .title h1 small{font-size:11px;font-weight:400;color:var(--muted);margin-left:8px;letter-spacing:0}
+  .title p{font-size:10.5px;color:var(--muted);margin-top:3px}
+  .badge{border:1px solid var(--accent);color:var(--accent);border-radius:20px;padding:3px 9px;font-size:10px;white-space:nowrap;font-weight:600}
+  .position{margin-top:8px;background:linear-gradient(90deg,#eef4fd,#f2fbf9);border-left:4px solid var(--accent);padding:7px 10px;font-size:11.2px;line-height:1.55}
+  .position b{color:var(--accent)}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+  .card{border:1px solid var(--line);border-radius:7px;padding:6px 9px;background:#fbfdff}
+  .card h3{font-size:11px;color:var(--accent);margin-bottom:3px}
+  .card p{font-size:9.7px;line-height:1.45;color:#334155}
+  .card p b{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:9.2px}
+  thead th{background:#12314f;color:#fff;font-weight:600;padding:3.5px 3px;text-align:center;font-size:8.8px;line-height:1.3;border:1px solid #12314f}
+  thead th:first-child{text-align:left;padding-left:7px;width:176px}
+  tbody td{border:1px solid var(--line);padding:2.5px 3px;text-align:center;line-height:1.2}
+  tbody td:first-child{text-align:left;padding-left:7px;font-weight:600;font-size:9.4px;color:#1e293b}
+  tbody tr:nth-child(even){background:#f8fafc}
+  tbody tr.self{background:#eaf3fe!important;box-shadow:inset 0 0 0 1px #9cc3f0}
+  tbody tr.self td:first-child{color:var(--accent)}
+  .layer{display:inline-block;font-size:7.5px;font-weight:600;color:#64748b;background:#eef2f7;border-radius:3px;padding:0 3px;margin-right:4px;vertical-align:1px}
+  .l1{color:#1d4ed8;background:#e8efff}.l2{color:#0f766e;background:#e6f7f4}.l3{color:#7c2d12;background:#fdf0e7}
+  .y{color:var(--full);font-weight:700;font-size:11.5px}
+  .p{color:var(--part);font-weight:700;font-size:11.5px}
+  .n{color:var(--none);font-weight:700;font-size:11.5px}
+  .o{color:#64748b;font-weight:700;font-size:11.5px}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:5px;font-size:8.8px;color:#475569;align-items:center}
+  .legend span b{font-size:10.5px}
+  .bottom{display:flex;gap:8px;margin-top:7px}
+  .note{flex:1;border:1px dashed #c9d4e2;border-radius:6px;padding:6px 9px;font-size:9.1px;line-height:1.42;color:#334155}
+  .note b{color:#0f172a}
+  .note .hl{color:var(--accent2);font-weight:700}
+  .footer{display:flex;justify-content:space-between;margin-top:6px;padding-top:4px;border-top:1px solid var(--line);font-size:8.3px;color:#8291a5}
+  .no-print{position:fixed;right:18px;bottom:16px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:12px;cursor:pointer;box-shadow:0 4px 14px rgba(30,111,217,.35)}
+  @media print{
+    @page{size:A4 landscape;margin:0}
+    html,body{background:#fff}
+    .page{margin:0;box-shadow:none;width:1123px;min-height:0;padding:16px 20px 10px;zoom:.96}
+    .no-print{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="top">
+    <div class="title">
+      <h1>AstraAtmos 与相似市场产品对比 <small>Similar Products Comparison · 答辩一页版</small></h1>
+      <p>三层对标：行星/火星大气产品 · 地球气象平台与 AI 气象大模型 · ML 实验管理/科学可视化/云平台</p>
+    </div>
+    <div class="badge">公开官方来源 · 检索日期 2026-10-29</div>
+  </div>
+
+  <div class="position">
+    <b>定位句：</b>官方产品分别占据数据、模型生产、地表 GIS 与三维浏览、归档；AI 大模型提供固定契约的推理服务；ML 工具链解决单个环节。<b style="color:#0f766e">AstraAtmos 只补没有产品覆盖的那段——「多源行星大气数据治理 → ML 训练 → 预测/回测 → 严格对比与诊断」的 Web 实验闭环，定位是实验层/集成层，不是数据层、模型层或业务预报层。</b>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <h3>① 训练—预测—回测—评估闭环</h3>
+      <p>内置时空预测模型库 + 上传 PyTorch 模型契约 → 单/多模型预测 → Earth 历史回测（UTC origin_split、DU）、Mars Ls 最近邻选窗 → RMSE/MAE/R²/MAPE/SMAPE + 误差分布 + 残差 + PFI → 严格兼容多模型比较。<b>直接同类 0 家提供。</b></p>
+    </div>
+    <div class="card">
+      <h3>② 可复现的数据身份与比较口径</h3>
+      <p>数据集注册表（版本/发布指纹/409 身份校验）→ 上传 .nc 校验与审核 → checkpoint 冻结数据身份/归一化/split_meta → 比较强制同指纹·同范围·同窗口·同指标。<b>补上 MCD「不担保可靠性」与归档产品不覆盖的实验可信层。</b></p>
+    </div>
+    <div class="card">
+      <h3>③ 中文 Web 一体化 · 教学科研双用</h3>
+      <p>浏览器内置三维行星球体、观测台、分析工作台与 AI 解读；账号/审核/通知、中英文界面、Windows 分发/Linux 部署/可私有化。<b>对照 JMARS 桌面 Java、MCD Fortran 库、ParaView 单机、云平台按量计费。</b></p>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>产品（代表）</th>
+        <th>层</th>
+        <th>数据治理<br>身份/审核</th>
+        <th>三维 / Web<br>可视化</th>
+        <th>ML 训练</th>
+        <th>预测 /<br>回测</th>
+        <th>严格对比<br>/ 评估</th>
+        <th>诊断 /<br>可解释</th>
+        <th>多用户<br>/ 账号</th>
+        <th>行星<br>维度</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="self">
+        <td>AstraAtmos（自评）</td>
+        <td><span class="layer">三层</span></td>
+        <td><span class="y">●</span></td><td><span class="y">●</span></td><td><span class="y">●</span></td><td><span class="y">●</span></td><td><span class="y">●</span></td><td><span class="y">●</span><span class="n" style="font-size:7.5px">非因果</span></td><td><span class="y">●</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#475569">地+火</span></td>
+      </tr>
+      <tr>
+        <td>MCD v6.2 / OpenMARS（气候库·再分析）</td>
+        <td><span class="layer l1">L1</span></td>
+        <td><span class="n">✕</span></td><td><span class="p">◐</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="y">●</span></td>
+      </tr>
+      <tr>
+        <td>JMARS（行星 GIS）</td>
+        <td><span class="layer l1">L1</span></td>
+        <td><span class="n">✕</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#64748b">桌面</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">量测</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#64748b">多天体</span></td>
+      </tr>
+      <tr>
+        <td>NASA Solar System Treks</td>
+        <td><span class="layer l1">L1</span></td>
+        <td><span class="n">✕</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#64748b">Web3D+VR</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">距离/高程</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="y">●</span></td>
+      </tr>
+      <tr>
+        <td>NASA Eyes / MCMC</td>
+        <td><span class="layer l1">L1</span></td>
+        <td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">待核实</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#64748b">科普</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">模型输出</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="y">●</span></td>
+      </tr>
+      <tr>
+        <td>PDS / ESA PSA（归档）</td>
+        <td><span class="layer l1">L1</span></td>
+        <td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">归档标准</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="y">●</span></td>
+      </tr>
+      <tr>
+        <td>NASA Giovanni（在线分析）</td>
+        <td><span class="layer l2">L2</span></td>
+        <td><span class="n">✕</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">出图</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span></td><td><span class="n">✕</span></td>
+      </tr>
+      <tr>
+        <td>CDS/CAMS · GEE · Earth-2 数据平台</td>
+        <td><span class="layer l2">L2</span></td>
+        <td><span class="n">✕</span></td><td><span class="p">◐</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span></td><td><span class="n">✕</span></td>
+      </tr>
+      <tr>
+        <td>AIFS（ECMWF 业务 AI 预报）</td>
+        <td><span class="layer l2">L2</span></td>
+        <td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span><span style="font-size:7.5px;color:#64748b">内部训练</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#64748b">推理</span></td><td><span class="p">◐</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td>
+      </tr>
+      <tr>
+        <td>Pangu / WeatherNext / Aurora / Earth2Studio</td>
+        <td><span class="layer l2">L2</span></td>
+        <td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">权重/代码</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#64748b">推理/微调</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">WB2</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span></td><td><span class="n">✕</span></td>
+      </tr>
+      <tr>
+        <td>DestinE / WeatherBench 2</td>
+        <td><span class="layer l2">L2</span></td>
+        <td><span class="p">◐</span></td><td><span class="y">●</span></td><td><span class="n">✕</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#64748b">数字孪生</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#64748b">榜单</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td>
+      </tr>
+      <tr>
+        <td>W&amp;B / MLflow / DVC / ClearML</td>
+        <td><span class="layer l3">L3</span></td>
+        <td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">追踪/编排</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">指标</span></td><td><span class="n">✕</span></td><td><span class="y">●</span></td><td><span class="n">✕</span></td>
+      </tr>
+      <tr>
+        <td>ParaView / VAPOR / Panoply</td>
+        <td><span class="layer l3">L3</span></td>
+        <td><span class="n">✕</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#64748b">桌面</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">通用</span></td>
+      </tr>
+      <tr>
+        <td>PIE-Engine / GEOVIS Earth / SuperMap</td>
+        <td><span class="layer l3">L3</span></td>
+        <td><span class="p">◐</span></td><td><span class="y">●</span><span style="font-size:7.5px;color:#64748b">数字地球</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">待核实</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="y">●</span></td><td><span class="n">✕</span></td>
+      </tr>
+      <tr>
+        <td>ModelArts / 阿里云 PAI / 飞桨</td>
+        <td><span class="layer l3">L3</span></td>
+        <td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="y">●</span></td><td><span class="p">◐</span><span style="font-size:7.5px;color:#64748b">部署</span></td><td><span class="n">✕</span></td><td><span class="n">✕</span></td><td><span class="y">●</span></td><td><span class="n">✕</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="legend">
+    <span><b class="y">●</b> 具备</span>
+    <span><b class="p">◐</b> 部分/受限</span>
+    <span><b class="o">○</b> 间接（依赖上游）</span>
+    <span><b class="n">✕</b> 无</span>
+    <span>层：L1 行星/火星 · L2 地球气象与 AI · L3 平台化工具（功能形态对比，不作精度评价；机构自述数据不计入）</span>
+  </div>
+
+  <div class="bottom">
+    <div class="note">
+      <b>组合能否替代？</b>能替代「零件」，不能替代「闭环」。W&amp;B/MLflow 只记 run，DVC 只记版本，<span class="hl">都不承载发布指纹/审核/身份校验</span>；ParaView/VAPOR 桌面单机、与训练指标无联动；Giovanni/Earth Engine 不接受上传数据、不做训练与回测；AI 大模型只给固定契约的推理/权重（AIFS 仅开放推理数据；Pangu 权重 CC BY-NC-SA 4.0，官方自述全量训练约 60TB ERA5 + 3000 GPU-days V100）。6 个断点：数据身份、领域语义（Ls/UTC）、评测链（回测/残差 DU/PFI/严格比较）、无 Web 行星三维、供应整合（W&amp;B→CoreWeave 2025-05、Neptune→OpenAI 2025、DVC→lakeFS 2025）、胶水成本。
+    </div>
+    <div class="note" style="flex:0 0 318px">
+      <b>答辩三条红线：</b>不说精度/收敛优势（未验收）；不把三维可视化当原创（Treks/Eyes/JMARS 已有）；不把「有行星数据」当卖点（OpenMARS/MCD/NOMAD/MERRA-2 全公开）。<b>可演示证据：</b>数据集版本/指纹 → checkpoint 冻结身份 → 同口径多模型比较（不兼容 409）→ 残差/PFI → 科研图 + MATLAB 重建脚本。
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>来源：各产品官方站点/官方博客（检索日期 2026-10-29）；功能形态为公开信息对照，完整条目与标注见 docs/competition-market-comparison.md</span>
+    <span>AstraAtmos · 行星大气实验室</span>
+  </div>
+</div>
+
+<button class="no-print" onclick="window.print()">打印 / 导出 PDF（A4 横向）</button>
+</body>
+</html>

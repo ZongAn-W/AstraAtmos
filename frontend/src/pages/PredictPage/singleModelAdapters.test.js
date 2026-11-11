@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createEarthPredictionAdapter, createMarsPredictionAdapter, earthResponseMatchesRequest, normalizeEarthPrediction, utcInputValue, utcOriginValue } from './singleModelAdapters.js';
+import { createEarthPredictionAdapter, createMarsPredictionAdapter, earthResponseMatchesRequest, marsResponseMatchesTask, normalizeEarthPrediction, utcInputValue, utcOriginValue } from './singleModelAdapters.js';
 
 const field = value => ({ field: [[value, value + 1], [value + 2, value + 3]], minVal: value, maxVal: value + 3 });
 const context = { task_id: 3, planet: 'earth', dataset_id: 'earth_merra2_3hourly_v1', dataset_version: 'v1', dataset_fingerprint: 'f',
+  target_variable: 'TO3', input_variables: ['TO3', 'SWGDN'],
   target_unit: 'DU', window: 2, horizon: 2, grid: { latitude: [-41, 37], longitude: [-123, 89], latitude_range: [-90,90], longitude_range: [-180,180] },
   model: { model_source: 'official', model_architecture: 'dlinear' },
   origins: { timestamps: ['2021-01-01T01:30:00Z'], start: '2021-01-01T01:30:00Z', end: '2021-01-01T01:30:00Z' } };
@@ -46,6 +47,15 @@ test('old Earth responses are rejected after account, task, origin, artifact, gr
   }
 });
 
+test('Earth responses must keep the selected target and complete input order', () => {
+  const request = { taskId: 3, origin: result.forecast_origin, context, scope: 'user:1' };
+  assert.equal(earthResponseMatchesRequest({ ...result, target_variable: 'TO3', input_variables: ['TO3', 'SWGDN'] }, request, 'user:1'), true);
+  assert.equal(earthResponseMatchesRequest({ ...result, target_variable: 'T2M', target_unit: 'K', input_variables: ['SWGDN'] }, request, 'user:1'), false);
+  const partial = { ...result };
+  delete partial.input_variables;
+  assert.equal(earthResponseMatchesRequest(partial, request, 'user:1'), false);
+});
+
 test('Mars keeps its API body, horizon bounds, Ls labels and display-only DU conversion', () => {
   const adapter = createMarsPredictionAdapter({horizonLimit:7,ozoneUnit:'DU'});
   assert.deepEqual(adapter.request({taskId:4,origin:90,horizon:3,variables:['O3']}),
@@ -55,4 +65,15 @@ test('Mars keeps its API body, horizon bounds, Ls labels and display-only DU con
   assert.equal(adapter.convertValue(10),1);
   assert.match(adapter.stepLabel({ls_values:[94]},0), /Ls=94.000°/);
   assert.equal(adapter.capabilities.diagnosticExport,true);
+});
+
+test('Mars response metadata must match the selected task target and input order', () => {
+  const task = { target_variable: 'T', input_variables: ['O3', 'U'] };
+  assert.equal(marsResponseMatchesTask({ target_variable: 'T', target_unit: 'K', input_variables: ['O3', 'U'] }, { task }), true);
+  assert.equal(marsResponseMatchesTask({ target_variable: 'O3', target_unit: 'um-atm', input_variables: ['O3', 'U'] }, { task }), false);
+  assert.equal(marsResponseMatchesTask({ target_variable: 'O3', target_unit: 'um-atm', input_variables: ['O3'] }, { task: { target_variable: 'O3', input_variables: ['O3'] } }), true);
+  assert.equal(marsResponseMatchesTask({ target_variable: 'T', target_unit: 'K' }, { task: { target_variable: 'T', target_unit: 'K', input_variables: ['O3'] } }), false);
+  assert.equal(marsResponseMatchesTask({ target_variable: 'O3' }, { task: { target_variable: 'O3' } }), false);
+  assert.equal(marsResponseMatchesTask({ ground_truth: [] }, { task: {} }), true);
+  assert.equal(marsResponseMatchesTask({ target_unit: 'um-atm' }, { task: {} }), false);
 });

@@ -26,7 +26,7 @@ export default function PermutationImportanceChart({ data, loading, plotTextColo
     hovertemplate: `%{y}: %{x${hoverDigits}} ${model.unitLabel}<extra></extra>`,
   };
   return <PredictionChartCard title={model.title} subtitle={model.scopeText} scope={model.scope} note={model.helpText}
-    action={model.exportEnabled ? <ResearchExportButton sources={[model.exportRef]} kind="pfi" disabled={loading} /> : null}>
+    action={model.exportEnabled ? <ResearchExportButton sources={[model.exportRef]} kind="pfi" disabled={loading} targetVariable={config.targetVariable} targetUnit={config.targetUnit} /> : null}>
     <div className="prediction-chart-scores" data-pfi-axis-label={model.axisLabel}>{model.baselineLabel}: {Number.isFinite(model.baseline)
       ? fmtNum(model.baseline, decimals) : '—'} {model.unitLabel}</div>
     {loading ? <div className="prediction-chart-skeleton" role="status" aria-label={t('predict.generatingHint')} />

@@ -120,6 +120,8 @@ def test_http_context_preserves_utc_datetimes_and_publishes_complete_origins(thr
     assert body["timestamp_rule"] == "interval_center"
     assert (body["window"], body["horizon"]) == (56, 24)
     assert body["target"] == "TO3" and body["target_unit"] == "DU"
+    assert body["target_variable"] == body["target"]
+    assert body["input_variables"] == body["input_channel_order"]
     assert body["grid"]["shape"] == [240, 480]
     assert body["origins"]["count"] == 161
     assert body["origins"]["timestamps"][0] == "2020-01-07T22:30:00Z"

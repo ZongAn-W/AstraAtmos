@@ -32,6 +32,18 @@
 .ui-skeleton--line { height: 8px; }
 .ui-skeleton--block { height: 96px; border-radius: var(--radius-control); }
 
+/* 列表级骨架：目录、矩阵等列表加载时先占位，避免先闪一行文字再跳成列表 */
+.ui-skeleton-list,
+.experiment-directory-skeleton,
+.experiment-matrix-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.experiment-directory-skeleton { margin-bottom: 10px; }
+
 @keyframes motion-collapse {
   from { opacity: 1; max-height: 320px; transform: translateY(0); }
   to { opacity: 0; max-height: 0; transform: translateY(-6px); }

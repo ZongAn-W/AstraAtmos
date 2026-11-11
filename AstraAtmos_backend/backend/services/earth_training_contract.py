@@ -9,8 +9,8 @@ different model than the user asked for.
 This module is the single authority for:
 
 * dataset-selected profiles for the retained daily and new three-hour releases;
-* the canonical input channel order (``TO3`` first, then the four optional
-  auxiliary variables in a fixed order);
+* explicit input variables and a single target in published variable order;
+* historical ``selected_channels`` requests retaining TO3 as the first input;
 * retained daily windows and configurable three-hour windows (default 56 -> 24);
 * strict parameter validation with stable :class:`DatasetRequestError` codes.
 
@@ -49,7 +49,7 @@ EARTH_MODEL_SOURCES = ("official", "uploaded")
 EARTH_IMPLEMENTATION_ID = "astraatmos_gridpoint_dlinear_v1"
 EARTH_3HOURLY_IMPLEMENTATION_ID = "astraatmos_gridpoint_dlinear_3hourly_v1"
 
-#: The target is always total column ozone, always the first model input.
+#: Historical/default target; explicit forecast tasks may select any Earth variable.
 EARTH_TARGET_CHANNEL = "TO3"
 EARTH_TARGET_UNIT = "DU"
 EARTH_CHANNELS = ("TO3", "U10M", "V10M", "T2M", "SWGDN")
@@ -150,11 +150,13 @@ EARTH_LEARNING_RATE = (0.0, 1.0, 0.001)
 
 #: Hyperparameter keys an Earth request may carry. Anything else is rejected so
 #: a client cannot smuggle a device path, a split override, normalisation
-#: statistics, a replacement target or an internal ``_`` field into the run.
+#: statistics or an internal ``_`` field into the run.
 EARTH_ALLOWED_PARAMETER_KEYS = frozenset({
     "training_dataset",
     "model_architecture",
     "selected_channels",
+    "target_variable",
+    "input_variables",
     "window",
     "horizon",
     "epochs",
@@ -236,7 +238,61 @@ def earth_training_profile(dataset_id: Any = None, hyperparameters: Optional[Map
         for key in ("window", "horizon"):
             profile[key] = _strict_int(key, (hyperparameters or {}).get(key),
                                        *profile[f"{key}_bounds"], profile[key])
+        target, _ = earth_variable_selection(hyperparameters)
+        profile.update(target=target, target_unit=EARTH_CHANNEL_UNITS[target],
+                       supported_targets=list(EARTH_CHANNELS), input_variables=list(EARTH_CHANNELS))
     return profile
+
+
+def earth_variable_selection(hyperparameters: Optional[Mapping[str, Any]] = None) -> tuple[str, list[str]]:
+    """Resolve a single target and full inputs; omitted new fields keep ozone semantics."""
+    hypers = hyperparameters or {}
+    target = hypers.get("target_variable", EARTH_TARGET_CHANNEL)
+    if not isinstance(target, str) or target.strip().upper() not in EARTH_CHANNELS:
+        raise DatasetRequestError("invalid_earth_training_parameters", "Unsupported Earth target_variable", status_code=422)
+    target = target.strip().upper()
+    if "input_variables" not in hypers:
+        return target, canonical_channel_order(hypers.get("selected_channels"))
+    return target, canonical_earth_inputs(hypers["input_variables"])
+
+
+def canonical_earth_inputs(values: Any) -> list[str]:
+    """Validate an explicit nonempty full input list without inserting a target."""
+    if not isinstance(values, (list, tuple)) or not values:
+        raise DatasetRequestError("invalid_earth_training_parameters", "input_variables must be a nonempty list", status_code=422)
+    names = []
+    for value in values:
+        if not isinstance(value, str) or value.strip().upper() not in EARTH_CHANNELS:
+            raise DatasetRequestError("invalid_earth_training_parameters", f"Unsupported Earth input variable: {value}", status_code=422)
+        name = value.strip().upper()
+        if name in names:
+            raise DatasetRequestError("invalid_earth_training_parameters", f"Duplicate Earth input variable: {name}", status_code=422)
+        names.append(name)
+    return [name for name in EARTH_CHANNELS if name in names]
+
+
+resolve_earth_variables = earth_variable_selection
+
+
+def require_earth_uploaded_forecast_compatibility(report, target_variable, input_variables, *, dataset_id):
+    """Require admission evidence for the exact variable configuration of an upload."""
+    report = report if isinstance(report, Mapping) else {}
+    block = (report.get("earth_datasets") or report.get("earth_compatibilities") or {}).get(dataset_id, report)
+    if not isinstance(block, Mapping):
+        block = {}
+    inputs = canonical_earth_inputs(input_variables)
+    configuration = {"target_variable": target_variable, "input_variables": inputs}
+    proof = block.get("forecast_configurations")
+    if proof is not None:
+        if block.get("compatible") is True and configuration in proof:
+            return
+    elif (block.get("compatible") is True and target_variable == EARTH_TARGET_CHANNEL
+          and inputs[0] == EARTH_TARGET_CHANNEL):
+        # Saved ozone-only reports predate the additive matrix; their established
+        # validator already exercised every TO3 + auxiliary subset.
+        return
+    raise DatasetRequestError("uploaded_model_forecast_configuration_unsupported",
+                              "Revalidate an uploaded model that declares this target and input combination", status_code=409)
 
 
 def is_earth_dataset_id(dataset_id: Any) -> bool:
@@ -455,6 +511,9 @@ def normalize_earth_training_hyperparameters(
         for name in canonical_channel_order(hypers.get("selected_channels"))
         if name != EARTH_TARGET_CHANNEL
     ]
+    if "target_variable" in hypers or "input_variables" in hypers:
+        target, inputs = earth_variable_selection(hypers)
+        normalized.update(target_variable=target, input_variables=inputs)
     # Uploaded-model parameter values are carried through as a plain mapping; the
     # values were already checked against the package's own schema, and the pinned
     # reference decides what the runner actually builds.
@@ -702,6 +761,10 @@ __all__ = [
     "EARTH_WINDOW",
     "build_earth_training_spec",
     "canonical_channel_order",
+    "canonical_earth_inputs",
+    "earth_variable_selection",
+    "resolve_earth_variables",
+    "require_earth_uploaded_forecast_compatibility",
     "earth_training_profile",
     "earth_3hourly_metrics_contract",
     "earth_task_metrics_contract",

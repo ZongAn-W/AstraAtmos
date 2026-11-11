@@ -141,6 +141,14 @@ def _normalize_validation_report(value: str | None) -> dict[str, Any]:
                 "compatible": bool(value.get("compatible")) if isinstance(value, dict) else False,
                 "errors": _normalize_string_list(value.get("errors")) if isinstance(value, dict) else [],
                 "output_shape": _normalize_output_shape(value.get("output_shape")) if isinstance(value, dict) else None,
+                "supported_targets": _normalize_string_list(value.get("supported_targets")) if isinstance(value, dict) and "supported_targets" in value else None,
+                "supports_independent_inputs": value.get("supports_independent_inputs") is True if isinstance(value, dict) else False,
+                "input_variable_sets": value.get("input_variable_sets") if isinstance(value, dict) else None,
+                "forecast_configurations": [
+                    {"target_variable": str(item.get("target_variable", "")),
+                     "input_variables": _normalize_string_list(item.get("input_variables"))}
+                    for item in value.get("forecast_configurations", []) if isinstance(item, dict)
+                ] if isinstance(value, dict) and isinstance(value.get("forecast_configurations"), list) else None,
             }
             for dataset_id, value in earth_datasets.items()
         }

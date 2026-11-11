@@ -72,6 +72,8 @@ test('reads every strict-loading structure field from an official recurrent task
     selectedUploadedModelId: '',
     customModelParams: {},
     selectedChannels: ['U', 'D'],
+    targetVariable: 'O3',
+    inputVariables: ['O3', 'U', 'D'],
     modelArchitecture: 'predrnnv2',
     useSphere: true,
     hiddenDims: [48, 64, 96],

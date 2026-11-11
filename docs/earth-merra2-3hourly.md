@@ -1,5 +1,7 @@
 # Earth MERRA-2 三小时数据构建、注册、训练与历史回测
 
+> 环境变量预测：新实验可独立选择完整输入和 TO3/U10M/V10M/T2M/SWGDN 中的一个目标；旧请求省略新字段时仍按 TO3 契约执行。目标归一化、checkpoint、诊断与导出随目标单位变化，详见[环境变量预测](environment-variable-forecasting.md)。
+
 上传模型新增可选[全图 v2 契约](earth-3hourly-fullgrid-model.md)，一次接收完整全球图，batch 按全球时间窗口计且为 1–64（默认 1，需实测显存容量）。本文下方 24×48/100 块说明适用于官方 DLinear 与 v1 上传模型；v2 不做空间分块并使用带版本的 time-major 全图缓存，验证/test 仍覆盖全部窗口和格点。旧任务不自动迁移。
 
 `earth_merra2_3hourly_v1` 是地球唯一活动数据集，已接入目录、分块校验、官方 DLinear / 独立契约上传模型 56→24 训练与历史回测 API。总览提供 UTC 时间选择、播放、地图、原生点位与三小时源日聚合的年度分析；预测展示 UTC 起点和 24 个 lead。自 2026-10-08 起日频 v1/v2 运行接口均返回 409 `dataset_retired`，旧任务及产物仅归档、不自动迁移；详见[停用约定](earth-dataset-retirement.md)。下文涉及日频可用性和兼容回归的阶段记录为历史验证。

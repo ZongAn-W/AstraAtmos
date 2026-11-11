@@ -1,4 +1,5 @@
 import { createPredictRequestCoordinator } from './predictRequestCoordinator.js';
+import { environmentIdentityMetadata, resolveEnvironmentTask } from '../../utils/environmentVariables.js';
 
 export const EARTH_DIAGNOSTIC_DEFAULTS = Object.freeze({
   sample_windows: 4, scatter_points: 5000, histogram_bins: 40,
@@ -61,14 +62,14 @@ export function earthDiagnosticErrorText(error, fallback = 'Diagnostics failed')
 }
 
 /** Pairing is checked before plotting; invalid values are never quietly filtered. */
-export function earthDiagnosticScatter(scatter) {
+export function earthDiagnosticScatter(scatter, expectedUnit = 'DU') {
   const reference = scatter?.reference;
   const prediction = scatter?.prediction;
   if (!Array.isArray(reference) || !Array.isArray(prediction) || reference.length !== prediction.length) {
     throw new Error('Invalid paired scatter data');
   }
   if (!reference.length) throw new Error('No valid diagnostic scatter samples');
-  if (scatter.unit != null && scatter.unit !== 'DU') throw new Error('Diagnostic scatter must use DU');
+  if (scatter.unit != null && scatter.unit !== expectedUnit) throw new Error(`Diagnostic scatter must use ${expectedUnit}`);
   if (scatter.point_count != null && scatter.point_count !== reference.length) {
     throw new Error('Diagnostic scatter count does not match its paired samples');
   }
@@ -85,7 +86,7 @@ export function earthDiagnosticScatter(scatter) {
   return { reference, prediction, range: [min - padding, max + padding] };
 }
 
-export function earthDiagnosticHistogram(histogram, expectedCount = null) {
+export function earthDiagnosticHistogram(histogram, expectedCount = null, expectedUnit = 'DU') {
   const { edges, counts } = histogram || {};
   if (!Array.isArray(edges) || !Array.isArray(counts) || edges.length !== counts.length + 1 || !counts.length) {
     throw new Error('Invalid diagnostic histogram bins');
@@ -95,7 +96,7 @@ export function earthDiagnosticHistogram(histogram, expectedCount = null) {
     throw new Error('Invalid diagnostic histogram values');
   }
   if (!counts.some((n) => n > 0)) throw new Error('No valid diagnostic residual samples');
-  if (histogram.unit != null && histogram.unit !== 'DU') throw new Error('Diagnostic residuals must use DU');
+  if (histogram.unit != null && histogram.unit !== expectedUnit) throw new Error(`Diagnostic residuals must use ${expectedUnit}`);
   if (histogram.residual_definition != null && histogram.residual_definition !== 'prediction-reference') {
     throw new Error('Diagnostic residual definition must be prediction-reference');
   }
@@ -111,8 +112,10 @@ export function earthDiagnosticHistogram(histogram, expectedCount = null) {
 
 export function earthDiagnosticIdentityKey(taskId, identity = {}) {
   identity = identity || {};
+  const environment = resolveEnvironmentTask(identity, 'earth');
   return JSON.stringify([Number(taskId), identity.dataset_id, identity.dataset_fingerprint, identity.dataset_version,
-    identity.window, identity.horizon, identity.input_channel_order, identity.task_split, identity.model,
+    environment.target, environment.unit,
+    identity.window, identity.horizon, environment.inputs, identity.task_split, identity.model,
     identity.output_model_path, identity.checkpoint_sha256, identity.hyperparameters,
     identity.metrics?.split_ranges, identity.metrics?.split_policy, identity.metrics?.task_split]);
 }
@@ -125,12 +128,22 @@ export function earthDiagnosticRequestKey(taskId, identity, parameters, userId) 
 export function earthDiagnosticMatchesIdentity(payload, identity = {}) {
   identity = identity || {};
   if (payload?.planet != null && payload.planet !== 'earth') return false;
-  if (payload?.target_unit != null && payload.target_unit !== 'DU') return false;
+  const target = resolveEnvironmentTask(identity, 'earth');
+  const payloadTarget = resolveEnvironmentTask(payload, 'earth');
+  const identityMetadata = environmentIdentityMetadata(identity);
+  const payloadMetadata = environmentIdentityMetadata(payload);
+  if (identityMetadata.complete && !payloadMetadata.complete) return false;
+  if (payload?.target_unit != null && payload.target_unit !== target.unit) return false;
+  if (payloadTarget.target !== target.target) return false;
   for (const key of ['dataset_id', 'dataset_version', 'dataset_fingerprint', 'window', 'horizon', 'checkpoint_sha256']) {
     if (identity[key] != null && payload?.[key] !== identity[key]) return false;
   }
-  if (Array.isArray(identity.input_channel_order)
-    && JSON.stringify(payload?.input_channel_order) !== JSON.stringify(identity.input_channel_order)) return false;
+  const identityDeclaresInputs = [identity.input_variables, identity.input_channel_order]
+    .some((value) => Array.isArray(value) && value.length > 0);
+  const payloadDeclaresInputs = [payload?.input_variables, payload?.input_channel_order]
+    .some((value) => Array.isArray(value) && value.length > 0);
+  if (identityDeclaresInputs
+    && (!payloadDeclaresInputs || JSON.stringify(payloadTarget.inputs) !== JSON.stringify(target.inputs))) return false;
   return true;
 }
 

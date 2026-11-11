@@ -12,12 +12,13 @@ export function fmtVal(v, precision = 3) { return fmtNum(v, precision); }
 
 // ─── Canvas 场热力图（带坐标轴 + Colorbar） ───
 
-export function FieldCanvas({ fieldData, colorMode = 'inferno', h = 240, colorRange }) {
+export function FieldCanvas({ fieldData, colorMode = 'inferno', h = 240, colorRange, presentation }) {
   const canvasRef = useRef(null);
   const t = useT();
   const { settings } = useSettings();
   const colormapName = settings.colormap;
   const ozoneUnit = settings.units.ozone;
+  const convertValue = presentation?.convertValue || (value => convertOzone(value, ozoneUnit));
   const precision = settings.precision;
   const theme = settings.theme;
   const fontScale = normalizeFontScale(settings.appearance?.uiScale);
@@ -168,9 +169,9 @@ export function FieldCanvas({ fieldData, colorMode = 'inferno', h = 240, colorRa
     ctx.textAlign = 'left';
     ctx.fillStyle = cbLabelColor;
     ctx.font = buildCanvasFont(11, { scale: fontScale });
-    const topLabel = colorMode === 'rdbu' ? `+${fmtVal(convertOzone(absMax, ozoneUnit), precision)}` : fmtVal(convertOzone(dMax, ozoneUnit), precision);
-    const midLabel = colorMode === 'rdbu' ? fmtVal(0, precision) : fmtVal(convertOzone((dMin + dMax) / 2, ozoneUnit), precision);
-    const botLabel = colorMode === 'rdbu' ? `-${fmtVal(convertOzone(absMax, ozoneUnit), precision)}` : fmtVal(convertOzone(dMin, ozoneUnit), precision);
+    const topLabel = colorMode === 'rdbu' ? `+${fmtVal(convertValue(absMax), precision)}` : fmtVal(convertValue(dMax), precision);
+    const midLabel = colorMode === 'rdbu' ? fmtVal(0, precision) : fmtVal(convertValue((dMin + dMax) / 2), precision);
+    const botLabel = colorMode === 'rdbu' ? `-${fmtVal(convertValue(absMax), precision)}` : fmtVal(convertValue(dMin), precision);
     ctx.fillText(topLabel, lbX, MT + 8);
     ctx.fillText(midLabel, lbX, MT + cbH / 2 + 3);
     ctx.fillText(botLabel, lbX, MT + cbH);
@@ -182,10 +183,10 @@ export function FieldCanvas({ fieldData, colorMode = 'inferno', h = 240, colorRa
     ctx.textAlign = 'center';
     ctx.fillStyle = cbTitleColor;
     ctx.font = buildCanvasFont(11, { scale: fontScale });
-    ctx.fillText(colorMode === 'rdbu' ? ozoneDeltaLabel(ozoneUnit) : ozoneLabel(ozoneUnit), 0, 0);
+    ctx.fillText(colorMode === 'rdbu' ? (presentation?.deltaUnit || ozoneDeltaLabel(ozoneUnit)) : (presentation?.unit || ozoneLabel(ozoneUnit)), 0, 0);
     ctx.restore();
 
-  }, [fieldData, colorMode, h, colormapName, ozoneUnit, precision, theme, fontScale, colorRange?.min, colorRange?.max, t]);
+  }, [fieldData, colorMode, h, colormapName, ozoneUnit, precision, theme, fontScale, colorRange?.min, colorRange?.max, t, presentation]);
 
   return (
     <div style={{ borderRadius: isLight ? 10 : 0, overflow: 'hidden', background: 'transparent', display: 'flex', justifyContent: 'center' }}>
@@ -205,17 +206,19 @@ export function FieldCanvas({ fieldData, colorMode = 'inferno', h = 240, colorRa
 export function LoadingBox({ h = 240 }) {
   const t = useT();
   return (
-    <div style={{
-      height: h, display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(255,255,255,0.02)', borderRadius: 8,
-    }}>
-      <div style={{
-        width: 28, height: 28, border: `3px solid ${C.border}`,
-        borderTop: `3px solid ${C.mars}`, borderRadius: '50%',
-        animation: 'spin-slow 0.9s linear infinite',
-      }} />
-      <div style={{ marginTop: 10, fontSize: 'calc(12px * var(--font-scale, 1))', color: C.ice30 }}>{t('predict.computing')}</div>
+    <div
+      data-predict-loading="true"
+      style={{
+        height: h, display: 'flex', flexDirection: 'column',
+        alignItems: 'stretch', justifyContent: 'center', gap: 10,
+        padding: '0 18%',
+        background: 'rgba(255,255,255,0.02)', borderRadius: 8,
+      }}
+    >
+      {/* 用骨架块表示「正在计算」，比转圈更贴近最终内容的形状 */}
+      <span className="ui-skeleton" style={{ height: '58%', borderRadius: 8 }} />
+      <span className="ui-skeleton ui-skeleton--line" style={{ width: '46%', alignSelf: 'center' }} />
+      <div style={{ alignSelf: 'center', fontSize: 'calc(12px * var(--font-scale, 1))', color: C.ice30 }}>{t('predict.computing')}</div>
     </div>
   );
 }

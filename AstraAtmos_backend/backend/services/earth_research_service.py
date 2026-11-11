@@ -364,7 +364,7 @@ def compute_spatial_diagnostics(
     The reference for every grid point is the equal-longitude mean of its own
     row, so ``sum_j anomaly[i, j]`` is zero for every latitude row by
     construction. ``rms`` uses the spherical cell weights restricted to the
-    band rows.
+    band rows, with each row weight repeated for every longitude cell.
     """
     values = _finite_array(field_tij, name="Field", ndim=3)
     latitude_values = np.asarray(latitude, dtype="float64")
@@ -394,7 +394,8 @@ def compute_spatial_diagnostics(
             continue
         selected = anomaly[indexes, :]
         weights = band_weights[indexes][:, None]
-        rms = float(np.sqrt(np.sum(weights * selected ** 2) / np.sum(weights)))
+        total_cell_weight = selected.shape[1] * np.sum(weights)
+        rms = float(np.sqrt(np.sum(weights * selected ** 2) / total_cell_weight))
         bands.append({
             "id": band_id,
             "rms": rms,

@@ -1,5 +1,7 @@
 # Uploaded Model Training
 
+> Multi-variable forecasting: new Mars experiments independently freeze `target_variable` and the complete `input_variables` list; legacy auxiliary-only configurations retain their O3-first meaning. Earth uploads need explicit capability declarations and validated forecast configurations. See [environment variable forecasting](environment-variable-forecasting.md).
+
 Trusted lab users can upload a single Python file from the model training page and train it with the platform datasets.
 
 The platform owns data loading, normalization, batching, the training loop, metrics, checkpoints, logs, and model testing. The uploaded file only defines the PyTorch architecture and a small parameter schema.
@@ -69,7 +71,7 @@ Any custom fields declared in `MODEL_SPEC["parameters"]` are also included in `c
 ## Mars Input Channels and Checkpoints
 
 For Mars, `selected_channels` contains only user-selected auxiliary inputs, such as
-`["U", "D"]`. O3 is the fixed prediction target and the first input channel. The
+`["U", "D"]`. In the legacy contract, O3 is the prediction target and the first input channel; new configurations use `target_variable` and `input_variables`. The
 complete model input order is `["O3", *selected_channels]`: selecting no auxiliaries
 still supplies one O3 channel, and selecting U supplies `["O3", "U"]`.
 
@@ -84,7 +86,7 @@ non-positive input scales. Providing invalid saved normalization never silently
 refits it.
 
 Inference applies input statistics in that exact order, and independently uses
-`target_mean` and `target_scale` to restore predicted O3 values (with the existing
+`target_mean` and `target_scale` to restore the selected target values (with the existing
 `1e-6` scale epsilon). A constant target can retain `target_scale=0`; input scales
 must remain positive. Scaled-volume caches include checkpoint statistics so two
 tasks with the same data and channels cannot reuse each other's normalization.

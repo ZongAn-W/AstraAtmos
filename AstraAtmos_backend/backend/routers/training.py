@@ -32,11 +32,24 @@ training_weight_service = TrainingWeightService()
 training_tag_service = TrainingTagService()
 
 
-async def _serialize_tasks(tasks, current_user: User) -> list[TrainingTaskResponse]:
+async def _serialize_tasks(tasks, current_user: User, *, summary: bool = False) -> list[TrainingTaskResponse]:
     task_tags = await training_tag_service.get_task_tags([task.id for task in tasks], current_user.id)
-    return [TrainingTaskResponse.model_validate(task).model_copy(update={
-        "tags": [TrainingTagResponse(**tag) for tag in task_tags[task.id]],
-    }) for task in tasks]
+    responses = []
+    for task in tasks:
+        payload = task
+        if summary:
+            # List consumers need identity metadata, not the spatial normalization
+            # arrays in the frozen snapshot. Skip it before schema validation so
+            # summary requests neither decode nor transmit that large JSON field.
+            payload = {
+                name: getattr(task, name)
+                for name in TrainingTaskResponse.model_fields
+                if name not in {"dataset_snapshot", "tags"} and hasattr(task, name)
+            }
+        responses.append(TrainingTaskResponse.model_validate(payload).model_copy(update={
+            "tags": [TrainingTagResponse(**tag) for tag in task_tags[task.id]],
+        }))
+    return responses
 
 
 def _tag_error(exc: Exception) -> HTTPException:
@@ -250,11 +263,12 @@ async def start_training(
 
 
 @router.get("/training/tasks", response_model=List[TrainingTaskResponse])
-async def get_tasks(current_user: User = Depends(get_current_user)):
+async def get_tasks(current_user: User = Depends(get_current_user), summary: bool = False):
+    """List visible tasks; summary omits only the frozen dataset snapshot."""
     tasks = await training_service.get_all_tasks()
     if not _is_admin(current_user):
         tasks = [task for task in tasks if task.user_id == current_user.id]
-    return await _serialize_tasks(tasks, current_user)
+    return await _serialize_tasks(tasks, current_user, summary=summary)
 
 
 @router.patch("/training/tasks/{task_id}/name", response_model=TrainingTaskResponse)

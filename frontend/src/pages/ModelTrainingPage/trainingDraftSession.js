@@ -37,6 +37,8 @@ function initialScene(dataset, defaults) {
     modelArchitecture: earth ? EARTH_MODEL_ARCHITECTURE : 'predrnnv2',
     useSphere: false,
     selectedChannels: earth ? [...EARTH_OPTIONAL_CHANNELS] : [],
+    targetVariable: earth ? 'TO3' : 'O3',
+    inputVariables: earth ? ['TO3', ...EARTH_OPTIONAL_CHANNELS] : ['O3'],
     hiddenDims: [64, 64, 64],
     stlstmLayers: 3,
     architectureParamsByModel: createDefaultArchitectureParamsByModel(),

@@ -45,7 +45,7 @@ export default function ErrorDistributionChart({ data, predictionResult, step = 
   return <div className="prediction-chart-grid" data-predict-distribution="true" data-field-unit={unit}>
     {scatter ? <PredictionChartCard title={zh ? '参考与预测散点' : 'Reference vs prediction'}
       subtitle={scatter.scopeText} scope={scatter.scope} note={scatter.note}
-      action={scatter.exportEnabled ? <ResearchExportButton sources={[scatter.exportRef]} kind="scatter" step={step} /> : null}>
+      action={scatter.exportEnabled ? <ResearchExportButton sources={[scatter.exportRef]} kind="scatter" step={step} targetVariable={config.targetVariable} targetUnit={unit} /> : null}>
       {plot([
         { x: scatter.reference, y: scatter.prediction, type: 'scattergl', mode: 'markers',
           marker: { color: roleColors.prediction, size: 3, opacity: .65 },

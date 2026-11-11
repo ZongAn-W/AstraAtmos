@@ -15,7 +15,7 @@ const en = {
   },
 
   footer: {
-    copyright: '© 2025 AstraAtmos',
+    copyright: '© 2026 AstraAtmos',
     powered: 'OpenMARS · MCD 6.1 · MERRA-2 · PyTorch',
   },
 
@@ -1050,7 +1050,7 @@ const en = {
     analysisSelection: 'Analysis',
     planet: { earth: 'Earth', mars: 'Mars' },
     analysis: { single: 'Single model', compare: 'Compare models' },
-    earthCompareNote: 'Full test set: MSE (DU²), RMSE/MAE (DU), R² (dimensionless), MAPE/SMAPE (%). Models must share the same release, input/output windows and test windows; missing legacy values are excluded from ranking.',
+    earthCompareNote: 'Full test set: MSE uses squared target units, RMSE/MAE use target units, R² is dimensionless, and MAPE/SMAPE are percentages. Models must predict the same variable and share the same release, input/output windows and test windows; missing legacy values are excluded from ranking.',
     earthComparisonIncompatible: 'Selected models use different dataset releases, test windows or metric policies and cannot be compared.',
     earthTaskLabel: 'Earth training task',
     earthTaskPlaceholder: 'Select a completed Earth task',
@@ -1324,6 +1324,8 @@ const en = {
       horizon: 'HORIZON',
       early_stopping_patience: 'EARLY STOPPING_PATIENCE',
       selected_channels: 'SELECTED CHANNELS',
+      target_variable: 'Prediction target',
+      input_variables: 'Input variables',
       model_architecture: 'MODEL ARCHITECTURE',
       use_sphere: 'SPHERE MODULE',
       spatial_hidden_dim: 'SPATIAL HIDDEN DIM',

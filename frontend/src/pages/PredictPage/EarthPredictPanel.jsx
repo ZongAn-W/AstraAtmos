@@ -34,10 +34,10 @@ export default function EarthPredictPanel({ adapter, context, result, loading, s
     })?.split_meta || null;
     return { ...adapter,
       presentation: { ...adapter.presentation,
-        metrics: createEarthPredictionPresentation({ isZh, colormap, splitLabelSource }).metrics },
+        metrics: createEarthPredictionPresentation({ isZh, colormap, context, splitLabelSource }).metrics },
       secondaryMetrics: context ? {
         data: context.metrics?.splits?.test,
-        presentation: createEarthPredictionPresentation({ isZh, colormap, scope: 'full_test', splitLabelSource }).metrics,
+        presentation: createEarthPredictionPresentation({ isZh, colormap, context, scope: 'full_test', splitLabelSource }).metrics,
       } : null };
   }, [adapter, colormap, context, isZh]);
   return <div className="earth-predict-panel" data-earth-predict-panel="true">

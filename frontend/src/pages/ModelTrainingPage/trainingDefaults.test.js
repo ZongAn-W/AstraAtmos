@@ -174,7 +174,7 @@ test('new experiments apply current defaults while copied configurations keep ta
   assert.match(createHandler, /normalizeTrainingDefaults\(settings\.trainingDefaults\)/);
   [
     'setEpochs(defaults.epochs)',
-    'setBatchSize(defaults.batchSize)',
+    'setBatchSize(modelSource === EARTH_MODEL_SOURCE_UPLOADED && selectedUploadedModelIsFullGrid ? 1 : defaults.batchSize)',
     'setLearningRate(defaults.learningRate)',
     'setTrainRatio(splitDefaults.trainRatio)',
     'setValidationRatio(splitDefaults.validationRatio)',

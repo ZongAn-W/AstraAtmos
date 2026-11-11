@@ -149,7 +149,19 @@ test('摘要优先使用任务名称、架构、数据集和指标', () => {
   assert.equal(summary.name, 'Ozone baseline');
   assert.equal(summary.architecture, 'simvp');
   assert.equal(summary.dataset, 'mcd_overview');
+  assert.equal(summary.targetVariable, 'O3');
+  assert.deepEqual(summary.inputVariables, ['O3']);
   assert.equal(summary.metrics.rmse, 0.0312);
+});
+
+test('summary preserves an independent environment target and input list', () => {
+  const summary = buildExperimentSummary({
+    id: 14,
+    dataset_id: 'earth_merra2_3hourly_v1',
+    hyperparameters: JSON.stringify({ target_variable: 'T2M', input_variables: ['TO3', 'SWGDN'] }),
+  });
+  assert.equal(summary.targetVariable, 'T2M');
+  assert.deepEqual(summary.inputVariables, ['TO3', 'SWGDN']);
 });
 
 test('摘要对缺名、坏 JSON 和缺失指标给出稳定回退', () => {

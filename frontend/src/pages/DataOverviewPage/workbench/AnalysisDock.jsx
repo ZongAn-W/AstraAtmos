@@ -22,12 +22,14 @@ function GroupTabs({ groups, mode, onModeChange, isZh }) {
   );
 }
 
-function CardSelector({ cards, activeCard, onCardChange, isZh }) {
+function CardSelector({ cards, activeCard, onCardChange, isBoard, isZh }) {
   if (!cards.length) return null;
   return (
     <label className="dock-selector">
       <span>{isZh ? '图表' : 'Chart'}</span>
-      <select aria-label={isZh ? '图表' : 'Chart'} value={activeCard || ''} onChange={(event) => onCardChange?.(event.target.value)}>
+      <select aria-label={isZh ? '图表' : 'Chart'} value={isBoard ? '' : activeCard || ''}
+        onChange={(event) => { if (event.target.value) onCardChange?.(event.target.value); }}>
+        {isBoard ? <option value="">{isZh ? '选择单项图表…' : 'Choose an individual chart…'}</option> : null}
         {cards.map((card) => (
           <option key={card.key} value={card.key}>
             {isZh ? card.title.zh : card.title.en}
@@ -94,7 +96,7 @@ export default function AnalysisDock({
             <span>{isZh ? '选择分析' : 'Choose an analysis'}</span>
           </div>
           <GroupTabs groups={groups} mode={mode} onModeChange={selectGroup} isZh={isZh} />
-          {!isBoard ? <CardSelector cards={cards} activeCard={resolvedCard} onCardChange={selectDetail} isZh={isZh} /> : null}
+          <CardSelector cards={cards} activeCard={resolvedCard} onCardChange={selectDetail} isBoard={isBoard} isZh={isZh} />
         </div>
         {displayedConditions || scopeLabel ? (
           <div className="analysis-conditions-row">
@@ -107,16 +109,6 @@ export default function AnalysisDock({
           </div>
         ) : null}
         {contextNote ? <p className="analysis-context-note">{contextNote}</p> : null}
-        {isBoard ? (
-          <label className="analysis-board-detail-link">
-            <span>{isZh ? '单项深入分析' : 'Explore individual analyses'}</span>
-            <select aria-label={isZh ? '单项深入分析' : 'Individual analysis'} value=""
-              onChange={event => { if (event.target.value) selectDetail(event.target.value); }}>
-              <option value="">{isZh ? '选择更多分析…' : 'Choose an analysis…'}</option>
-              {cards.map(card => <option key={card.key} value={card.key}>{isZh ? card.title.zh : card.title.en}</option>)}
-            </select>
-          </label>
-        ) : null}
         <button type="button" className="analysis-back" onClick={onCollapse}>
           {isZh ? '返回观测' : 'Back to observing'}
         </button>

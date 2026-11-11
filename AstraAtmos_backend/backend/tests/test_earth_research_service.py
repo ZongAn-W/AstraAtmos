@@ -283,24 +283,59 @@ def test_compute_spatial_diagnostics_band_rms_matches_hand_computation():
     result = compute_spatial_diagnostics(hand_field(), LATITUDE, LAT_BOUNDS)
     bands = {item["id"]: item for item in result["bands"]}
     anomaly = result["anomaly"]
-    deviations = np.arange(72.0) - 35.5
-    edges = latitude_cell_edges(LATITUDE, LAT_BOUNDS)
-    weights = np.diff(np.sin(np.deg2rad(edges)))
+    # Every row has the same 0..71 ramp. Its population variance is
+    # (N**2 - 1) / 12 regardless of the latitude weights or band size.
+    expected = math.sqrt((72 ** 2 - 1) / 12.0)
     definitions = {item["id"]: item for item in band_definitions(LATITUDE)}
     for band_id, item in bands.items():
         rows = [
             int(np.argmin(np.abs(LATITUDE - value)))
             for value in definitions[band_id]["latitude_values"]
         ]
-        band_weights = weights[rows][:, None]
-        expected = math.sqrt(
-            float(np.sum(band_weights * deviations ** 2) / np.sum(band_weights))
-        )
         assert item["rms"] == pytest.approx(expected)
         assert item["peak_to_peak"] == pytest.approx(71.0)
         assert item["grid_point_count"] == len(rows)
     assert bands["tropics"]["grid_point_count"] == 12
     assert np.allclose(anomaly.sum(axis=1), 0.0, atol=1e-9)
+
+
+@pytest.mark.parametrize("longitude_count", [2, 72, 480])
+def test_compute_spatial_diagnostics_constant_anomaly_magnitude_is_its_rms(longitude_count):
+    amplitude = 7.0
+    deviations = np.tile([-amplitude, amplitude], longitude_count // 2)
+    baseline = 300.0 + np.arange(LATITUDE.size)[None, :, None]
+    field = baseline + deviations[None, None, :]
+
+    result = compute_spatial_diagnostics(field, LATITUDE, LAT_BOUNDS)
+
+    for band in result["bands"]:
+        assert band["rms"] == pytest.approx(amplitude)
+        assert band["peak_to_peak"] == pytest.approx(2 * amplitude)
+
+
+def test_compute_spatial_diagnostics_rms_is_invariant_to_longitude_replication():
+    field = 300.0 + np.broadcast_to([-4.0, -1.0, 2.0, 3.0], (1, LATITUDE.size, 4))
+    original = compute_spatial_diagnostics(field, LATITUDE, LAT_BOUNDS)
+    replicated = compute_spatial_diagnostics(np.repeat(field, 120, axis=2), LATITUDE, LAT_BOUNDS)
+
+    # Mean-square of [-4, -1, 2, 3] is (16 + 1 + 4 + 9) / 4.
+    for band, repeated_band in zip(original["bands"], replicated["bands"]):
+        assert band["rms"] == pytest.approx(math.sqrt(7.5))
+        assert repeated_band["rms"] == pytest.approx(band["rms"])
+
+
+def test_compute_spatial_diagnostics_rms_uses_unequal_spherical_cell_areas():
+    latitude = np.array([-20.0, 0.0, 20.0])
+    field = 300.0 + np.array([[[-2.0, 2.0], [-6.0, 6.0], [-2.0, 2.0]]])
+
+    result = compute_spatial_diagnostics(field, latitude, (-30.0, 30.0))
+    tropics = next(band for band in result["bands"] if band["id"] == "tropics")
+
+    # Cell edges are -30, -10, 10, 30 degrees. The central row's area
+    # fraction is 2*sin(10 degrees), and the outer rows have amplitude 2.
+    expected = math.sqrt(4.0 + (36.0 - 4.0) * 2.0 * math.sin(math.radians(10.0)))
+    assert tropics["rms"] == pytest.approx(expected)
+    assert tropics["peak_to_peak"] == pytest.approx(12.0)
 
 
 def test_compute_spatial_diagnostics_empty_band_is_none():

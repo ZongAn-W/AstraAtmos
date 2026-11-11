@@ -4,6 +4,7 @@ from typing import Any, Optional
 from services.dataset_identity import resolve_dataset_id, require_training_dataset
 from training_backbones.model_zoo import normalize_model_architecture, normalize_use_sphere
 from services.training_split import normalize_split_ratios
+from services.mars_variables import resolve_mars_variables
 
 
 UNIFIED_TRAINING_SCRIPT = "demo3.py"
@@ -192,6 +193,8 @@ def _earthformer_size_list(value: Any, fallback: list[int]) -> list[int]:
 
 
 def get_channels_from_hyperparameters(hyperparameters: Optional[dict[str, Any]]) -> list[str]:
+    if (hyperparameters or {}).get("input_variables") is not None:
+        return [item for item in resolve_mars_variables(hyperparameters)[1] if item != "O3"]
     raw_channels = (hyperparameters or {}).get("selected_channels", [])
     if isinstance(raw_channels, str):
         raw_items = raw_channels.replace("+", ",").split(",")
@@ -260,6 +263,10 @@ def normalize_training_hyperparameters(hyperparameters: Optional[dict[str, Any]]
                 normalized[key] = _positive_int_list(normalized.get(key), fallback)
 
     normalized["selected_channels"] = get_channels_from_hyperparameters(normalized)
+    if "target_variable" in normalized or "input_variables" in normalized:
+        target, inputs = resolve_mars_variables(normalized)
+        normalized["target_variable"] = target
+        normalized["input_variables"] = inputs
     normalized["use_sphere"] = use_sphere
     transfer_enabled = _bool_value(normalized.get("transfer_learning"), False)
     if transfer_enabled:
@@ -298,6 +305,8 @@ def get_task_channel_suffix(task: Any) -> str:
         hyperparameters = {}
 
     channels = get_channels_from_hyperparameters(hyperparameters)
+    if hyperparameters.get("input_variables") is not None:
+        return "".join(channels)
     if channels:
         return "".join(channels)
 

@@ -8,12 +8,14 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import { createTrainingTag, replaceTrainingTaskTags, updateTrainingTaskTags } from '../../services/api';
 import { TagChips, TagPicker } from '../../components/TrainingTags/TagControls';
 import { TagManager } from '../../components/TrainingTags/TagDialogs';
+import { environmentVariableLabel } from '../../utils/environmentVariables.js';
 import { validateTrainedModelName, normalizeTrainedModelName } from './trainedModelRename';
 import ExperimentMatrixActions from './ExperimentMatrixActions';
 import {
   filterMatrixTasks,
   formatMatrixValue,
   getMatrixPropertyDefinitions,
+  getMatrixTargetOptions,
   getMatrixStorageKey,
   getMatrixValue,
   MATRIX_DEFAULT_COLUMNS,
@@ -183,6 +185,7 @@ export default function ExperimentMatrix({
   });
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
+  const [targetFilter, setTargetFilter] = useState('all');
   const [tagIds, setTagIds] = useState([]);
   const [bulkTagIds, setBulkTagIds] = useState([]);
   const [sort, setSort] = useState({ key: 'start_time', direction: 'desc' });
@@ -237,7 +240,8 @@ export default function ExperimentMatrix({
     writeStoredPreferences(user?.id, serialized);
   }, [columns, tasks.length, user?.id]);
 
-  const filtered = useMemo(() => filterMatrixTasks(tasks, { search, status, tagIds }), [tasks, search, status, tagIds]);
+  const targetOptions = useMemo(() => getMatrixTargetOptions(tasks), [tasks]);
+  const filtered = useMemo(() => filterMatrixTasks(tasks, { search, status, tagIds, target: targetFilter }), [tasks, search, status, tagIds, targetFilter]);
   const sorted = useMemo(() => sortMatrixTasks(filtered, sort.key, sort.direction, definitions), [filtered, sort, definitions]);
   const tableMinWidth = useMemo(() => columns.reduce((width, key) => {
     if (key === 'model_name') return width + 230;
@@ -258,8 +262,12 @@ export default function ExperimentMatrix({
 
   return <div className="experiment-matrix" data-matrix-state={state}>
     <div className="experiment-matrix-toolbar">
-      <div className="experiment-matrix-toolbar-main"><input type="search" className="experiment-matrix-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={isZh ? '搜索实验名称' : 'Search experiment names'} aria-label={isZh ? '搜索实验名称' : 'Search experiment names'} />
+      <div className="experiment-matrix-toolbar-main"><input type="search" className="experiment-matrix-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={isZh ? '搜索实验、目标或输入变量' : 'Search experiments, targets or inputs'} aria-label={isZh ? '搜索实验、目标或输入变量' : 'Search experiments, targets or inputs'} />
         <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label={isZh ? '按状态筛选' : 'Filter by status'}>{MATRIX_STATUS_FILTERS.map((value) => <option key={value} value={value}>{statusText(value)}</option>)}</select>
+        <select value={targetFilter} onChange={(event) => setTargetFilter(event.target.value)} aria-label={isZh ? '按预测目标筛选' : 'Filter by prediction target'}>
+          <option value="all">{isZh ? '全部预测目标' : 'All targets'}</option>
+          {targetOptions.map((option) => <option key={option.key} value={option.key}>{environmentVariableLabel(option.target, option.planet, isZh)} · {option.unit}</option>)}
+        </select>
         <details className="experiment-matrix-tag-filter"><summary>{isZh ? '标签筛选' : 'Tag filter'}{tagIds.length ? ` · ${tagIds.length}` : ''}</summary><div className="experiment-matrix-tag-filter-body"><TagPicker tags={tagState?.tags || []} value={tagIds} onChange={setTagIds} isZh={isZh} disabled={tagState?.loading || tagState?.busy} label={isZh ? '按标签筛选' : 'Filter by tags'} /></div></details>
       </div>
       <button type="button" className="experiment-matrix-properties-button" aria-expanded={showProperties} onClick={() => setShowProperties((value) => !value)}><SettingsRoundedIcon fontSize="small" />{isZh ? '显示属性' : 'Visible properties'}</button>
@@ -267,7 +275,14 @@ export default function ExperimentMatrix({
     {selectedVisible.length ? <div className="experiment-matrix-bulk" role="group" aria-label={isZh ? '批量标签操作' : 'Bulk tag actions'}><span>{isZh ? `已选 ${selectedVisible.length} 条` : `${selectedVisible.length} selected`}</span><button type="button" className="experiment-matrix-text-button" onClick={selectAll}>{isZh ? '全选当前筛选结果' : 'Select filtered'}</button><TagPicker tags={tagState?.tags || []} value={bulkTagIds} onChange={setBulkTagIds} isZh={isZh} disabled={tagState?.loading || tagState?.busy} label={isZh ? '选择批量标签' : 'Choose bulk tags'} /><button type="button" className="experiment-matrix-text-button" disabled={tagState?.busy || !bulkTagIds.length} onClick={() => bulkTags('add')}>{isZh ? '添加标签' : 'Add tags'}</button><button type="button" className="experiment-matrix-text-button" disabled={tagState?.busy || !bulkTagIds.length} onClick={() => bulkTags('remove')}>{isZh ? '移除标签' : 'Remove tags'}</button></div> : null}
     <div className="experiment-matrix-layout">
       <div ref={scrollRef} className="experiment-matrix-scroll" tabIndex={0} aria-label={isZh ? '实验矩阵表格' : 'Experiment matrix table'}>
-        {state === 'loading' ? <div className="experiment-matrix-state" role="status">{isZh ? '正在加载实验…' : 'Loading experiments…'}</div> : null}
+        {state === 'loading' ? <div className="experiment-matrix-state" role="status" data-matrix-skeleton="true">
+          <span className="sr-only">{isZh ? '正在加载实验…' : 'Loading experiments…'}</span>
+          <div className="experiment-matrix-skeleton">
+            {[0, 1, 2].map((index) => (
+              <span key={index} className="ui-skeleton" style={{ height: 52, borderRadius: 10, animationDelay: `${index * 90}ms` }} />
+            ))}
+          </div>
+        </div> : null}
         {state === 'error' ? <div className="experiment-matrix-state" role="alert"><span>{isZh ? '实验矩阵加载失败。' : 'Could not load the experiment matrix.'}</span><button type="button" className="experiment-matrix-text-button" onClick={onRetryTasks}>{isZh ? '重试' : 'Retry'}</button></div> : null}
         {state === 'empty' ? <div className="experiment-matrix-state" role="status">{isZh ? '暂无训练实验。' : 'No training experiments yet.'}</div> : null}
         {state === 'no-match' ? <div className="experiment-matrix-state" role="status">{isZh ? '没有匹配的实验，请调整筛选条件。' : 'No matching experiments. Adjust the filters.'}</div> : null}

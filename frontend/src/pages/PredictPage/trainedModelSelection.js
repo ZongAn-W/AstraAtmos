@@ -1,4 +1,5 @@
 import { isEarthTask } from './earthPredictModel.js';
+import { resolveEnvironmentTask } from '../../utils/environmentVariables.js';
 
 export const TRAINING_TASK_HANDOFF_KEY = 'astraatmos_predict_training_task';
 
@@ -83,11 +84,14 @@ export function getCompletedTrainingModelOptions(tasks = []) {
   return (Array.isArray(tasks) ? tasks : [])
     .filter((task) => task?.status === 'completed' && task?.model_available === true)
     .filter((task) => !isEarthTask(task))
-    .map((task) => ({
-      id: Number(task.id),
-      label: task.custom_model_name || `Task #${task.id}`,
-      task,
-    }));
+    .map((task) => {
+      const target = resolveEnvironmentTask(task, 'mars').target;
+      return {
+        id: Number(task.id),
+        label: `${task.custom_model_name || `Task #${task.id}`}${target !== 'O3' ? ` · ${target}` : ''}`,
+        task,
+      };
+    });
 }
 
 export function buildTrainingTaskHandoff(task, scope) {
@@ -96,10 +100,22 @@ export function buildTrainingTaskHandoff(task, scope) {
     || taskId <= 0
     || typeof scope !== 'string'
     || !scope.startsWith('user:')) return null;
+  const environment = resolveEnvironmentTask(task, isEarthTask(task) ? 'earth' : 'mars');
+  const hyperparameters = parseHyperparameters(task?.hyperparameters);
+  const hasEnvironmentMetadata = Boolean(
+    hyperparameters.target_variable || hyperparameters.input_variables
+      || task?.target_variable || task?.input_variables
+      || environment.target !== (isEarthTask(task) ? 'TO3' : 'O3'),
+  );
   return {
     taskId,
     modelName: task?.custom_model_name || `Task #${taskId}`,
     scope,
+    ...(hasEnvironmentMetadata ? {
+      targetVariable: environment.target,
+      targetUnit: environment.unit,
+      inputVariables: environment.inputs,
+    } : {}),
   };
 }
 
@@ -113,10 +129,16 @@ export function parseTrainingTaskHandoff(raw, expectedScope) {
       || typeof expectedScope !== 'string'
       || !expectedScope.startsWith('user:')
       || parsed?.scope !== expectedScope) return null;
+    const inputVariables = Array.isArray(parsed?.inputVariables)
+      ? parsed.inputVariables.filter((value) => typeof value === 'string')
+      : null;
     return {
       taskId,
       modelName: parsed?.modelName || `Task #${taskId}`,
       scope: expectedScope,
+      ...(typeof parsed?.targetVariable === 'string' ? { targetVariable: parsed.targetVariable } : {}),
+      ...(typeof parsed?.targetUnit === 'string' ? { targetUnit: parsed.targetUnit } : {}),
+      ...(inputVariables ? { inputVariables } : {}),
     };
   } catch {
     return null;
@@ -127,6 +149,7 @@ export function buildTrainedModelParameterItems(task, { isZh = true } = {}) {
   if (!task) return [];
   const earth = isEarthTask(task);
   const hypers = parseHyperparameters(task.hyperparameters);
+  const environment = resolveEnvironmentTask(task, earth ? 'earth' : 'mars');
   const labels = isZh
     ? {
         modelName: '模型名称',
@@ -172,9 +195,6 @@ export function buildTrainedModelParameterItems(task, { isZh = true } = {}) {
       };
 
   const modelSource = String(hypers.model_source || task.model_source || 'official').toLowerCase();
-  const channels = Array.isArray(hypers.selected_channels)
-    ? hypers.selected_channels.map((channel) => CHANNEL_LABELS[String(channel).toUpperCase()] || String(channel).toUpperCase())
-    : [];
   const items = [];
 
   addItem(items, labels.modelName, task.custom_model_name || `Task #${task.id}`);
@@ -183,7 +203,8 @@ export function buildTrainedModelParameterItems(task, { isZh = true } = {}) {
   addItem(items, labels.modelType, modelSource === 'uploaded' ? labels.uploaded : labels.official);
   addItem(items, labels.architecture, getArchitectureLabel(hypers.model_architecture));
   if (!earth) addItem(items, labels.sphere, hypers.use_sphere ? labels.on : labels.off);
-  addItem(items, labels.inputChannels, earth ? ['TO3', ...channels.filter(channel => channel !== 'TO3')] : channels.length ? channels : (isZh ? '仅 O3' : 'O3 only'));
+  addItem(items, isZh ? '预测目标' : 'Prediction target', environment.target);
+  addItem(items, labels.inputChannels, environment.inputs);
   addItem(items, labels.window, hypers.window);
   addItem(items, labels.horizon, hypers.horizon);
   addItem(items, labels.epochs, hypers.epochs);

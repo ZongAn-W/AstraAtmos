@@ -180,6 +180,8 @@ class EarthPredictContextResponse(_ConditionalTemporalFields):
     dataset_version: str
     dataset_fingerprint: str
     target: str
+    target_variable: Optional[str] = None
+    input_variables: list[str] = Field(default_factory=list)
     target_unit: str
     window: int
     horizon: int
@@ -229,6 +231,8 @@ class EarthPredictResponse(_ConditionalTemporalFields):
     dataset_version: str
     dataset_fingerprint: str
     target: str
+    target_variable: Optional[str] = None
+    input_variables: list[str] = Field(default_factory=list)
     target_unit: str
     model_architecture: Optional[str] = None
     model_source: Optional[str] = None

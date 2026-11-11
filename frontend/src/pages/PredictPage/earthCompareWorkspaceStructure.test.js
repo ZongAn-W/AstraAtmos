@@ -13,6 +13,8 @@ test('Earth comparison clears stale results and coordinates the current selectio
   assert.match(source, /setData\(null\);\s*setLoading\(true\);\s*setError\(null\)/);
   assert.match(source, /compareEarthModels\(selection\.ids, \{ signal: requestToken\.signal \}\)/);
   assert.match(source, /requestCoordinator\.isCurrent\(requestToken, requestKey\)/);
+  assert.match(source, /compareResultMatchesTasks\(result, selectedOptions\.map\(option => option\.task\), 'earth'\)/);
+  assert.ok(source.indexOf('if (!compareResultMatchesTasks(result') < source.indexOf('setData(result)'));
   assert.match(source, /catch \(e\) \{[\s\S]*?setData\(null\);/);
   assert.match(source, /<CompareTrainingModelsPanel[^>]*data=\{data\}/);
 });

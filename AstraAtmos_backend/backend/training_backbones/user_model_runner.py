@@ -32,6 +32,7 @@ from services.netcdf_read_lock import netcdf_read_lock
 from services.transfer_learning_strategy import apply_freeze_strategy
 from services.training_split import split_sample_ranges, split_time_boundary
 from services.mars_checkpoint import build_mars_checkpoint
+from services.mars_variables import resolve_mars_variables
 from services.mars_data_service import (
     CHANNEL_ORDER as SHARED_CHANNEL_ORDER,
     MCD_VARS_MAP as SHARED_MCD_VARS_MAP,
@@ -41,6 +42,7 @@ from services.mars_data_service import (
     identity_snapshot,
 )
 from training_backbones.uploaded_model_contract import (
+    FORECAST_CONFIG_KEYS,
     attach_uploaded_model_contract,
     expand_topography_batch,
     run_uploaded_model,
@@ -154,10 +156,14 @@ def build_uploaded_model_config(
     selected_channels: Any,
     custom_model_params: Any,
     param_schema: Any,
+    target_variable: str | None = None,
+    input_variables: list[str] | None = None,
 ) -> dict[str, Any]:
     selected = parse_selected_channels(selected_channels)
     custom_params = parse_json_arg(custom_model_params)
     schema = parse_json_arg(param_schema)
+    if FORECAST_CONFIG_KEYS.intersection(schema):
+        raise ValueError("Uploaded parameters cannot override target_variable, input_variables or out_channels")
 
     config: dict[str, Any] = {
         "in_channels": int(in_channels),
@@ -171,6 +177,10 @@ def build_uploaded_model_config(
         if not isinstance(param, dict):
             continue
         config[key] = custom_params.get(key, param.get("default"))
+    if target_variable is not None or input_variables is not None:
+        target, inputs = resolve_mars_variables({"target_variable": target_variable,
+            "input_variables": input_variables, "selected_channels": selected})
+        config.update(target_variable=target, input_variables=inputs, out_channels=1)
     return config
 
 
@@ -855,6 +865,8 @@ def prepare_tensors(
     test_ratio: float = 0.1,
     normalization: dict[str, Any] | None = None,
     return_volume_metadata: bool = False,
+    target_variable: str | None = None,
+    input_variables: list[str] | None = None,
 ):
     """加载并标准化数据。
 
@@ -893,6 +905,8 @@ def prepare_tensors(
             },
             require_ls=False,
             normalization=normalization,
+            target_variable=target_variable,
+            input_variables=input_variables,
         )
     except MarsDataError:
         raise
@@ -946,6 +960,8 @@ def prepare_tensors(
             split_ranges=volume.split_ranges,
             split_window_starts=volume.split_window_starts,
             split_policy=volume.split_policy,
+            target_variable=volume.target_variable,
+            input_variables=volume.input_variables,
         )
 
     x_seq: list[np.ndarray] = []
@@ -1085,6 +1101,8 @@ def main() -> None:
     parser.add_argument("--horizon", type=int, default=3)
     parser.add_argument("--early_stopping_patience", type=int, default=0)
     parser.add_argument("--selected_channels", type=str, default="")
+    parser.add_argument("--target_variable", type=str, default="O3")
+    parser.add_argument("--input_variables", type=str, default=None)
     parser.add_argument("--training_dataset", type=str, default=TRAINING_DATASET_OPENMARS_MCD)
     parser.add_argument("--seed", type=int, default=11)
     parser.add_argument("--output_path", type=str, required=True)
@@ -1111,6 +1129,8 @@ def main() -> None:
     np.random.seed(seed)
 
     selected_channels = parse_selected_channels(args.selected_channels)
+    target_variable, input_variables = resolve_mars_variables(vars(args))
+    selected_channels = [channel for channel in input_variables if channel != "O3"]
     training_dataset = normalize_training_dataset(args.training_dataset)
     openmars_dir = Path(os.environ.get("ASTRAATMOS_OPENMARS_DIR", str(BACKEND_DIR / "data" / "openmars")))
     mcd_dir = Path(MCD_DIR)
@@ -1138,6 +1158,8 @@ def main() -> None:
         train_ratio=getattr(args, "train_ratio", 0.7),
         validation_ratio=getattr(args, "validation_ratio", 0.2),
         test_ratio=getattr(args, "test_ratio", 0.1),
+        target_variable=target_variable,
+        input_variables=input_variables,
     )
     (x_torch, y_torch, ls_torch, y_mean, y_std, height, width,
      target_latitude, target_longitude) = tensor_result[:9]
@@ -1156,6 +1178,8 @@ def main() -> None:
         selected_channels=selected_channels,
         custom_model_params=custom_params,
         param_schema=param_schema,
+        target_variable=target_variable,
+        input_variables=input_variables,
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -34,6 +34,7 @@ from services.mars_checkpoint import (
     validate_mars_normalization,
 )
 from services.ozone_units import normalize_ozone_column_units
+from services.mars_variables import resolve_mars_variables
 from services.training_split import (
     STRICT_TIMELINE_SPLIT_POLICY,
     TrainingSplitError,
@@ -235,6 +236,8 @@ class MarsScaledVolume:
     split_ranges: dict[str, dict[str, Any]] | None = None
     split_window_starts: dict[str, tuple[int, ...]] | None = None
     split_policy: str = "legacy_compatibility"
+    target_variable: str = "O3"
+    input_variables: tuple[str, ...] = ()
 
 
 def natural_sort_key(value: Any) -> list[Any]:
@@ -663,19 +666,27 @@ def load_mars_arrays(*, training_dataset: Any, openmars_dir: Any, mcd_dir: Any, 
     return replace(data, blocks=_make_year_blocks(data, segments))
 
 
-def prepare_scaled_volume(*, training_dataset: Any, openmars_dir: Any, mcd_dir: Any, raw_dir: Any, selected_channels: Any, window: int, horizon: int, split_ratios: dict[str, Any], require_ls: bool = True, normalization: dict[str, Any] | None = None, split_policy: str | None = None) -> MarsScaledVolume:
-    data = load_mars_arrays(training_dataset=training_dataset, openmars_dir=openmars_dir, mcd_dir=mcd_dir, raw_dir=raw_dir, selected_channels=selected_channels)
+def prepare_scaled_volume(*, training_dataset: Any, openmars_dir: Any, mcd_dir: Any, raw_dir: Any, selected_channels: Any, window: int, horizon: int, split_ratios: dict[str, Any], require_ls: bool = True, normalization: dict[str, Any] | None = None, split_policy: str | None = None, target_variable: str | None = None, input_variables: list[str] | None = None) -> MarsScaledVolume:
+    target_variable, input_channel_order = resolve_mars_variables({
+        "selected_channels": selected_channels,
+        "target_variable": target_variable if target_variable is not None else (normalization or {}).get("target_variable"),
+        "input_variables": input_variables if input_variables is not None else (normalization or {}).get("input_variables"),
+    })
+    needed_channels = [channel for channel in CHANNEL_ORDER if channel in {*input_channel_order, target_variable}]
+    data = load_mars_arrays(training_dataset=training_dataset, openmars_dir=openmars_dir, mcd_dir=mcd_dir, raw_dir=raw_dir, selected_channels=needed_channels)
     if require_ls and data.ls is None:
         raise MarsDataError("Mars dataset does not contain Ls values")
     selected = parse_channels(selected_channels)
-    input_channel_order = mars_input_channel_order(selected)
+    def field(channel):
+        return data.ozone if channel == "O3" else data.features[MCD_VARS_MAP[channel][1]]
     arrays = [
-        data.ozone if channel == "O3" else data.features[MCD_VARS_MAP[channel][1]]
+        field(channel)
         for channel in input_channel_order
     ]
-    count = min(len(array) for array in arrays)
-    height = min(array.shape[1] for array in arrays)
-    width = min(array.shape[2] for array in arrays)
+    target_array = field(target_variable)
+    count = min(len(array) for array in [*arrays, target_array])
+    height = min(array.shape[1] for array in [*arrays, target_array])
+    width = min(array.shape[2] for array in [*arrays, target_array])
     raw = np.stack([_clean(array[:count, :height, :width]) for array in arrays], axis=-1)
     ls = None if data.ls is None else np.asarray(data.ls[:count], dtype=np.float32).reshape(-1)
     # Windows are formed on the complete chronological timeline. A window may
@@ -788,7 +799,8 @@ def prepare_scaled_volume(*, training_dataset: Any, openmars_dir: Any, mcd_dir: 
     if use_saved:
         try:
             validate_mars_normalization(
-                normalization, selected_channels=selected, grid_shape=(height, width)
+                normalization, selected_channels=selected, grid_shape=(height, width),
+                input_variables=input_channel_order, target_variable=target_variable,
             )
         except ValueError as exc:
             raise MarsDataError(str(exc)) from exc
@@ -804,7 +816,7 @@ def prepare_scaled_volume(*, training_dataset: Any, openmars_dir: Any, mcd_dir: 
         scaled[..., idx] = ((raw[..., idx] - mean) / (scale + 1e-6)).astype(np.float32)
         means.append(mean)
         stds.append(scale)
-    target = raw[..., 0]
+    target = _clean(target_array[:count, :height, :width])
     y_mean = float((normalization or {}).get("target_mean", target[fit_target_indices].mean()))
     y_std = float((normalization or {}).get("target_scale", target[fit_target_indices].std()))
     return MarsScaledVolume(
@@ -833,6 +845,8 @@ def prepare_scaled_volume(*, training_dataset: Any, openmars_dir: Any, mcd_dir: 
         split_ranges=split_ranges,
         split_window_starts=split_window_starts,
         split_policy=split_policy,
+        target_variable=target_variable,
+        input_variables=tuple(input_channel_order),
     )
 
 
@@ -852,6 +866,8 @@ def identity_snapshot(*, training_dataset: Any, openmars_dir: Any, mcd_dir: Any,
         "window_policy": OPENMARS_WINDOW_POLICY if dataset == "openmars_mcd" else MCD_WINDOW_POLICY,
     }
     if normalization is not None:
+        snapshot["target_variable"] = getattr(normalization, "target_variable", "O3")
+        snapshot["input_variables"] = list(getattr(normalization, "input_variables", ()) or mars_input_channel_order(parse_channels(selected_channels)))
         snapshot["normalization"] = {"input_means": [array.tolist() for array in normalization.input_means], "input_stds": [array.tolist() for array in normalization.input_stds], "y_mean": normalization.y_mean, "y_std": normalization.y_std, "split_idx": normalization.split_idx}
         snapshot["split_policy"] = getattr(normalization, "split_policy", "legacy_compatibility")
         snapshot["split_ranges"] = getattr(normalization, "split_ranges", None) or {}
