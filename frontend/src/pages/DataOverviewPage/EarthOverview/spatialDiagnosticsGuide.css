@@ -1,0 +1,67 @@
+.spatial-diagnostics-guide {
+  container: spatial-guide / inline-size;
+  min-width: 0;
+  margin-top: 20px;
+  padding: 24px 0 0;
+  border-top: 1px solid var(--overview-hairline);
+  color: var(--text-secondary);
+  font: 400 calc(13px * var(--font-scale, 1))/1.75 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.spatial-guide-heading { margin-bottom: 24px; }
+.spatial-guide-heading h4 { margin: 0 0 6px; color: var(--text); font-size: calc(16px * var(--font-scale, 1)); font-weight: 600; line-height: 1.5; }
+.spatial-diagnostics-guide p { margin: 0; }
+.spatial-guide-heading p { max-width: 72ch; }
+.spatial-guide-overview { display: grid; gap: 24px; min-width: 0; }
+.spatial-guide-metrics { display: grid; gap: 0; margin: 0; }
+.spatial-guide-metrics > div { padding: 16px 0; border-top: 1px solid var(--overview-hairline); }
+.spatial-guide-metrics > div:first-child { padding-top: 0; border-top: 0; }
+.spatial-guide-metrics > div:last-child { padding-bottom: 0; }
+.spatial-guide-metrics dt { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 14px; row-gap: 2px; margin-bottom: 6px; color: var(--text); font-size: calc(14px * var(--font-scale, 1)); font-weight: 600; line-height: 1.6; }
+.spatial-guide-question { color: var(--text-secondary); font-size: calc(12px * var(--font-scale, 1)); font-weight: 400; }
+.spatial-guide-metrics dd { margin: 0; max-width: 70ch; }
+.spatial-guide-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: calc(12px * var(--font-scale, 1)); }
+.spatial-guide-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.spatial-guide-swatch { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; }
+.spatial-guide-swatch--0 { background: #d96760; }
+.spatial-guide-swatch--1 { background: #aab2be; }
+.spatial-guide-swatch--2 { background: #6aa9ff; }
+
+.spatial-guide-example { min-width: 0; margin: 0; padding: 20px; border-radius: var(--radius-panel); background: var(--overview-panel-bg-strong); align-self: start; }
+.spatial-guide-example h5 { margin: 0 0 4px; color: var(--text); font-size: calc(14px * var(--font-scale, 1)); font-weight: 600; line-height: 1.6; }
+.spatial-guide-example figcaption p, .spatial-diagnostics-guide .spatial-guide-unit { color: var(--text-secondary); font-size: calc(12px * var(--font-scale, 1)); line-height: 1.65; }
+.spatial-guide-calculation { display: grid; gap: 12px; margin: 22px 0 18px; }
+.spatial-guide-calculation > div { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 20px; flex-wrap: wrap; }
+.spatial-guide-calculation dt { flex: 1 1 10em; }
+.spatial-guide-calculation dd { margin: 0; color: var(--text); font-size: calc(21px * var(--font-scale, 1)); font-weight: 500; line-height: 1.35; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.spatial-guide-calculation dd span { color: var(--text-secondary); font-size: calc(12px * var(--font-scale, 1)); font-weight: 400; }
+.spatial-guide-calculation .spatial-guide-result { padding-top: 14px; border-top: 1px solid var(--overview-panel-border); }
+.spatial-guide-result dt, .spatial-guide-result dd { color: var(--overview-accent); }
+.spatial-guide-span-example { display: grid; gap: 4px; margin-bottom: 12px; font-size: calc(12px * var(--font-scale, 1)); }
+.spatial-guide-span-example strong { color: var(--text); font-size: calc(14px * var(--font-scale, 1)); font-weight: 500; }
+.spatial-guide-example > p { margin-top: 16px; }
+
+.spatial-guide-details { margin-top: 24px; border-top: 1px solid var(--overview-hairline); }
+.spatial-guide-details summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 10px 0; list-style: none; cursor: pointer; color: var(--text-secondary); font-weight: 500; }
+.spatial-guide-details summary::-webkit-details-marker { display: none; }
+.spatial-guide-details summary:hover { color: var(--overview-accent); }
+.spatial-guide-disclosure { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; font-size: calc(12px * var(--font-scale, 1)); }
+.spatial-guide-disclosure svg { width: 18px; height: 18px; }
+.spatial-guide-hide, .spatial-guide-details[open] .spatial-guide-show { display: none; }
+.spatial-guide-details[open] .spatial-guide-hide { display: inline; }
+.spatial-guide-details[open] .spatial-guide-disclosure svg { transform: rotate(180deg); }
+.spatial-guide-details-content { padding: 12px 0 20px; }
+.spatial-guide-reference { max-width: 72ch; color: var(--text); }
+.spatial-guide-details-content dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 27em), 1fr)); gap: 22px 36px; margin: 24px 0 0; }
+.spatial-guide-details-content dt { margin-bottom: 6px; color: var(--text); font-weight: 500; }
+.spatial-guide-details-content dd { max-width: 70ch; margin: 0; }
+
+@container spatial-guide (min-width: 60em) {
+  .spatial-guide-overview { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 36px; align-items: start; }
+}
+
+@container spatial-guide (max-width: 26em) {
+  .spatial-guide-example { padding: 16px; }
+  .spatial-guide-disclosure > span { display: none !important; }
+}

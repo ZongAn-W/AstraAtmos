@@ -39,6 +39,22 @@ test('builds and parses training task handoff payloads', () => {
   assert.equal(parseTrainingTaskHandoff(JSON.stringify(payload), 'anonymous'), null);
 });
 
+test('carries the selected environment target and complete inputs through a training handoff', () => {
+  const payload = buildTrainingTaskHandoff({
+    id: 17,
+    dataset_id: 'earth_merra2_3hourly_v1',
+    hyperparameters: JSON.stringify({ target_variable: 'T2M', input_variables: ['TO3', 'SWGDN'] }),
+  }, 'user:101');
+  assert.deepEqual(parseTrainingTaskHandoff(JSON.stringify(payload), 'user:101'), {
+    taskId: 17,
+    modelName: 'Task #17',
+    scope: 'user:101',
+    targetVariable: 'T2M',
+    targetUnit: 'K',
+    inputVariables: ['TO3', 'SWGDN'],
+  });
+});
+
 test('ignores invalid training task handoff payloads', () => {
   assert.equal(parseTrainingTaskHandoff(''), null);
   assert.equal(parseTrainingTaskHandoff('not json'), null);
@@ -73,7 +89,8 @@ test('builds display parameters from selected trained model task hyperparameters
     ['Model type', 'Official'],
     ['Architecture', 'ConvLSTM'],
     ['SPHERE', 'On'],
-    ['Input channels', 'U / V / D'],
+    ['Prediction target', 'O3'],
+    ['Input channels', 'O3 / U / V / D'],
     ['Window', '4'],
     ['Horizon', '3'],
     ['Epochs', '20'],

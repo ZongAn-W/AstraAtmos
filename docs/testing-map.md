@@ -8,6 +8,8 @@
 
 测试覆盖数据读取与对齐、模型接入、训练配置、预测步长、缓存隔离、请求一致性及前端交互逻辑。运行所需数据或依赖以各测试为准。首页交互工具函数测试为 `frontend/src/pages/HomePage/homePointerInteraction.test.js`，覆盖指针坐标归一化、分层视差幅度与边界、鼠标/触控笔/触屏判断、`prefers-reduced-motion`、地球水平与垂直旋转限制、惯性阻尼与键盘按键映射。
 
+环境变量预测（独立输入与单一物理目标）的回归入口为 `tests/test_earth_variable_forecasts.py`（Earth 官方与上传模型的独立输入训练、严格重载、参考场、Kelvin 诊断、上传证明与未选 TO3 的目标统计隔离）、`tests/test_mars_checkpoint.py`（Mars 温度训练/重载/预测、跨目标权重迁移门禁与缓存隔离）、`tests/test_environment_training_identity.py`、`tests/test_training_variable_serialization_routes.py`（旧任务兼容及目标与完整输入的 HTTP 往返）与 `tests/test_training_task_summary_routes.py`（`summary=true` 任务列表保留选择元数据、不返回冻结数组）；预测契约与科研导出分别补充在 `tests/test_trained_model_predict_contract.py`、`tests/test_research_export.py`。前端变量规则、模型测试、诊断适配与任务目录缓存由 `frontend/src/utils/environmentVariables.test.js`、`frontend/src/components/modelTestModel.test.js`、`frontend/src/pages/PredictPage/*.test.js`、`frontend/src/stores/trainingTasksCache.test.js` 和 `frontend/src/services/trainingTasksCacheIntegration.test.js` 覆盖。这些回归使用合成数据，不代表真实模型精度验收；变量、单位、上传声明与兼容规则见[环境变量预测](environment-variable-forecasting.md)。
+
 训练草稿的转换序列与最终提交内容由 `frontend/src/pages/ModelTrainingPage/trainingDraftSession.test.js` 验证；[浏览器草稿回归](../scripts/audit/training-draft/browser-check.js) 在隔离会话替换全部 API 与 WebSocket，检查两个 Mars 数据集往返、同模型分场景参数、重复选择、窗口/步长恢复、迁移撤销、复制/新建重置、390px 和拦截提交载荷，不创建真实训练任务。运行方式见[实验中心草稿约定](experiment-center.md#训练草稿切换与参数保留)。
 
 训练执行准备与恢复回归为 `tests/test_training_queue_recovery.py`：使用临时 SQLite、真实任务/权重/上传模型查询和子进程替身，覆盖官方/上传 Mars 的两种迁移来源、新建队列与实例重建、依赖缺失/失效/权限撤销、FIFO、队列取消及失败后继续。Earth 的启动参数测试改为通过同一准备入口，冻结划分/源码和产物门禁仍由三小时与任务划分测试验证。使用工作区规定的 conda 解释器逐文件运行，并指定仓库外新的英文 `--basetemp`；这些回归不代表真实模型训练或精度验收。

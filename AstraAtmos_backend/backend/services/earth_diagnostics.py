@@ -26,6 +26,7 @@ from services.dataset_identity import DatasetRequestError, EARTH_DATASET_3HOURLY
 from services.earth_dataset import (
     EarthThreeHourlyWindows, _threehour_path, _threehour_values, validate_normalization,
     threehour_global_cell_area_weights,
+    target_normalization,
 )
 from services.earth_model_source import EarthModelBuildError, earth_forward_for_model
 from services.earth_prediction_service import (
@@ -36,6 +37,7 @@ from services.earth_training_artifact import (
     CELL_AREA_WEIGHTED_AGGREGATION, GRID_UNIFORM_AGGREGATION,
     AREA_WEIGHTED_METRIC_POLICY, EarthArtifactError, ErrorAccumulator, METRIC_POLICY, METRIC_UNITS,
     build_earth_model_from_checkpoint,
+    metric_units_for_target, metric_policy_for_target,
 )
 from services.netcdf_read_lock import netcdf_read_lock
 from services.earth_derived_inputs import topography_for_checkpoint, topography_kwargs
@@ -244,7 +246,7 @@ def _open_verified_dataset(release):
 
 
 def _read_tile(ds, dataset, selected, lat, lon):
-    """Read at most one tile, with raw TO3 targets and task-normalized inputs."""
+    """Read at most one tile, with physical targets and task-normalized inputs."""
     height, width = min(TILE_SHAPE[0], len(dataset.lat) - lat), min(TILE_SHAPE[1], len(dataset.lon) - lon)
     return _read_region(ds, dataset, selected, lat, lon, height, width)
 
@@ -273,7 +275,7 @@ def _read_region(ds, dataset, selected, lat, lon, height, width):
                             (values.astype("float64") - mean[channel_index]) / scale[channel_index]).astype("float32")
             for start in range(forecast, stop, 8):
                 end = min(start + 8, stop)
-                reference[row, start - forecast:end - forecast, 0] = _threehour_values(ds, "TO3", start, end, **spatial)
+                reference[row, start - forecast:end - forecast, 0] = _threehour_values(ds, getattr(dataset, "target_variable", "TO3"), start, end, **spatial)
     if not np.isfinite(inputs).all() or not np.isfinite(reference).all():
         raise _error("earth_diagnostics_non_finite_data", "Earth diagnostic input or reference contains non-finite values")
     return inputs, reference
@@ -301,12 +303,12 @@ def _predict_tile(model, inputs, checkpoint, device, longitude=None, topography=
     expected = (len(inputs), checkpoint.training_contract["horizon"], 1, *inputs.shape[-2:])
     if not isinstance(output, torch.Tensor) or tuple(output.shape) != expected or not torch.isfinite(output).all():
         raise _error("invalid_earth_training_artifact", "Earth diagnostic model output has invalid shape or non-finite values")
-    index = checkpoint.training_contract["input_channel_order"].index("TO3")
+    mean, scale = target_normalization(checkpoint.normalization, checkpoint.training_contract.get("target", "TO3"))
     with np.errstate(over="ignore", invalid="ignore"):
-        prediction = output.detach().cpu().numpy().astype("float64") * float(checkpoint.normalization["scale"][index])
-        prediction += float(checkpoint.normalization["mean"][index])
+        prediction = output.detach().cpu().numpy().astype("float64") * scale
+        prediction += mean
     if not np.isfinite(prediction).all():
-        raise _error("invalid_earth_training_artifact", "Earth diagnostic model produced non-finite DU values")
+        raise _error("invalid_earth_training_artifact", "Earth diagnostic model produced non-finite physical values")
     return prediction
 
 
@@ -373,11 +375,11 @@ class _ScatterSampler:
         self.bounds[1] = max(self.bounds[1], float(pred.max()), float(truth.max()))
         self.offset += pred.size
 
-    def result(self, seed):
+    def result(self, seed, target="TO3", unit="DU"):
         if self.offset != self.total or len(self.prediction) != len(self.positions):
             raise _error("earth_diagnostics_incomplete", "Scatter sampling did not cover its declared stream")
         return {"reference": self.reference, "prediction": self.prediction, "point_count": len(self.positions),
-                "unit": "DU", "x_label": "Reference TO3 (DU)", "y_label": "Prediction TO3 (DU)",
+                "unit": unit, "x_label": f"Reference {target} ({unit})", "y_label": f"Prediction {target} ({unit})",
                 "reference_line": {"x": list(self.bounds), "y": list(self.bounds), "label": "y=x"},
                 "scope": "sampled_points_from_selected_test_windows", "metric_scope": "selected_test_windows_all_grid_leads",
                 "metrics_scope": "selected_test_windows_all_grid_leads",
@@ -393,7 +395,7 @@ def _full_test_metrics(checkpoint):
     # metrics remain absent rather than being derived from sampled diagnostics.
     return {"scope": "full_test", "source": "verified_checkpoint_test_metrics", "available": test is not None,
             "status": "available" if test is not None else "not_provided", "metrics": test,
-            "unit": "DU", "target": "TO3", "schema": checkpoint.metrics.get("schema"),
+            "unit": checkpoint.training_contract.get("target_unit", "DU"), "target": checkpoint.training_contract.get("target", "TO3"), "schema": checkpoint.metrics.get("schema"),
             "metric_units": copy.deepcopy(checkpoint.metrics.get("metric_units", METRIC_UNITS)),
             "metric_policy": copy.deepcopy(checkpoint.metrics.get("metric_policy")),
             "split_policy": checkpoint.training_contract.get("split_policy"),
@@ -431,11 +433,14 @@ def compute_earth_diagnostics(task: Any, registry: Any, *, sample_windows=DEFAUL
     topography_asset = topography_for_checkpoint(checkpoint, release)
     _validate_checkpoint_split_ranges(checkpoint, release)
     contract = checkpoint.training_contract
+    target, unit = contract.get("target", "TO3"), contract.get("target_unit", "DU")
     try:
         dataset = EarthThreeHourlyWindows.from_release(
             release, split="test", window=contract["window"], horizon=contract["horizon"],
             selected_channels=contract["input_channel_order"], normalization=checkpoint.normalization,
             task_split=contract.get("task_split"),
+            **({"input_variables": contract["input_channel_order"], "target_variable": target}
+               if "target_variable" in checkpoint.normalization else {}),
         )
         dataset._earth_topography_asset = topography_asset
     except ValueError as exc:
@@ -447,8 +452,7 @@ def compute_earth_diagnostics(task: Any, registry: Any, *, sample_windows=DEFAUL
         raise _error("invalid_earth_training_artifact", "Earth checkpoint has an unsupported metric aggregation")
     metric_policy = copy.deepcopy(checkpoint.metrics.get("metric_policy"))
     if metric_policy is None:
-        metric_policy = copy.deepcopy(AREA_WEIGHTED_METRIC_POLICY if aggregation == CELL_AREA_WEIGHTED_AGGREGATION
-                                      else METRIC_POLICY)
+        metric_policy = metric_policy_for_target(target, area_weighted=aggregation == CELL_AREA_WEIGHTED_AGGREGATION)
     spatial_weights = _diagnostic_spatial_weights(release, dataset, aggregation)
     selected = select_window_indices(len(dataset), sample_windows, seed)
     pfi_count = min(len(selected), pfi_windows if pfi_windows is not None else MAX_PFI_WINDOWS)
@@ -491,7 +495,7 @@ def compute_earth_diagnostics(task: Any, registry: Any, *, sample_windows=DEFAUL
                 sampler.update(prediction, reference)
                 residual = prediction - reference
                 if not np.isfinite(residual).all():
-                    raise _error("earth_diagnostics_non_finite_data", "Earth diagnostics produced non-finite DU residuals")
+                    raise _error("earth_diagnostics_non_finite_data", "Earth diagnostics produced non-finite residuals")
                 first_pass_digest.update(np.ascontiguousarray(residual).tobytes())
                 residual_min, residual_max = min(residual_min, float(residual.min())), max(residual_max, float(residual.max()))
                 residual_sum += float(residual.sum())
@@ -529,23 +533,23 @@ def compute_earth_diagnostics(task: Any, registry: Any, *, sample_windows=DEFAUL
         # Reload also verifies the uploaded source against its pinned digest at
         # publication time, as historical prediction does before cache use.
         _load_checkpoint(task)
-        metrics = {**accumulator.result(), "unit": "DU", "target": "TO3",
-                   "metric_units": dict(METRIC_UNITS), "metric_policy": metric_policy,
+        metrics = {**accumulator.result(), "unit": unit, "target": target,
+                   "metric_units": metric_units_for_target(target), "metric_policy": metric_policy,
                    "scope": "selected_test_windows_all_grid_leads", "window_count": len(selected),
                    "valid_points": count, "aggregation": aggregation}
         mean = residual_sum / count
         result = {
             "algorithm_version": DIAGNOSTIC_VERSION, "planet": "earth", "task_id": int(task.id),
-            "status": "completed", "unit": "DU", "target_unit": "DU", "target": "TO3",
+            "status": "completed", "unit": unit, "target_unit": unit, "target": target, "target_variable": target,
             "dataset_id": checkpoint.dataset_binding["dataset_id"],
             "dataset_version": checkpoint.dataset_binding["dataset_version"],
             "dataset_fingerprint": checkpoint.dataset_binding["dataset_fingerprint"],
             "checkpoint_sha256": sha, "model": checkpoint.model_identity(),
             "model_source": checkpoint.model_source, "window": dataset.window, "horizon": dataset.horizon,
-            "input_channel_order": list(dataset.input_channels), "input_units": contract["input_units"],
+            "input_channel_order": list(dataset.input_channels), "input_variables": list(dataset.input_channels), "input_units": contract["input_units"],
             "scope": scope, "full_test_metrics": _full_test_metrics(checkpoint), "sample_metrics": metrics,
-            "scatter": sampler.result(seed),
-            "histogram": {"edges": edges.tolist(), "counts": counts.tolist(), "unit": "DU",
+            "scatter": sampler.result(seed, target, unit),
+            "histogram": {"edges": edges.tolist(), "counts": counts.tolist(), "unit": unit,
                           "residual_definition": RESIDUAL_DEFINITION,
                           "counts_are": "sample_count",
                           "weighting": "sample_count",
@@ -576,13 +580,14 @@ def compute_earth_diagnostics(task: Any, registry: Any, *, sample_windows=DEFAUL
 def _compute_pfi(ds, dataset, selected, model, checkpoint, device, baseline, repeats, seed,
                  *, spatial_weights=None, aggregation=GRID_UNIFORM_AGGREGATION,
                  metric_policy=None):
+    unit = checkpoint.training_contract.get("target_unit", "DU")
     pfi_scope = _scope(dataset, selected, seed=seed, aggregation=aggregation)
     pfi_scope["sampling"]["method"] = "seeded_subset_of_diagnostic_test_windows"
     pfi_scope["sampling"]["maximum_windows"] = MAX_PFI_WINDOWS
     pfi_scope["sampling"].update(diagnostic_selection_seed=seed,
                                  subset_selection_seed=(seed + 1) % 2**32,
                                  permutation_seed=seed)
-    common = {"scope": pfi_scope, "sampling": pfi_scope["sampling"], "unit": "DU",
+    common = {"scope": pfi_scope, "sampling": pfi_scope["sampling"], "unit": unit,
               "baseline_metric": "rmse", "importance_definition": "permuted_rmse-baseline_rmse",
               "aggregation": aggregation,
               "metric_policy": copy.deepcopy(metric_policy if metric_policy is not None else (
@@ -641,7 +646,7 @@ def _compute_pfi(ds, dataset, selected, model, checkpoint, device, baseline, rep
                           "reason": "This channel is identical across the selected windows; a meaningful permutation cannot be computed.",
                           "importance": None, "importance_mean": None, "mean": None,
                           "std": None, "importance_std": None, "baseline_rmse": baseline_rmse,
-                          "permuted_rmse_mean": None, "unit": "DU", "repeats": []})
+                          "permuted_rmse_mean": None, "unit": unit, "repeats": []})
             continue
         values = [float(acc.result()["overall"]["rmse"]) for acc in rows]
         deltas = [value - baseline_rmse for value in values]
@@ -649,7 +654,7 @@ def _compute_pfi(ds, dataset, selected, model, checkpoint, device, baseline, rep
                       "importance": float(np.mean(deltas)), "mean": float(np.mean(deltas)),
                       "importance_mean": float(np.mean(deltas)), "baseline_rmse": baseline_rmse,
                       "std": float(np.std(deltas, ddof=0)), "importance_std": float(np.std(deltas, ddof=0)),
-                      "permuted_rmse_mean": float(np.mean(values)), "unit": "DU",
+                      "permuted_rmse_mean": float(np.mean(values)), "unit": unit,
                       "repeats": [{"repeat": index + 1, "rmse": value, "permuted_rmse": value, "delta_rmse": delta}
                                   for index, (value, delta) in enumerate(zip(values, deltas))]})
     result = {**common, "status": "completed" if any(channel_varies) else "unavailable", "baseline_value": baseline_rmse,

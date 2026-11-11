@@ -28,7 +28,7 @@ class FigureOptions(BaseModel):
     dpi: Literal[300, 600] = 300
     panel_labels: bool = True
     include_title: bool = True
-    unit: Literal["um-atm", "DU"] = "um-atm"
+    unit: Literal["um-atm", "DU", "native", "K", "m s-1", "W m-2", "m/s", "W/m²", "1"] = "um-atm"
 
     @model_validator(mode="after")
     def bounded_pixels(self):

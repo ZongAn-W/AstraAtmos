@@ -192,6 +192,13 @@ class UserModelService:
                              or earth.get('window') not in declaration.get('window', [])
                              or earth.get('horizon') not in declaration.get('horizon', [])))):
                 compatible, status, code = False, "unknown", "uploaded_model_compatibility_unknown"
+            if any(key in declaration or key in earth for key in ("supported_targets", "supports_independent_inputs", "input_variable_sets", "forecast_configurations")):
+                from training_backbones.earth_3hourly_uploaded_contract import forecast_configurations
+                try:
+                    if earth.get("forecast_configurations") != forecast_configurations(declaration):
+                        compatible, status, code = False, "unknown", "uploaded_model_compatibility_unknown"
+                except (TypeError, ValueError):
+                    compatible, status, code = False, "unknown", "uploaded_model_compatibility_unknown"
         reasons = list(earth.get("errors") or [])
         if not available:
             compatible = False
@@ -234,6 +241,10 @@ class UserModelService:
             "output_shape": earth.get("output_shape"),
             "default_batch_size": 1 if earth.get('contract_schema') in ('astraatmos_earth_3hourly_fullgrid_model_v2', 'astraatmos_earth_3hourly_5deg_model_v1') else 8,
             "max_batch_size": 64,
+            "supported_targets": earth.get("supported_targets", ["TO3"]),
+            "supports_independent_inputs": earth.get("supports_independent_inputs", False),
+            "input_variable_sets": earth.get("input_variable_sets"),
+            "forecast_configurations": earth.get("forecast_configurations"),
             "spatial_input_shape": declaration.get('spatial_tile_shape') if dataset_id in ('earth_merra2_3hourly_v1', 'earth_merra2_3hourly_5deg_v1') else None,
         }
 

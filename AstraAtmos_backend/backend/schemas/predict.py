@@ -35,7 +35,15 @@ class PredictFieldData(BaseModel):
     maxVal: float
 
 
-class PredictResponse(BaseModel):
+class MarsVariableMetadata(BaseModel):
+    """Preserve the physical target contract when FastAPI serializes responses."""
+
+    target_variable: str = "O3"
+    target_unit: str = "um-atm"
+    input_variables: list[str] | None = None
+
+
+class PredictResponse(MarsVariableMetadata):
     export_ref: dict[str, Any] | None = None
     ground_truth: list[PredictFieldData]
     prediction: list[PredictFieldData]
@@ -72,7 +80,7 @@ class SplitMetadata(BaseModel):
     legacy_compatibility: bool = False
 
 
-class EvalMetricsResponse(BaseModel):
+class EvalMetricsResponse(MarsVariableMetadata):
     export_ref: dict[str, Any] | None = None
     overall: StepMetrics
     per_step: list[StepMetrics]
@@ -86,7 +94,7 @@ class TrainingModelCompareRequest(BaseModel):
     horizon: int = Field(default=3, ge=1, le=30)
 
 
-class TrainingModelMetrics(BaseModel):
+class TrainingModelMetrics(MarsVariableMetadata):
     export_ref: dict[str, Any] | None = None
     overall: StepMetrics
     per_step: list[StepMetrics]
@@ -94,7 +102,7 @@ class TrainingModelMetrics(BaseModel):
     split_meta: SplitMetadata | None = None
 
 
-class TrainingModelCompareItem(BaseModel):
+class TrainingModelCompareItem(MarsVariableMetadata):
     task_id: int
     model_name: str
     model_source: str
@@ -104,7 +112,7 @@ class TrainingModelCompareItem(BaseModel):
     metrics: TrainingModelMetrics
 
 
-class TrainingModelCompareResponse(BaseModel):
+class TrainingModelCompareResponse(MarsVariableMetadata):
     items: list[TrainingModelCompareItem]
 
 
@@ -127,7 +135,7 @@ class HistogramData(BaseModel):
     counts: list[int]
 
 
-class ErrorDistributionResponse(BaseModel):
+class ErrorDistributionResponse(MarsVariableMetadata):
     scatter: ScatterData
     hist_trues: HistogramData
     hist_preds: HistogramData
@@ -141,7 +149,7 @@ class PermutationImportanceItem(BaseModel):
     importance: float
 
 
-class PermutationImportanceResponse(BaseModel):
+class PermutationImportanceResponse(MarsVariableMetadata):
     export_ref: dict[str, Any] | None = None
     sampling: dict[str, Any] | None = None
     items: list[PermutationImportanceItem]

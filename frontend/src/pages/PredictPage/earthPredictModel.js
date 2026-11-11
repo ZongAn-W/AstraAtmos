@@ -16,6 +16,18 @@ export const EARTH_FIELD_KINDS = ['reference', 'prediction', 'residual'];
 export const EARTH_3HOURLY_DATASET_ID = 'earth_merra2_3hourly_v1';
 export const EARTH_THREE_HOURLY_DATASET_IDS = [EARTH_3HOURLY_DATASET_ID, 'earth_merra2_3hourly_5deg_v1'];
 
+function parseTaskHyperparameters(task) {
+  const raw = task?.hyperparameters;
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 /** Return the cadence advertised by the server, retaining daily defaults. */
 export function getEarthCadence(value) {
   const frequencyHours = Number(value?.frequency_hours ?? value?.temporal?.frequency_hours);
@@ -104,7 +116,7 @@ export function shouldClearEarthResult(previousKey, nextKey) {
 /**
  * 把 API 返回的场转成 EarthMap2D 需要的 payload。
  *
- * 单位固定 DU，不做任何换算：地球 TO3 本身就是 DU，不能套用火星的 μm-atm 换算。
+ * 使用响应中声明的目标原生单位，不套用火星臭氧的 μm-atm 换算。
  */
 export function buildEarthFieldPayload({ response, dayIndex, kind, colormap, colorRange = null }) {
   const days = Array.isArray(response?.[kind]) ? response[kind] : [];
@@ -127,7 +139,7 @@ export function buildEarthFieldPayload({ response, dayIndex, kind, colormap, col
     lon,
     colormap,
     color_range: { min, max },
-    unit: EARTH_TARGET_UNIT,
+    unit: response?.target_unit || EARTH_TARGET_UNIT,
     coverage: {
       latitude_range: response?.grid?.latitude_range || null,
       longitude_range: response?.grid?.longitude_range || null,
@@ -267,9 +279,11 @@ export function getEarthTrainingModelOptions(tasks = []) {
     .map((task) => {
       const base = task.custom_model_name || `Task #${task.id}`;
       const identity = readEarthTaskModelIdentity(task);
+      const hypers = parseTaskHyperparameters(task);
+      const target = hypers.target_variable || task.target_variable || 'TO3';
       return {
         id: Number(task.id),
-        label: identity.uploadedModelName ? `${base} · ${identity.uploadedModelName}` : base,
+        label: `${identity.uploadedModelName ? `${base} · ${identity.uploadedModelName}` : base}${target !== 'TO3' ? ` · ${target}` : ''}`,
         task,
         modelSource: identity.modelSource,
       };
@@ -283,7 +297,7 @@ export function getEarthTrainingModelOptions(tasks = []) {
  * DLinear 处理，保持旧任务（无上传字段）仍可被识别与预测。
  */
 export function readEarthTaskModelIdentity(task) {
-  const hyperparameters = task?.hyperparameters || {};
+  const hyperparameters = parseTaskHyperparameters(task);
   const modelSource = String(
     hyperparameters.model_source || task?.model_source || 'official',
   ).toLowerCase() === 'uploaded'

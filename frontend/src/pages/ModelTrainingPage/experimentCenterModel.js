@@ -6,6 +6,7 @@
  */
 
 import { isEarthMetrics } from '../../utils/earthMetricMeta.js';
+import { resolveEnvironmentTask } from '../../utils/environmentVariables.js';
 import {
   MODEL_STRUCTURE_PARAM_CONFIG,
   RECURRENT_MODEL_ARCHITECTURES,
@@ -385,6 +386,8 @@ export function buildExperimentSummary(task) {
       dataset: '',
       modelSource: '',
       modelAvailable: false,
+      targetVariable: '',
+      inputVariables: [],
       progress: 0,
       startTime: null,
       metrics: {},
@@ -395,6 +398,7 @@ export function buildExperimentSummary(task) {
   const hyperparameters = parseTaskHyperparameters(task.hyperparameters);
   const architecture = String(hyperparameters.model_architecture || '').trim().toLowerCase();
   const dataset = String(task.dataset_id || hyperparameters.training_dataset || '').trim();
+  const environmentTask = resolveEnvironmentTask(task);
 
   return {
     id: task.id ?? null,
@@ -405,6 +409,8 @@ export function buildExperimentSummary(task) {
     dataset,
     modelSource: String(task.model_source || hyperparameters.model_source || '').toLowerCase(),
     modelAvailable: task.model_available === true,
+    targetVariable: environmentTask.target,
+    inputVariables: [...environmentTask.inputs],
     progress: Number(task.progress) || 0,
     startTime: task.start_time || null,
     metrics: readExperimentMetrics(task.metrics),
@@ -695,6 +701,9 @@ export function readExperimentConfig(task, {
     uploadedModelName,
     customModelParams,
     selectedChannels,
+    targetVariable: hyperparameters.target_variable || (String(trainingDatasetRaw).startsWith('earth_') ? 'TO3' : 'O3'),
+    inputVariables: Array.isArray(hyperparameters.input_variables) ? [...hyperparameters.input_variables]
+      : [String(trainingDatasetRaw).startsWith('earth_') ? 'TO3' : 'O3', ...(String(trainingDatasetRaw).startsWith('earth_') ? (hyperparameters.selected_channels || []).filter(c => c !== 'TO3') : selectedChannels)],
     modelArchitecture: architecture,
     useSphere: hyperparameters.use_sphere === true,
     epochs: epochs ?? base.epochs,

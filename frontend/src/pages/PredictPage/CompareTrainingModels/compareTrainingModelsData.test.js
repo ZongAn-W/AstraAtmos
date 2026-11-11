@@ -5,9 +5,11 @@ import {
   buildCompareModelSummary,
   buildErrorHistogramTraces,
   buildCompareParameterRows,
+  compareResultMatchesTasks,
   buildPfiMatrix,
   buildStepCurveTraces,
   getCompareSelectionState,
+  resolveEarthCompareMetricUnit,
   sortCompareItems,
 } from './compareTrainingModelsData.js';
 
@@ -38,12 +40,26 @@ test('builds model summary text from a completed training task', () => {
     modelName: 'MY27 UVD',
     modelSource: 'official',
     architecture: 'convlstm',
-    selectedChannels: ['U', 'V', 'D'],
-    inputChannelText: 'U / V / D',
+    selectedChannels: ['O3', 'U', 'V', 'D'],
+    inputChannelText: 'O3 / U / V / D',
+    targetText: 'O3 (um-atm)',
     window: 4,
     horizon: 3,
     dataSource: 'default',
   });
+});
+
+test('model summary preserves top-level target and complete inputs when hyperparameters omit them', () => {
+  const summary = buildCompareModelSummary({
+    id: 44,
+    target_variable: 'T',
+    target_unit: 'K',
+    input_variables: ['O3', 'U', 'S'],
+    hyperparameters: JSON.stringify({ selected_channels: ['U', 'S'] }),
+  });
+  assert.equal(summary.targetText, 'T (K)');
+  assert.deepEqual(summary.selectedChannels, ['O3', 'U', 'S']);
+  assert.equal(summary.inputChannelText, 'O3 / U / S');
 });
 
 test('sorts compare items by rmse ascending by default', () => {
@@ -94,7 +110,8 @@ test('builds parameter matrix rows from compare payload items', () => {
       modelName: 'MY27 UVD',
       modelSource: 'official',
       architecture: 'convlstm',
-      selectedChannels: 'U / V / D',
+      target: 'O3 (um-atm)',
+      selectedChannels: 'O3 / U / V / D',
       useSphere: 'On',
       window: '4',
       horizon: '3',
@@ -106,6 +123,56 @@ test('builds parameter matrix rows from compare payload items', () => {
       dataSource: 'default',
     },
   ]);
+});
+
+test('parameter rows and comparison result guard preserve a non-ozone task identity', () => {
+  const task = { id: 7, target_variable: 'T', target_unit: 'K', input_variables: ['O3', 'U'] };
+  const peer = { id: 8, target_variable: 'T', target_unit: 'K', input_variables: ['O3', 'U'] };
+  const items = [task, peer].map((item) => ({
+    task_id: item.id,
+    target_variable: item.target_variable,
+    target_unit: item.target_unit,
+    input_variables: item.input_variables,
+    hyperparameters: { selected_channels: ['U'] },
+  }));
+  const rows = buildCompareParameterRows(items, 'mars');
+  assert.deepEqual(rows.map(({ target, selectedChannels }) => [target, selectedChannels]), [
+    ['T (K)', 'O3 / U'],
+    ['T (K)', 'O3 / U'],
+  ]);
+  assert.equal(compareResultMatchesTasks({ items }, [task, peer], 'mars'), true);
+  assert.equal(compareResultMatchesTasks({ items: [{ ...items[0], input_variables: ['O3', 'V'] }, items[1]] }, [task, peer], 'mars'), false);
+  assert.equal(compareResultMatchesTasks({ items: items.map(({ task_id }) => ({ task_id })) }, [task, peer], 'mars'), false);
+});
+
+test('Earth comparison guard rejects missing or mismatched input identities', () => {
+  const tasks = [17, 18].map((id) => ({
+    id,
+    target_variable: 'T2M',
+    target_unit: 'K',
+    input_variables: ['TO3', 'U10M'],
+  }));
+  const items = tasks.map((task) => ({
+    task_id: task.id,
+    planet: 'earth',
+    target_variable: task.target_variable,
+    target_unit: task.target_unit,
+    input_variables: task.input_variables,
+  }));
+  assert.equal(compareResultMatchesTasks({ items }, tasks, 'earth'), true);
+  assert.equal(compareResultMatchesTasks({ items: [{ ...items[0], input_variables: undefined }, items[1]] }, tasks, 'earth'), false);
+  assert.equal(compareResultMatchesTasks({ items: [{ ...items[0], target_unit: undefined }, items[1]] }, tasks, 'earth'), false);
+  assert.equal(compareResultMatchesTasks({ items: [{ ...items[0], input_variables: ['TO3', 'SWGDN'] }, items[1]] }, tasks, 'earth'), false);
+});
+
+test('Earth comparison metric units follow the forecast target when payload units are absent', () => {
+  assert.equal(resolveEarthCompareMetricUnit('rmse', 'K'), 'K');
+  assert.equal(resolveEarthCompareMetricUnit('mae', 'W m-2'), 'W m-2');
+  assert.equal(resolveEarthCompareMetricUnit('mse', 'K'), 'K²');
+  assert.equal(resolveEarthCompareMetricUnit('mse', 'W m-2'), '(W m-2)²');
+  assert.equal(resolveEarthCompareMetricUnit('mse', '1', null, true), '无量纲');
+  assert.equal(resolveEarthCompareMetricUnit('rmse', 'K', { rmse: 'kelvin' }), 'kelvin');
+  assert.equal(resolveEarthCompareMetricUnit('r2', 'K'), 'dimensionless');
 });
 
 test('builds per-step metric traces from compare payload items', () => {

@@ -17,6 +17,24 @@ from services.model_artifacts import is_valid_model_weight_file
 PositiveId = Annotated[StrictInt, Field(gt=0)]
 
 
+def _decoded_task_hyperparameters(value: Optional[str]) -> dict[str, Any]:
+    try:
+        parsed = json.loads(value or "{}")
+    except (TypeError, ValueError):
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    normalized = dict(parsed)
+    for key in ("input_variables", "selected_channels"):
+        item = normalized.get(key)
+        if isinstance(item, str):
+            try:
+                normalized[key] = json.loads(item)
+            except (TypeError, ValueError):
+                normalized[key] = item.replace("+", ",").split(",")
+    return normalized
+
+
 class TrainingTagResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -133,6 +151,66 @@ class TrainingTaskResponse(BaseModel):
         if not isinstance(legacy, dict):
             return False
         return legacy.get("training_dataset") in EARTH_DATASET_IDS
+
+    @computed_field(return_type=str)
+    @property
+    def target_variable(self) -> str:
+        hypers = _decoded_task_hyperparameters(self.hyperparameters)
+        default = "TO3" if self.is_earth_task else "O3"
+        try:
+            if self.is_earth_task:
+                from services.earth_training_contract import earth_variable_selection
+                target, _ = earth_variable_selection(hypers)
+                return target
+            from services.mars_variables import mars_target_variable
+            return mars_target_variable(hypers.get("target_variable"))
+        except (ImportError, TypeError, ValueError):
+            return default
+
+    @computed_field(return_type=list[str])
+    @property
+    def input_variables(self) -> list[str]:
+        normalized = _decoded_task_hyperparameters(self.hyperparameters)
+
+        if self.is_earth_task:
+            try:
+                from services.earth_training_contract import earth_variable_selection
+                _, inputs = earth_variable_selection(normalized)
+                return inputs
+            except (ImportError, TypeError, ValueError):
+                return ["TO3"]
+
+        if "input_variables" not in normalized:
+            try:
+                from services.training_channels import get_channels_from_hyperparameters, get_task_channel_suffix
+                if not get_channels_from_hyperparameters(normalized):
+                    suffix = get_task_channel_suffix(self)
+                    if suffix:
+                        normalized["selected_channels"] = list(suffix)
+            except (ImportError, TypeError, ValueError):
+                pass
+        try:
+            from services.mars_variables import resolve_mars_variables
+            _, inputs = resolve_mars_variables(normalized)
+            return inputs
+        except (ImportError, TypeError, ValueError):
+            return ["O3"]
+
+    @computed_field(return_type=str)
+    @property
+    def target_unit(self) -> str:
+        """Physical unit for the task target, including legacy task fallback."""
+        target = self.target_variable
+        try:
+            if self.is_earth_task:
+                from services.earth_training_contract import EARTH_CHANNEL_UNITS
+                return EARTH_CHANNEL_UNITS.get(target, "")
+            from services.mars_variables import MARS_VARIABLE_UNITS
+            return MARS_VARIABLE_UNITS.get(target, "")
+        except (ImportError, AttributeError):
+            # Serialization must remain robust for a damaged historical row;
+            # prediction admission performs stricter contract validation.
+            return ""
 
     @computed_field(return_type=bool)
     @property

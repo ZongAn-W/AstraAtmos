@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n';import { useSettings } from '../contexts/SettingsContext';
 import { getTrainingDefaultUpdates, normalizeTrainingDefaults } from '../utils/trainingDefaults.js';
+import { ENVIRONMENT_VARIABLES } from '../utils/environmentVariables.js';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import {
@@ -43,7 +44,6 @@ import {
   sanitizePositiveNumber,
 } from './ModelTrainingPage/trainingParamSanitizers';
 import {
-  EARTH_CHANNEL_META,
   EARTH_CHANNEL_ORDER,
   EARTH_MODEL_ARCHITECTURE,
   EARTH_MODEL_SOURCE_OFFICIAL,
@@ -233,8 +233,8 @@ export default function ModelTrainingPage() {
         ? 'Earth 官方模型固定为 DLinear（线性隐藏层数可在「超参数」里调整）。'
         : 'The official Earth model is fixed to DLinear; adjust the linear hidden layers under Hyperparameters.',
       earthThreeHourlyModelFixedNote: (shape) => isZh
-        ? `TO3 (DU) · UTC 三小时 · ${shape.join('×')}；输入与输出窗口可自定义。`
-        : `TO3 (DU) · UTC 3-hourly · ${shape.join('×')}; configurable input and output windows.`,
+        ? `UTC 三小时 · ${shape.join('×')}；预测目标、输入变量与时间窗口可配置。`
+        : `UTC 3-hourly · ${shape.join('×')}; configurable target, inputs and time windows.`,
       earthUploadedCompatibleNote: isZh
         ? '该上传模型已通过 Earth 兼容性校验：数据集、频率、网格以及声明的可用窗口均匹配。训练时会固定当前模型版本与内容指纹。'
         : 'This uploaded model passed the Earth compatibility check: dataset, frequency, grid and declared window choices match. The current version and content hash are pinned when training starts.',
@@ -404,7 +404,7 @@ export default function ModelTrainingPage() {
       modelPickerCollapse: isZh ? '收起模型库' : 'Collapse model library',
       // 载荷条与序列图示
       payloadDrivers: isZh ? '驱动变量' : 'Drivers',
-      payloadCountLabel: (count, total) => (isZh ? `${count} / ${total} 个驱动` : `${count} / ${total} drivers`),
+      payloadCountLabel: (count, total) => (isZh ? `${count} / ${total} 个输入` : `${count} / ${total} inputs`),
       // 检查器
       inspectorCurrentModel: isZh ? '当前模型 / CURRENT MODEL' : 'Current model',
       inspectorReadiness: isZh ? '就绪检查 / READINESS' : 'Readiness',
@@ -649,6 +649,8 @@ export default function ModelTrainingPage() {
   );
 
   const [selectedChannels, setSelectedChannels] = useState([]);
+  const [targetVariable, setTargetVariable] = useState('O3');
+  const [inputVariables, setInputVariables] = useState(['O3']);
   const [selectedScript, setSelectedScript] = useState(UNIFIED_TRAINING_SCRIPT);
   // 上传模型是训练页的一等入口：默认来源就是「上传模型」，没有上传文件时
   // 配置画布会显示上传入口、模板/说明下载与文件格式要求，官方模型作为兼容入口。
@@ -717,16 +719,15 @@ export default function ModelTrainingPage() {
   );
   // Earth 使用规范通道顺序；火星保持原有 U/V/D/S/T 顺序。
   const activeChannelOrder = earthMode
-    ? (getEarthTrainingProfile(trainingDataset).frequencyHours === 3 ? EARTH_OPTIONAL_CHANNELS : EARTH_CHANNEL_ORDER)
-    : channelOrder;
+    ? EARTH_CHANNEL_ORDER : ['O3', ...channelOrder];
   const activeChannelMap = useMemo(
     () => (earthMode
       ? Object.fromEntries(EARTH_CHANNEL_ORDER.map((channel) => [
           channel,
-          { name: EARTH_CHANNEL_META[channel]?.name || channel, short: channel },
+          { name: ENVIRONMENT_VARIABLES.earth[channel]?.[isZh ? 'zh' : 'en'] || channel, short: channel },
         ]))
-      : channelMap),
-    [earthMode, channelMap],
+      : { O3: { name: isZh ? '臭氧' : 'Ozone', short: 'O3' }, ...channelMap }),
+    [earthMode, channelMap, isZh],
   );
 
   /**
@@ -746,6 +747,7 @@ export default function ModelTrainingPage() {
       horizon,
       transferEnabled,
       selectedChannels,
+      targetVariable, inputVariables,
       customModelParams, trainRatio, validationRatio, testRatio,
       hiddenDims, stlstmLayers, architectureParamsByModel,
       transferSourceType, transferSourceTaskId, selectedTrainingWeightId,
@@ -768,6 +770,8 @@ export default function ModelTrainingPage() {
     setTestRatio(next.testRatio);
     setTransferEnabled(next.transferEnabled);
     setSelectedChannels(next.selectedChannels);
+    setTargetVariable(next.targetVariable || (isEarthTrainingDataset(next.trainingDataset) ? 'TO3' : 'O3'));
+    setInputVariables(next.inputVariables || [isEarthTrainingDataset(next.trainingDataset) ? 'TO3' : 'O3', ...next.selectedChannels]);
     setCustomModelParams(next.customModelParams);
     setCustomModelParamErrors({});
     setHiddenDims(next.hiddenDims);
@@ -785,6 +789,7 @@ export default function ModelTrainingPage() {
     modelArchitecture,
     modelSource,
     selectedChannels,
+    targetVariable, inputVariables,
     selectedUploadedModelId,
     trainingDataset,
     transferEnabled,
@@ -864,6 +869,7 @@ export default function ModelTrainingPage() {
     datasetId: trainingDataset,
     windowValue: window_, horizon,
     batchSize,
+    targetVariable, inputVariables,
   });
   const earthUploadedInlineError = earthMode
     && modelSource === EARTH_MODEL_SOURCE_UPLOADED
@@ -1051,7 +1057,7 @@ export default function ModelTrainingPage() {
   const activeModelSourceAvailable =
     modelSource === 'uploaded' ? !uploadedModelStartBlocked : selectedScriptAvailable;
   const startDisabled = user
-    ? (modelSource === 'official' && !selectedScriptAvailable) ||
+    ? inputVariables.length === 0 || (modelSource === 'official' && !selectedScriptAvailable) ||
       uploadedModelStartBlocked ||
       (earthMode && (!earthAvailability.selectable || !earthSplitPreview.valid || earthUploadedLoading || Boolean(earthUploadedBlocker))) ||
       transferStartBlocked ||
@@ -1091,6 +1097,7 @@ export default function ModelTrainingPage() {
    */
   const readiness = useMemo(() => {
     const blockers = [];
+    if (!inputVariables.length) blockers.push({ code: 'inputs-empty', label: isZh ? '至少选择一个输入变量' : 'Select at least one input variable' });
     if (!user) blockers.push({ code: 'login', label: copy.inspectorLoginRequired });
     if (!customModelName.trim()) {
       blockers.push({ code: 'name-missing', label: copy.inspectorMissingName });
@@ -1135,7 +1142,13 @@ export default function ModelTrainingPage() {
             ? copy.fullGridBatchInvalid
           : earthUploadedBlocker === 'earth_compatibility_unknown'
           ? (earthUploadedLoading ? copy.earthCompatibilityChecking : copy.earthCompatibilityUnknown)
-          : earthUploadedBlocker;
+          : earthUploadedBlocker === 'forecast_target_not_supported'
+            ? (isZh ? '上传模型未声明该目标；请选择受支持的目标或官方模型' : 'The uploaded model does not declare this target; choose a supported target or official model')
+            : earthUploadedBlocker === 'forecast_inputs_require_to3'
+              ? (isZh ? '此上传模型要求输入 TO3；独立输入需模型声明并重新校验' : 'This uploaded model requires TO3 as an input; independent inputs need a declaration and revalidation')
+              : earthUploadedBlocker === 'forecast_input_combination_not_supported'
+                ? (isZh ? '当前输入组合未通过上传模型校验；请选择声明的组合或官方模型' : 'This input combination was not validated; choose a declared combination or official model')
+                : earthUploadedBlocker;
       blockers.push({ code: 'earth-uploaded', label });
     }
     if (transferStartBlocked) blockers.push({ code: 'transfer', label: copy.transferSelectSource });
@@ -1150,6 +1163,7 @@ export default function ModelTrainingPage() {
     earthAvailability.selectable,
     earthSplitPreview.valid, isZh,
     earthMode,
+    targetVariable, inputVariables,
     earthUploadedBlocker,
     earthUploadedLoading,
     copy.inspectorCustomParamsInvalid,
@@ -1302,6 +1316,7 @@ export default function ModelTrainingPage() {
     selectedUploadedModelId,
     customModelParams,
     selectedChannels,
+    targetVariable, inputVariables,
     modelArchitecture,
     useSphere,
     hiddenDims,
@@ -1318,6 +1333,8 @@ export default function ModelTrainingPage() {
     setCustomModelParams(captureTransferStructureSnapshot(structure.customModelParams));
     setCustomModelParamErrors({});
     setSelectedChannels([...structure.selectedChannels]);
+    setTargetVariable(structure.targetVariable || 'O3');
+    setInputVariables(structure.inputVariables || ['O3', ...structure.selectedChannels]);
     setModelArchitecture(structure.modelArchitecture);
     setUseSphere(structure.useSphere);
     setHiddenDims([...structure.hiddenDims]);
@@ -1657,9 +1674,9 @@ export default function ModelTrainingPage() {
   };
 
   const handleChannelToggle = (channel) => {
-    setSelectedChannels((previous) =>
-      previous.includes(channel) ? previous.filter((item) => item !== channel) : [...previous, channel]
-    );
+    const next = activeChannelOrder.filter(item => item === channel ? !inputVariables.includes(item) : inputVariables.includes(item));
+    setInputVariables(next);
+    setSelectedChannels(next.filter(item => item !== (earthMode ? 'TO3' : 'O3')));
   };
 
   const handleFoldChange = (field, rawValue) => {
@@ -1718,6 +1735,9 @@ export default function ModelTrainingPage() {
     setCustomModelParams(createDefaultCustomModelParams(selectedUploadedParamSchema));
     setCustomModelParamErrors({});
     setCustomModelName('');
+    setTargetVariable(earthMode ? 'TO3' : 'O3');
+    setInputVariables(earthMode ? [...EARTH_CHANNEL_ORDER] : ['O3']);
+    setSelectedChannels(earthMode ? [...EARTH_OPTIONAL_CHANNELS] : []);
     setModelNameError('');
     setNewTaskTagIds([]);
     setTransferEnabled(earthMode ? false : defaults.transferEnabled);
@@ -1768,6 +1788,10 @@ export default function ModelTrainingPage() {
   const handleStartTraining = async () => {
     if (!user) {
       openAuthModal('login');
+      return;
+    }
+    if (!inputVariables.length) {
+      showToast(isZh ? '至少选择一个输入变量。' : 'Select at least one input variable.', 'error');
       return;
     }
 
@@ -1821,6 +1845,7 @@ export default function ModelTrainingPage() {
           horizon,
           trainRatio, validationRatio, testRatio,
           selectedChannels,
+          targetVariable, inputVariables,
           epochs,
           batchSize,
           learningRate,
@@ -1930,6 +1955,8 @@ export default function ModelTrainingPage() {
               custom_model_params: buildCustomModelParams(selectedUploadedParamSchema, customModelParams),
             }
           : baseHyperparameters;
+      hyperparameters.target_variable = targetVariable;
+      hyperparameters.input_variables = [...inputVariables];
       const apiModelScript =
         modelSource === 'uploaded' ? selectedScript || UNIFIED_TRAINING_SCRIPT : selectedScript;
 
@@ -2142,6 +2169,8 @@ export default function ModelTrainingPage() {
     setCustomModelParams(cloneExperimentConfigValue(config.customModelParams));
     setCustomModelParamErrors({});
     setSelectedChannels([...config.selectedChannels]);
+    setTargetVariable(config.targetVariable);
+    setInputVariables([...config.inputVariables]);
     setModelArchitecture(config.modelArchitecture);
     setUseSphere(config.useSphere);
     setHiddenDims([...config.hiddenDims]);
@@ -2204,6 +2233,7 @@ export default function ModelTrainingPage() {
         selectedUploadedModelId,
         customModelParams,
         selectedChannels,
+        targetVariable, inputVariables,
         modelArchitecture,
         useSphere,
         epochs,
@@ -2261,6 +2291,7 @@ export default function ModelTrainingPage() {
         earthUploadedStatusTone,
         earthUploadedNotice,
         earthUploadedNoticeTone,
+        earthUploadedCompatibility,
       }}
       validation={{
         modelNameError,
@@ -2289,6 +2320,7 @@ export default function ModelTrainingPage() {
         onDownloadUploadedModel: handleDownloadUploadedModel,
         onCustomModelParamChange: handleCustomModelParamChange,
         onChannelToggle: handleChannelToggle,
+        onTargetVariableChange: setTargetVariable,
         onArchitectureSelect: (architectureId) => {
           setModelArchitecture(architectureId);
           setArchitecturePickerOpen(false);

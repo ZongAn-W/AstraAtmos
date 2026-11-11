@@ -57,7 +57,7 @@ from services.earth_training_contract import (
     EARTH_METRICS_AGGREGATION_KEY,
     EARTH_TRAINING_SCRIPT,
     build_earth_training_spec,
-    canonical_channel_order,
+    earth_variable_selection,
     earth_3hourly_metrics_contract,
     earth_task_metrics_contract,
     earth_spec_metrics_contract,
@@ -499,7 +499,8 @@ class TrainingService:
                     user_model_service=user_model_service,
                     custom_model_params=(hyperparameters or {}).get("custom_model_params"),
                     dataset_id=resolved_dataset_id,
-                    input_channel_order=canonical_channel_order((hyperparameters or {}).get("selected_channels")),
+                    input_channel_order=earth_variable_selection(normalized)[1],
+                    target_variable=earth_variable_selection(normalized)[0],
                     window=(hyperparameters or {}).get('window', 56),
                     horizon=(hyperparameters or {}).get('horizon', 24),
                     batch_size=normalized["batch_size"] if resolved_dataset_id in EARTH_THREE_HOURLY_DATASET_IDS else 8,
@@ -795,6 +796,7 @@ class TrainingService:
         custom_model_params: Any,
         dataset_id: str = "earth_merra2_daily_v2",
         input_channel_order: list[str] | None = None,
+        target_variable: str = "TO3",
         window: int = 56,
         horizon: int = 24,
         batch_size: int = 8,
@@ -886,6 +888,16 @@ class TrainingService:
             raise DatasetRequestError(
                 verdict.code or "uploaded_model_not_earth_compatible",
                 prefix + "; ".join(verdict.reasons or ["unsupported model"]), status_code=422,
+            )
+
+        if dataset_id in EARTH_THREE_HOURLY_DATASET_IDS:
+            from services.earth_training_contract import require_earth_uploaded_forecast_compatibility
+            try:
+                report = json.loads(getattr(package, "validation_report", None) or "{}")
+            except (TypeError, ValueError):
+                report = {}
+            require_earth_uploaded_forecast_compatibility(
+                report, target_variable, input_channel_order or ["TO3"], dataset_id=dataset_id,
             )
 
         contract_schema = None
@@ -1000,6 +1012,27 @@ class TrainingService:
             weight_path = Path(getattr(record, "storage_path", "") or "")
             if not is_valid_model_weight_file(weight_path):
                 raise FileNotFoundError("Uploaded transfer weight file is missing")
+            from services.mars_variables import resolve_mars_variables
+            target, inputs = resolve_mars_variables(hyperparameters)
+            # A bare state dict has no variable identity. It remains usable for
+            # the historical ozone task, while other targets require a matching
+            # self-describing checkpoint rather than guessing from tensor shapes.
+            import torch
+            checkpoint = await asyncio.to_thread(
+                torch.load, weight_path, map_location="cpu", weights_only=True,
+            )
+            described = isinstance(checkpoint, dict) and any(
+                key in checkpoint for key in ("schema", "training_contract", "model_state_dict", "artifact_schema")
+            )
+            if described:
+                validate_mars_checkpoint(
+                    checkpoint, selected_channels=list(hyperparameters.get("selected_channels") or []),
+                    target_variable=target, input_variables=inputs,
+                    window=int(hyperparameters.get("window", 3)),
+                    horizon=int(hyperparameters.get("horizon", 3)),
+                )
+            elif target != "O3" or "O3" not in inputs:
+                raise ValueError("Bare transfer weights have no target identity; use a matching Mars checkpoint")
             return {"ASTRAATMOS_TRANSFER_WEIGHT_PATH": str(weight_path)}
 
         source_task_id = int(hyperparameters.get("transfer_source_task_id") or 0)
@@ -1056,8 +1089,14 @@ class TrainingService:
         if source_model != target_model:
             raise ValueError("Transfer source task model source does not match current training")
 
+        from services.mars_variables import resolve_mars_variables
+        source_target, source_inputs = resolve_mars_variables(source_hypers)
+        target_variable, target_inputs = resolve_mars_variables(target_hypers)
+        if source_target != target_variable:
+            raise ValueError("Transfer source task configuration does not match: target_variable")
+        if source_inputs != target_inputs:
+            raise ValueError("Transfer source task configuration does not match: input_variables")
         keys = [
-            "selected_channels",
             "window",
             "horizon",
             "use_sphere",
@@ -1435,6 +1474,8 @@ class TrainingService:
                         validate_mars_checkpoint(
                             checkpoint,
                             selected_channels=list(task_hypers.get("selected_channels") or []),
+                            target_variable=task_hypers.get("target_variable", "O3"),
+                            input_variables=task_hypers.get("input_variables"),
                             window=int(task_hypers.get("window", 3)),
                             horizon=int(task_hypers.get("horizon", 3)),
                         )

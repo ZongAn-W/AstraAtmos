@@ -5,8 +5,8 @@
  * 让训练页与测试共用同一份定义，而不是在 JSX 里散落字面量。所有函数都不依赖
  * React，也不发请求：请求构造与校验可以单独测试。
  *
- * Earth 训练首期只支持官方 DLinear，TO3 必选、四个辅助变量可选；数据集版本、
- * 发布指纹与网格由服务端 registry 提供，这里不复制一份。
+ * 默认保留 TO3 目标与历史 TO3 输入；显式任务可选择任一发布变量作为目标，
+ * 并独立选择输入。数据集版本、发布指纹与网格由服务端 registry 提供。
  */
 
 import {
@@ -80,7 +80,7 @@ export function getEarthTrainingProfile(datasetId = EARTH_DATASET_ID) {
   };
 }
 
-/** 规范通道顺序：TO3 固定第一，辅助变量按此顺序进入模型。 */
+/** 发布变量的规范顺序；显式输入不要求包含 TO3 或目标变量。 */
 export const EARTH_CHANNEL_ORDER = ['TO3', 'U10M', 'V10M', 'T2M', 'SWGDN'];
 export const EARTH_OPTIONAL_CHANNELS = ['U10M', 'V10M', 'T2M', 'SWGDN'];
 
@@ -148,6 +148,8 @@ export function getEarthChannelOptions() {
 export function buildEarthTrainingHyperparameters({
   datasetId = EARTH_DATASET_ID,
   selectedChannels = EARTH_OPTIONAL_CHANNELS,
+  targetVariable = 'TO3',
+  inputVariables,
   windowValue,
   horizon,
   epochs,
@@ -184,6 +186,8 @@ export function buildEarthTrainingHyperparameters({
     use_sphere: false,
     transfer_learning: false,
     selected_channels: normalizeEarthSelectedChannels(selectedChannels),
+    target_variable: targetVariable,
+    input_variables: Array.isArray(inputVariables) ? [...inputVariables] : ['TO3', ...normalizeEarthSelectedChannels(selectedChannels)],
     // 上限必须与服务端契约一致：超界值在此夹到文档范围，而不是留给服务端 422。
     epochs: sanitizePositiveInteger(epochs, EARTH_PARAM_BOUNDS.epochs.fallback, EARTH_PARAM_BOUNDS.epochs.min, EARTH_PARAM_BOUNDS.epochs.max),
     batch_size: sanitizePositiveInteger(batchSize, EARTH_PARAM_BOUNDS.batch_size.fallback, EARTH_PARAM_BOUNDS.batch_size.min, EARTH_PARAM_BOUNDS.batch_size.max),
@@ -239,12 +243,15 @@ export function readEarthUploadedModelCompatibility(compatibility) {
     horizon: Number.isFinite(Number(compatibility.horizon ?? contracts.horizon)) ? Number(compatibility.horizon ?? contracts.horizon) : null,
     windows: Array.isArray(contracts.window) ? contracts.window : null,
     horizons: Array.isArray(contracts.horizon) ? contracts.horizon : null,
+    supportedTargets: compatibility.supported_targets || contracts.supported_targets || ['TO3'],
+    supportsIndependentInputs: (compatibility.supports_independent_inputs ?? contracts.supports_independent_inputs) === true,
+    inputVariableSets: compatibility.input_variable_sets || contracts.input_variable_sets || null,
   };
 }
 
 /** 当前选中的上传模型是否可用于 Earth 训练；返回阻塞原因。 */
 export function getEarthUploadedSelectionBlocker({ modelSource, uploadedModelId, compatibility, datasetId = EARTH_DATASET_ID,
-  windowValue, horizon, batchSize } = {}) {
+  windowValue, horizon, batchSize, targetVariable = 'TO3', inputVariables } = {}) {
   if (modelSource !== EARTH_MODEL_SOURCE_UPLOADED) return null;
   const profile = getEarthTrainingProfile(datasetId);
   if (!profile.modelSources.includes(EARTH_MODEL_SOURCE_UPLOADED)) return 'dataset_training_configuration_not_supported';
@@ -255,6 +262,13 @@ export function getEarthUploadedSelectionBlocker({ modelSource, uploadedModelId,
   if (!verdict.known) return 'earth_compatibility_unknown';
   if (isEarthTrainingDataset(profile.datasetId) && verdict.dataset !== profile.datasetId) return 'earth_compatibility_unknown';
   if (!verdict.compatible) return verdict.reason || 'uploaded_model_not_earth_compatible';
+  if (!verdict.supportedTargets.includes(targetVariable)) return 'forecast_target_not_supported';
+  if (Array.isArray(inputVariables)) {
+    if (!inputVariables.length) return 'forecast_inputs_required';
+    if (!verdict.supportsIndependentInputs && !inputVariables.includes('TO3')) return 'forecast_inputs_require_to3';
+    if (Array.isArray(verdict.inputVariableSets) && !verdict.inputVariableSets.some(set =>
+      Array.isArray(set) && set.length === inputVariables.length && set.every(variable => inputVariables.includes(variable)))) return 'forecast_input_combination_not_supported';
+  }
   if (isEarthTrainingDataset(profile.datasetId)
     && (compatibility.status !== 'available' || !(profile.datasetId === EARTH_3HOURLY_5DEG_DATASET_ID ? [EARTH_3HOURLY_5DEG_SCHEMA] : [EARTH_3HOURLY_UPLOAD_SCHEMA, EARTH_3HOURLY_FULL_GRID_SCHEMA]).includes(verdict.contractSchema))) return 'earth_compatibility_unknown';
   if (verdict.contractSchema === EARTH_3HOURLY_FULL_GRID_SCHEMA
@@ -331,9 +345,9 @@ export function describeEarthSplitSamples(splits, window = EARTH_WINDOW, horizon
     });
 }
 
-/** 展示用单位行：辅助输入各自单位，目标固定 DU。 */
-export function describeEarthInputUnits(selectedChannels) {
-  const channels = [EARTH_TARGET_CHANNEL, ...normalizeEarthSelectedChannels(selectedChannels)];
+/** Legacy callers supply auxiliary inputs; new callers may supply a full input set. */
+export function describeEarthInputUnits(selectedChannels, inputVariables = null) {
+  const channels = Array.isArray(inputVariables) ? inputVariables : [EARTH_TARGET_CHANNEL, ...normalizeEarthSelectedChannels(selectedChannels)];
   return channels.map((channel) => ({
     channel,
     unit: EARTH_CHANNEL_META[channel]?.unit || '',
@@ -392,6 +406,8 @@ export function captureTrainingDraft(values) {
     testRatio: values.testRatio,
     transferEnabled: Boolean(values.transferEnabled),
     selectedChannels: Array.isArray(values.selectedChannels) ? [...values.selectedChannels] : [],
+    targetVariable: values.targetVariable,
+    inputVariables: Array.isArray(values.inputVariables) ? [...values.inputVariables] : undefined,
     customModelParams: values.customModelParams && typeof values.customModelParams === 'object'
       ? { ...values.customModelParams }
       : {},
@@ -419,6 +435,8 @@ export function applyEarthTrainingDefaults({ datasetId = EARTH_DATASET_ID, store
     horizon: profile.horizon,
     transferEnabled: false,
     selectedChannels: [...EARTH_OPTIONAL_CHANNELS],
+    targetVariable: 'TO3',
+    inputVariables: ['TO3', ...EARTH_OPTIONAL_CHANNELS],
     customModelParams: {},
     storedMarsSnapshot,
   };
@@ -445,6 +463,8 @@ export function resolveEarthTrainingRestore(snapshot) {
     testRatio: snapshot.testRatio ?? 0.1,
     transferEnabled: false,
     selectedChannels: normalizeEarthSelectedChannels(snapshot.selectedChannels),
+    targetVariable: snapshot.targetVariable || 'TO3',
+    inputVariables: Array.isArray(snapshot.inputVariables) ? [...snapshot.inputVariables] : ['TO3', ...normalizeEarthSelectedChannels(snapshot.selectedChannels)],
     customModelParams: snapshot.customModelParams && typeof snapshot.customModelParams === 'object'
       ? { ...snapshot.customModelParams }
       : {},
@@ -467,6 +487,8 @@ export function resolveMarsTrainingRestore(snapshot) {
     testRatio: snapshot.testRatio ?? 0.1,
     transferEnabled: Boolean(snapshot.transferEnabled),
     selectedChannels: Array.isArray(snapshot.selectedChannels) ? [...snapshot.selectedChannels] : [],
+    targetVariable: snapshot.targetVariable || 'O3',
+    inputVariables: Array.isArray(snapshot.inputVariables) ? [...snapshot.inputVariables] : ['O3', ...(snapshot.selectedChannels || [])],
     customModelParams: snapshot.customModelParams && typeof snapshot.customModelParams === 'object'
       ? { ...snapshot.customModelParams }
       : {},

@@ -1,5 +1,7 @@
 # Earth 三小时上传模型 v1
 
+> 环境变量扩展：旧声明仍限定 TO3 目标和 TO3 首输入；新声明可用 `supported_targets`、`supports_independent_inputs` 与 `input_variable_sets` 显式声明其他目标及完整输入组合，必须重新校验并保存匹配组合的验证证据。新任务输出通道仍为 1，单位取所选目标。详见[环境变量预测](environment-variable-forecasting.md)。
+
 需要一次输入完整全球图时使用独立的[全图 v2 说明与模板](earth-3hourly-fullgrid-model.md)。v1 仍固定 24×48；v2 固定 240×480、batch 1–64（默认 1，可运行大小取决于模型与显存），训练/预测/诊断按各自冻结契约运行，不把旧权重自动升级。
 
 本模板仅适用于 `earth_merra2_3hourly_v1`，独立于日频 `earth_merra2` 声明及 Mars 模板。下载 [Python 模板](earth-3hourly-uploaded-model-template.py)，导出 `MODEL_SPEC` 和 `build_model(config)`。三小时声明的 schema 为 `astraatmos_earth_3hourly_uploaded_model_v1`，声明字段必须完整、类型和值必须与模板一致；不接受旧 Earth 标签自动升级。需要共享地形门控、季节坐标和 ConvLSTM/SimVP 结构时，可下载[四位置共享门控模板](earth-3hourly-four-positions-shared-no-after-decoder-model.py)；该模板仍使用 v1 的 24×48 空间块。

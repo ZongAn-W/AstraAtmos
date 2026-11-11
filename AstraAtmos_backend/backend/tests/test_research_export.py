@@ -70,6 +70,31 @@ def test_units_limits_residual_and_coordinates(env):
     assert "density" not in scatter
 
 
+@pytest.mark.parametrize("target,unit", [("T", "K"), ("U", "m s-1"), ("S", "W m-2"), ("D", "1")])
+def test_environment_fields_keep_native_units_without_ozone_conversion(env, target, unit):
+    source = copy.deepcopy(env.source)
+    source.metadata.update(target_variable=target, target_unit=unit, source_unit=unit)
+    data = prepare_figure([source], request(env, unit="DU"))
+    assert data["target_variable"] == target
+    assert data["unit"] == data["labels"]["unit"] == unit
+    np.testing.assert_array_equal(data["reference"], source.data["ground_truth"][0])
+    np.testing.assert_allclose(data["residual"], data["prediction"] - data["reference"])
+
+
+def test_export_rejects_comparing_different_target_variables(env):
+    sources, refs = [], []
+    for task_id, target in [(1, "O3"), (2, "T")]:
+        ref = env.store.register(user_id=7, task_id=task_id, planet="mars", analysis="metrics", horizon=1,
+                                 origin="", variables=[], guard=env.source.guard,
+                                 data={"per_step": [{"step": 1, "rmse": 2}]},
+                                 metadata={**env.source.metadata, "target_variable": target})
+        refs.append(ref)
+        sources.append(env.store.get(ref, 7))
+    req = ResearchExportRequest(sources=refs, kind="step_curves")
+    with pytest.raises(ValueError, match="same target"):
+        prepare_figure(sources, req)
+
+
 @pytest.mark.parametrize("change,reason", [
     (lambda d: d["prediction_latitude"][0].__setitem__(0, 60), "coordinates"),
     (lambda d: d["latitude"][0].__setitem__(1, 65), "monotonic"),

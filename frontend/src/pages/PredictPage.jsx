@@ -9,6 +9,8 @@ import {
   setPredictUiPreferences,
 } from '../stores/predictCache';
 import C from '../constants/colors';
+import { sameEnvironmentTarget } from '../utils/environmentVariables.js';
+import { trainingTasksCache } from '../stores/trainingTasksCache.js';
 import { useT } from '../i18n';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -71,7 +73,7 @@ import {
 } from './PredictPage/earthPredictModel';
 import { fetchEarthPredictContext, runEarthPrediction } from '../services/earthPredict';
 import CompareTrainingModelsPanel from './PredictPage/CompareTrainingModels/CompareTrainingModelsPanel';
-import { getCompareSelectionState } from './PredictPage/CompareTrainingModels/compareTrainingModelsData';
+import { compareResultMatchesTasks, getCompareSelectionState } from './PredictPage/CompareTrainingModels/compareTrainingModelsData';
 import {
   clampPredictionHorizon,
   resolvePredictionHorizonLimit,
@@ -79,7 +81,7 @@ import {
 import { validatePredictCacheTrainingTasks } from './PredictPage/predictCacheTaskValidation';
 import SingleModelWorkbench from './PredictPage/SingleModelWorkbench';
 import { earthPredictionAdapter, marsPredictionAdapter } from './PredictPage/PredictionPlanetAdapter';
-import { earthResponseMatchesRequest } from './PredictPage/singleModelAdapters';
+import { earthResponseMatchesRequest, marsResponseMatchesTask } from './PredictPage/singleModelAdapters';
 import './PredictPage/singleModelWorkbench.css';
 import { selectPredictionMetrics } from './PredictPage/predictionMetricSelection';
 
@@ -126,10 +128,10 @@ export default function PredictPage() {
   const [modelMode, setModelMode] = useState(
     () => readPredictModeFromHash(window.location.hash) || normalizePredictModelMode()
   );
-  const [trainingTasks, setTrainingTasks] = useState([]);
-  const [trainingTasksScope, setTrainingTasksScope] = useState(null);
+  const [trainingTasks, setTrainingTasks] = useState(() => trainingTasksCache.peek(predictScope) || []);
+  const [trainingTasksScope, setTrainingTasksScope] = useState(() => trainingTasksCache.peek(predictScope) !== null ? predictScope : null);
   const [trainingTasksLoading, setTrainingTasksLoading] = useState(false);
-  const [trainingTasksLoaded, setTrainingTasksLoaded] = useState(false);
+  const [trainingTasksLoaded, setTrainingTasksLoaded] = useState(() => trainingTasksCache.peek(predictScope) !== null);
   const [trainingTasksError, setTrainingTasksError] = useState(null);
   const trainingTasksRequestRef = useRef({ id: 0, controller: null });
   const previousModelModeRef = useRef(modelMode);
@@ -241,6 +243,7 @@ export default function PredictPage() {
     [compareSelectionIdKey, predStep]
   );
   const activeCompareTrainingData = currentCompareTrainingMetricsKey === compareTrainingMetricsKey
+    && compareResultMatchesTasks(compareTrainingMetricsData, selectedCompareTrainingTasks, 'mars')
     ? compareTrainingMetricsData
     : null;
   const currentCompareTrainingErrorKey = useMemo(
@@ -252,6 +255,7 @@ export default function PredictPage() {
     [compareSelectionIdKey, predStep]
   );
   const activeCompareTrainingErrorData = currentCompareTrainingErrorKey === compareTrainingErrorKey
+    && compareResultMatchesTasks(compareTrainingErrorData, selectedCompareTrainingTasks, 'mars')
     ? compareTrainingErrorData
     : null;
   const currentCompareTrainingPfiKey = useMemo(
@@ -287,6 +291,7 @@ export default function PredictPage() {
     && requestCoordinator.isLatest(requestToken, requestContextKey)
   );
   const activeCompareTrainingPfiData = currentCompareTrainingPfiKey === compareTrainingPfiKey
+    && compareResultMatchesTasks(compareTrainingPfiData, selectedCompareTrainingTasks, 'mars')
     ? compareTrainingPfiData
     : null;
   const hasCurrentSingleResult = modelMode !== PREDICT_MODEL_MODE_COMPARE
@@ -400,7 +405,13 @@ export default function PredictPage() {
       && user?.id === userId
     );
 
-    setTrainingTasksLoading(true);
+    const cachedTasks = trainingTasksCache.peek(scope);
+    if (cachedTasks !== null) {
+      setTrainingTasks(cachedTasks);
+      setTrainingTasksScope(scope);
+      setTrainingTasksLoaded(true);
+    }
+    setTrainingTasksLoading(cachedTasks === null);
     setTrainingTasksError(null);
 
     return fetchTasks({ signal: controller.signal })
@@ -720,6 +731,10 @@ export default function PredictPage() {
       return;
     }
     if (modelMode === PREDICT_MODEL_MODE_COMPARE) {
+      if (!sameEnvironmentTarget(selectedCompareTrainingTasks, 'mars')) {
+        setError(settings?.language !== 'en' ? '请选择相同预测目标的模型进行比较。' : 'Choose models with the same prediction target.');
+        return;
+      }
       const compareTaskIds = compareSelection.ids;
       if (!compareSelection.canCompare) {
         setError(settings?.language !== 'en' ? '至少选择 2 个已完成训练模型。' : 'Select at least 2 completed trained models.');
@@ -751,6 +766,11 @@ export default function PredictPage() {
           signal: requestToken.signal,
         });
         if (!isRequestCurrent(requestToken, requestContextKey)) return;
+        if (!compareResultMatchesTasks(compareResult, selectedCompareTrainingTasks, 'mars')) {
+          throw new Error(settings?.language !== 'en'
+            ? '多模型对比响应与所选任务的目标变量或输入变量不一致，请重新选择模型后重试。'
+            : 'The comparison response does not match the selected task targets or inputs. Reselect the models and retry.');
+        }
         setCompareTrainingMetricsData(compareResult);
         setCompareTrainingMetricsKey(nextCompareKey);
         writePredictCache({
@@ -843,10 +863,22 @@ export default function PredictPage() {
         metricsPromise,
       ]);
       if (!isRequestCurrent(requestToken, requestContextKey)) return;
+      if (modelMode === PREDICT_MODEL_MODE_TRAINED
+        && !marsResponseMatchesTask(predResult, { task: selectedTrainingOption?.task })) {
+        throw new Error(settings?.language !== 'en'
+          ? '预测响应的目标变量与所选训练任务不一致，请重新加载任务。'
+          : 'The prediction target does not match the selected training task. Reload the task and retry.');
+      }
       const resolvedMetrics = selectPredictionMetrics({
         trained: modelMode === PREDICT_MODEL_MODE_TRAINED, fetched: metricsResult, cached: metrics,
         prediction: predResult.metrics, cacheMatches: nextMetricsKey === metricsKey,
       });
+      if (modelMode === PREDICT_MODEL_MODE_TRAINED && resolvedMetrics
+        && !marsResponseMatchesTask(resolvedMetrics, { task: selectedTrainingOption?.task })) {
+        throw new Error(settings?.language !== 'en'
+          ? '评价指标的目标变量与所选训练任务不一致，请重新加载任务。'
+          : 'The evaluation metrics target does not match the selected training task. Reload the task and retry.');
+      }
 
       const errorDistPromise = analysisVisibility.errorDistribution
         ? !nextErrorDistKey
@@ -876,6 +908,10 @@ export default function PredictPage() {
         : Promise.resolve(null);
       const [errorDistResult, pfiResult] = await Promise.all([errorDistPromise, pfiPromise]);
       if (!isRequestCurrent(requestToken, requestContextKey)) return;
+      const resolvedErrorDist = modelMode === PREDICT_MODEL_MODE_TRAINED && errorDistResult
+        && !marsResponseMatchesTask(errorDistResult, { task: selectedTrainingOption?.task }) ? null : errorDistResult;
+      const resolvedPfi = modelMode === PREDICT_MODEL_MODE_TRAINED && pfiResult
+        && !marsResponseMatchesTask(pfiResult, { task: selectedTrainingOption?.task }) ? null : pfiResult;
       const nextPerformanceData = modelMode === PREDICT_MODEL_MODE_TRAINED
         ? { results: { current: buildPerformanceMetricsFromEval(resolvedMetrics) } }
         : performanceData;
@@ -885,8 +921,8 @@ export default function PredictPage() {
 
       setResults(predResult);
       setMetrics(resolvedMetrics);
-      setErrorDistData(errorDistResult);
-      setPfiData(pfiResult);
+      setErrorDistData(resolvedErrorDist);
+      setPfiData(resolvedPfi);
       setResultContextKey(requestContextKey);
       if (nextMetricsKey) setMetricsKey(nextMetricsKey);
       setErrorDistKey(nextErrorDistKey);
@@ -900,8 +936,8 @@ export default function PredictPage() {
         resultContextKey: requestContextKey,
         results: predResult,
         metrics: resolvedMetrics,
-        errorDistData: errorDistResult,
-        pfiData: pfiResult,
+        errorDistData: resolvedErrorDist,
+        pfiData: resolvedPfi,
         metricsKey: nextMetricsKey,
         errorDistKey: nextErrorDistKey,
         pfiKey: nextPfiKey,
@@ -952,6 +988,8 @@ export default function PredictPage() {
     pfiKey,
     requestCoordinator,
     selectedTrainingTaskId,
+    selectedTrainingOption,
+    selectedCompareTrainingTasks,
     selectedVars,
     settings?.language,
     t,
@@ -980,6 +1018,11 @@ export default function PredictPage() {
         signal: requestToken.signal,
       });
       if (!isRequestCurrent(requestToken, requestContextKey)) return;
+      if (!compareResultMatchesTasks(result, selectedCompareTrainingTasks, 'mars')) {
+        throw new Error(settings?.language !== 'en'
+          ? '误差分布响应与所选任务的目标变量或输入变量不一致，请重新选择模型后重试。'
+          : 'The error distribution response does not match the selected task targets or inputs. Reselect the models and retry.');
+      }
       setCompareTrainingErrorData(result);
       setCompareTrainingErrorKey(requestContextKey);
       writePredictCache({
@@ -1001,6 +1044,7 @@ export default function PredictPage() {
     currentCompareTrainingErrorKey,
     predStep,
     requestCoordinator,
+    selectedCompareTrainingTasks,
     settings?.language,
     writePredictCache,
   ]);
@@ -1027,6 +1071,11 @@ export default function PredictPage() {
         signal: requestToken.signal,
       });
       if (!isRequestCurrent(requestToken, requestContextKey)) return;
+      if (!compareResultMatchesTasks(result, selectedCompareTrainingTasks, 'mars')) {
+        throw new Error(settings?.language !== 'en'
+          ? 'PFI 响应与所选任务的目标变量或输入变量不一致，请重新选择模型后重试。'
+          : 'The PFI response does not match the selected task targets or inputs. Reselect the models and retry.');
+      }
       setCompareTrainingPfiData(result);
       setCompareTrainingPfiKey(requestContextKey);
       writePredictCache({
@@ -1048,6 +1097,7 @@ export default function PredictPage() {
     currentCompareTrainingPfiKey,
     predStep,
     requestCoordinator,
+    selectedCompareTrainingTasks,
     settings?.language,
     writePredictCache,
   ]);
@@ -1259,8 +1309,8 @@ export default function PredictPage() {
   const isEarthCompareMode = modelMode === PREDICT_MODEL_MODE_EARTH_COMPARE;
   const earthAdapter = useMemo(() => earthPredictionAdapter({ context: earthContext, isZh: settings.language !== 'en', colormap: settings.colormap }),
     [earthContext, settings.language, settings.colormap]);
-  const marsAdapter = useMemo(() => marsPredictionAdapter({ ozoneUnit, isZh: settings.language !== 'en', horizonLimit: predictionHorizonLimit }),
-    [ozoneUnit, settings.language, predictionHorizonLimit]);
+  const marsAdapter = useMemo(() => marsPredictionAdapter({ ozoneUnit, isZh: settings.language !== 'en', horizonLimit: predictionHorizonLimit, task: selectedTrainingOption?.task }),
+    [ozoneUnit, settings.language, predictionHorizonLimit, selectedTrainingOption?.task]);
   useEffect(() => () => {
     earthContextRequestRef.current?.abort();
     earthRunRequestRef.current?.abort();

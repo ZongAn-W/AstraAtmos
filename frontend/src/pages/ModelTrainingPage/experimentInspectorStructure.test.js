@@ -143,7 +143,7 @@ test('访客 / 登出不再被悄悄切回官方模型', () => {
   assert.doesNotMatch(pageCode, /setModelSource\('official'\)/);
   assert.match(pageSource, /const \[modelSource, setModelSource\] = useState\('uploaded'\)/);
   // 用户主动切换与复制配置仍然按原业务规则保留来源。
-  assert.match(pageSource, /onModelSourceChange: setModelSource/);
+  assert.match(pageSource, /onModelSourceChange: handleModelSourceChange/);
   assert.match(pageSource, /setModelSource\(config\.modelSource\)/);
 });
 

@@ -55,7 +55,7 @@ EARTH_FEED_FIELDS = frozenset({
     "auxiliary_inputs",
     "target_leading_channels",
 })
-EARTH_3HOURLY_FEED_FIELDS = frozenset(FEED)
+EARTH_3HOURLY_FEED_FIELDS = frozenset({*FEED, "supported_targets", "supports_independent_inputs", "input_variable_sets"})
 
 #: Auxiliary inputs that exist only for Mars. The Earth feed never provides them.
 MARS_ONLY_AUXILIARY_INPUTS = ("ls", "topography")
@@ -172,6 +172,11 @@ def normalize_earth_3hourly_feed(feed: Any, dataset_id=EARTH_3HOURLY_FEED_KEY) -
             raise DatasetCapabilityError(
                 f"MODEL_SPEC.datasets.{EARTH_3HOURLY_FEED_KEY}.{key} must equal {value!r}"
             )
+    from training_backbones.earth_3hourly_uploaded_contract import forecast_configurations
+    try:
+        forecast_configurations(feed)
+    except (ValueError, TypeError) as exc:
+        raise DatasetCapabilityError(str(exc)) from exc
     return dict(feed)
 
 

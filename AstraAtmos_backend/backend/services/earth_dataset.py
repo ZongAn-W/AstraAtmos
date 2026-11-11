@@ -398,6 +398,40 @@ def validate_normalization(normalization, input_channels):
     return mean, scale
 
 
+def target_normalization(normalization, target='TO3'):
+    """Return independent target statistics, with the historical TO3 fallback."""
+    if 'target_variable' in normalization:
+        if normalization['target_variable'] != target:
+            raise ValueError('Normalization target disagrees with the forecast target')
+        mean, scale = normalization.get('target_mean'), normalization.get('target_scale')
+        if (isinstance(mean, bool) or isinstance(scale, bool)
+                or not isinstance(mean, (int, float)) or not isinstance(scale, (int, float))
+                or not np.isfinite(mean) or not np.isfinite(scale) or scale <= 0):
+            raise ValueError('Target normalization requires finite mean and positive scale')
+        return float(mean), float(scale)
+    if target != TARGET_CHANNEL or (normalization.get('channel_order') and normalization['channel_order'][0] != TARGET_CHANNEL):
+        raise ValueError('Independent target normalization is missing')
+    return float(normalization['mean'][0]), float(normalization['scale'][0])
+
+
+def fit_forecast_normalization(release, inputs, target, *, task_split=None, progress=None, cache_root=None):
+    """Fit train-only inputs and target once, including a target absent from inputs."""
+    from services.earth_training_contract import canonical_earth_inputs
+    order = canonical_earth_inputs(inputs)
+    full = [name for name in CHANNELS if name in set(order) | {target}]
+    fitted = fit_threehour_normalization(release, full, task_split=task_split,
+                                         progress=progress, cache_root=cache_root, exact_inputs=True)
+    index = full.index(target)
+    result = copy.deepcopy(fitted)
+    result.update(target_variable=target, target_mean=fitted['mean'][index],
+                  target_scale=fitted['scale'][index], target_constant=fitted['constant_channel_mask'][index],
+                  target_channel_index=order.index(target) if target in order else -1,
+                  channel_order=order)
+    for key in ('mean', 'scale', 'constant_channel_mask'):
+        result[key] = [fitted[key][full.index(channel)] for channel in order]
+    return result
+
+
 def normalize_cube(cube, input_channels, mean, scale):
     """Standardise a ``[time, channel, lat, lon]`` cube with saved statistics."""
     indices = [CHANNELS.index(name) for name in input_channels]
@@ -701,7 +735,7 @@ def _normalization_for_task(normalization, task_split):
     return result
 
 
-def _fit_threehour_normalization_uncached(release, channels=None, *, task_split=None, progress=None):
+def _fit_threehour_normalization_uncached(release, channels=None, *, task_split=None, progress=None, exact_inputs=False):
     """Fit stable population statistics on training frames in chunks of at most 8.
 
     This scans one channel at a time and merges float64 chunk moments. It never
@@ -710,7 +744,8 @@ def _fit_threehour_normalization_uncached(release, channels=None, *, task_split=
     retained. Validation/test frames cannot affect the fit.
     """
     from services.netcdf_read_lock import netcdf_read_lock
-    selected_channels = canonical_input_channels(channels)
+    from services.earth_training_contract import canonical_earth_inputs
+    selected_channels = canonical_earth_inputs(channels) if exact_inputs else canonical_input_channels(channels)
     dates = np.asarray(release.dates, dtype='datetime64[ns]')
     from services.earth_task_split import task_split_codes
     codes = task_split_codes(dates, release.metadata, task_split)
@@ -763,11 +798,12 @@ def _fit_threehour_normalization_uncached(release, channels=None, *, task_split=
 
 
 def fit_threehour_normalization(release, channels=None, *, task_split=None, progress=None,
-                                cache_root=None):
+                                cache_root=None, exact_inputs=False):
     """Return train-only statistics, reusing a verified content-addressed result."""
     started = time.perf_counter()
     _threehour_path(release)
-    selected_channels = canonical_input_channels(channels)
+    from services.earth_training_contract import canonical_earth_inputs
+    selected_channels = canonical_earth_inputs(channels) if exact_inputs else canonical_input_channels(channels)
     dates = np.asarray(release.dates, dtype='datetime64[ns]')
     from services.earth_task_split import task_split_codes
     codes = task_split_codes(dates, release.metadata, task_split)
@@ -780,7 +816,7 @@ def fit_threehour_normalization(release, channels=None, *, task_split=None, prog
     )
     if cache_root is None:
         return _fit_threehour_normalization_uncached(
-            release, selected_channels, task_split=task_split, progress=progress,
+            release, selected_channels, task_split=task_split, progress=progress, exact_inputs=exact_inputs,
         )
     cache_path, lock_path = _normalization_cache_paths(cache_root, identity)
     cached = _load_normalization_cache(cache_path, identity)
@@ -802,7 +838,7 @@ def fit_threehour_normalization(release, channels=None, *, task_split=None, prog
         if progress is not None:
             progress('Earth preparation: normalization cache miss; fitting train-only statistics')
         result = _fit_threehour_normalization_uncached(
-            release, selected_channels, task_split=task_split, progress=progress,
+            release, selected_channels, task_split=task_split, progress=progress, exact_inputs=exact_inputs,
         )
         stored = _normalization_for_task(result, None)
         from services.earth_preparation_cache import digest_json
@@ -815,6 +851,12 @@ def fit_threehour_normalization(release, channels=None, *, task_split=None, prog
         return result
 
 
+def _cache_channel_order(channels, normalization):
+    from services.earth_training_contract import canonical_earth_inputs
+    explicit = canonical_earth_inputs(channels)
+    return explicit if explicit == normalization.get('channel_order') else canonical_input_channels(channels)
+
+
 def _build_threehour_training_cache_uncached(release, channels, normalization, cache_root, *, full_grid=False,
                                              progress=None, folder_override, cache_identity):
     """Stream normalized fields to a unique disk map, without expanding windows.
@@ -825,7 +867,7 @@ def _build_threehour_training_cache_uncached(release, channels, normalization, c
     Interrupted caches are retained; source packages are always read-only.
     """
     from services.netcdf_read_lock import netcdf_read_lock
-    order = canonical_input_channels(channels)
+    order = _cache_channel_order(channels, normalization)
     mean, scale = validate_normalization(normalization, order)
     source_path = _threehour_path(release)
     root = Path(cache_root).expanduser().resolve()
@@ -1019,7 +1061,7 @@ def build_threehour_training_cache(release, channels, normalization, cache_root,
     """Find or atomically publish the normalized volume for this data identity."""
     started = time.perf_counter()
     _threehour_path(release)
-    order = canonical_input_channels(channels)
+    order = _cache_channel_order(channels, normalization)
     validate_normalization(normalization, order)
     identity = _training_cache_identity(release, order, normalization, full_grid=full_grid)
     from services.earth_preparation_cache import digest_json, preparation_lock
@@ -1086,14 +1128,16 @@ class EarthThreeHourlyWindows:
 
     @classmethod
     def from_release(cls, release, *, split='train', window=56, horizon=24,
-                     selected_channels=None, normalization=None, task_split=None):
+                     selected_channels=None, normalization=None, task_split=None,
+                     input_variables=None, target_variable='TO3'):
         if split not in SPLITS:
             raise ValueError(f'Unknown split: {split}')
         from services.earth_training_contract import earth_training_profile
         dataset_id = str((release.metadata or {}).get('dataset_id') or THREE_HOURLY_DATASET_ID)
         profile = earth_training_profile(dataset_id, {'window': window, 'horizon': horizon})
         window, horizon = profile['window'], profile['horizon']
-        channels = canonical_input_channels(selected_channels)
+        from services.earth_training_contract import canonical_earth_inputs
+        channels = canonical_input_channels(selected_channels) if input_variables is None else canonical_earth_inputs(input_variables)
         dates = np.asarray(release.dates, dtype='datetime64[ns]')
         from services.earth_task_split import task_split_codes, validate_earth_task_split
         if task_split is not None:
@@ -1112,7 +1156,9 @@ class EarthThreeHourlyWindows:
         if normalization is None:
             if split != 'train':
                 raise ValueError('Only the training split may fit normalization statistics')
-            normalization = fit_threehour_normalization(release, channels, task_split=task_split)
+            normalization = (fit_threehour_normalization(release, channels, task_split=task_split)
+                             if input_variables is None and target_variable == TARGET_CHANNEL
+                             else fit_forecast_normalization(release, channels, target_variable, task_split=task_split))
         mean, scale = validate_normalization(normalization, channels)
         train_dates = dates[codes == SPLITS['train']]
         if (normalization.get('task_split') != task_split
@@ -1133,7 +1179,9 @@ class EarthThreeHourlyWindows:
         dataset.dates = dates[indices]
         dataset.lat, dataset.lon = lat.copy(), lon.copy()
         dataset.input_channels, dataset.input_units = channels, input_units(channels)
-        dataset.target_channel_index = TARGET_CHANNEL_INDEX
+        dataset.target_channel_index = channels.index(target_variable) if target_variable in channels else -1
+        dataset.target_variable = target_variable
+        dataset.target_mean, dataset.target_scale = target_normalization(normalization, target_variable)
         dataset.normalization = normalization
         # Precompute one seasonal coordinate per published UTC timestamp, then
         # slice windows without rerunning the solar-longitude formula.
@@ -1153,8 +1201,27 @@ class EarthThreeHourlyWindows:
     def __getitem__(self, index):
         return self.read_window(index)
 
-    def use_training_cache(self, path, *, progress=None):
+    def use_training_cache(self, path, *, progress=None, storage_normalization=None):
         """Attach a server-created map after checking identity and statistics."""
+        if storage_normalization is not None:
+            inputs, normalization = self.input_channels, self.normalization
+            storage_order = list(storage_normalization['channel_order'])
+            target = getattr(self, 'target_variable', TARGET_CHANNEL)
+            target_mean, target_scale = target_normalization(normalization, target)
+            index = storage_order.index(target)
+            if (target_mean != storage_normalization['mean'][index]
+                    or target_scale != storage_normalization['scale'][index]
+                    or any(normalization[key] != [storage_normalization[key][storage_order.index(channel)] for channel in inputs]
+                           for key in ('mean', 'scale', 'constant_channel_mask'))):
+                raise ValueError('Forecast cache statistics disagree with input or target normalization')
+            self.input_channels, self.normalization = storage_order, storage_normalization
+            try:
+                self.use_training_cache(path, progress=progress)
+            finally:
+                self.input_channels, self.normalization = inputs, normalization
+            self._cache_input_indices = [storage_order.index(channel) for channel in inputs]
+            self._cache_target_index = index
+            return
         _threehour_path(self._release)
         path = Path(path)
         metadata = json.loads((path.parent / 'metadata.json').read_text(encoding='utf-8'))
@@ -1233,6 +1300,8 @@ class EarthThreeHourlyWindows:
         self._normalized_cache_path = path
         self._normalized_cache_file_identity = certified_identity
         self._normalized_cache_guard = guard
+        self._cache_input_indices = list(range(len(self.input_channels)))
+        self._cache_target_index = 0
 
     def close_training_cache(self):
         mapped = getattr(self, '_normalized_map', None)
@@ -1309,8 +1378,9 @@ class EarthThreeHourlyWindows:
             if self._normalized_cache_layout == THREE_HOURLY_TILE_CACHE_LAYOUT:
                 inputs, targets = self._read_tile_cache(start, forecast, stop, latitude, longitude)
             else:
-                inputs = np.array(self._normalized_map[start:forecast, :, lat_slice, lon_slice], copy=True)
-                targets = np.array(self._normalized_map[forecast:stop, :1, lat_slice, lon_slice], copy=True)
+                inputs = np.array(self._normalized_map[start:forecast, :, lat_slice, lon_slice][:, self._cache_input_indices], copy=True)
+                target_index = self._cache_target_index
+                targets = np.array(self._normalized_map[forecast:stop, target_index:target_index+1, lat_slice, lon_slice], copy=True)
             if not np.isfinite(inputs).all() or not np.isfinite(targets).all():
                 raise ValueError('Three-hour training cache contains non-finite values')
             if verify_source:
@@ -1329,11 +1399,10 @@ class EarthThreeHourlyWindows:
                                           lat_slice=lat_slice, lon_slice=lon_slice)
                 np.subtract(values, self.mean[channel_index], out=inputs[:, channel_index])
                 np.divide(inputs[:, channel_index], self.std[channel_index], out=inputs[:, channel_index])
-                if channel == TARGET_CHANNEL:
-                    values = _threehour_values(ds, channel, forecast, stop,
-                                              lat_slice=lat_slice, lon_slice=lon_slice)
-                    np.subtract(values, self.mean[channel_index], out=targets[:, 0])
-                    np.divide(targets[:, 0], self.std[channel_index], out=targets[:, 0])
+            values = _threehour_values(ds, self.target_variable, forecast, stop,
+                                      lat_slice=lat_slice, lon_slice=lon_slice)
+            np.subtract(values, self.target_mean, out=targets[:, 0])
+            np.divide(targets[:, 0], self.target_scale, out=targets[:, 0])
         _threehour_path(self._release)
         return inputs, targets
 
@@ -1345,8 +1414,8 @@ class EarthThreeHourlyWindows:
                 and np.array_equal(longitude, longitude[0] + np.arange(tile_width))):
             tile = int(latitude[0] // tile_height * 10 + longitude[0] // tile_width)
             return (
-                np.array(self._normalized_map[tile, start:forecast], copy=True),
-                np.array(self._normalized_map[tile, forecast:stop, :1], copy=True),
+                np.array(self._normalized_map[tile, start:forecast][:, self._cache_input_indices], copy=True),
+                np.array(self._normalized_map[tile, forecast:stop, self._cache_target_index:self._cache_target_index+1], copy=True),
             )
         inputs = np.empty((forecast - start, len(self.input_channels), len(latitude), len(longitude)), dtype='float32')
         targets = np.empty((stop - forecast, 1, len(latitude), len(longitude)), dtype='float32')
@@ -1358,15 +1427,14 @@ class EarthThreeHourlyWindows:
                 output_columns = np.flatnonzero(longitude // tile_width == tile_column)
                 local_columns = longitude[output_columns] % tile_width
                 tile = int(tile_row * 10 + tile_column)
-                history = self._normalized_map[tile, start:forecast]
-                future = self._normalized_map[tile, forecast:stop, :1]
+                history = self._normalized_map[tile, start:forecast][:, self._cache_input_indices]
+                future = self._normalized_map[tile, forecast:stop, self._cache_target_index:self._cache_target_index+1]
                 inputs[:, :, output_rows[:, None], output_columns] = history[:, :, local_rows[:, None], local_columns]
                 targets[:, :, output_rows[:, None], output_columns] = future[:, :, local_rows[:, None], local_columns]
         return inputs, targets
 
     def denormalize_ozone(self, values):
-        mean = float(self.normalization['mean'][self.target_channel_index])
-        scale = float(self.normalization['scale'][self.target_channel_index])
+        mean, scale = target_normalization(self.normalization, getattr(self, 'target_variable', TARGET_CHANNEL))
         if hasattr(values, 'dim') and hasattr(values, 'to'):
             return values * scale + mean
         return np.asarray(values) * scale + mean

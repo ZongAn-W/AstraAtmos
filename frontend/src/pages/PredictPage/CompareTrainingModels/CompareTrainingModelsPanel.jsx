@@ -12,18 +12,19 @@ import {
   normalizeCompareDataSource,
   sortCompareItems,
   metricValue,
+  resolveEarthCompareMetricUnit,
 } from './compareTrainingModelsData';
 import { EARTH_METRIC_META } from '../../../utils/earthMetricMeta.js';
 import { getMetricAggregationLabel, getSplitLabel } from '../predictionMetricMeta';
 import ResearchExportButton from '../ResearchExportButton';
 import { useSettings } from '../../../contexts/SettingsContext';
-import { ozoneLabel, convertOzone } from '../../../utils/units';
 import { convertCompareMetrics } from '../researchExportModel';
+import { environmentDisplay, sameEnvironmentTarget, resolveEnvironmentTask } from '../../../utils/environmentVariables.js';
 
 const GOOD_METRICS = new Set(['r2', 'ssim']);
 
 function metricLabel(metric, unit) {
-  const valueUnit = ['rmse', 'mae'].includes(metric.key) ? unit : (metric.unit === '1' ? '' : metric.unit);
+  const valueUnit = metric.key === 'mse' ? (metric.unit || `${unit}²`) : ['rmse', 'mae'].includes(metric.key) ? unit : (metric.unit === '1' ? '' : metric.unit);
   return metric.name + (valueUnit ? ` (${valueUnit})` : '');
 }
 
@@ -169,7 +170,7 @@ function SummaryTable({ items, precision, isZh, unit, metrics, planet }) {
                     </td>
                   ))}
                   <td style={{ padding: '12px', color: C.ice70, fontSize: 'calc(11px * var(--font-scale, 1))', fontWeight: 700 }}>{item.architecture || '--'}</td>
-                  <td style={{ padding: '12px', color: C.ice70, fontSize: 'calc(11px * var(--font-scale, 1))', fontWeight: 700 }}>{(item.selected_channels || []).join(' / ') || (planet === 'earth' ? 'TO3' : 'O3 only')}</td>
+                  <td style={{ padding: '12px', color: C.ice70, fontSize: 'calc(11px * var(--font-scale, 1))', fontWeight: 700 }}>{resolveEnvironmentTask(item, planet).inputs.join(' / ')}</td>
                   <td style={{ padding: '12px', color: C.ice70, fontSize: 'calc(11px * var(--font-scale, 1))' }}>{hypers.window ?? '--'}</td>
                   <td style={{ padding: '12px', color: C.ice70, fontSize: 'calc(11px * var(--font-scale, 1))' }}>{hypers.horizon ?? '--'}</td>
                   <td style={{ padding: '12px', color: C.ice70, fontSize: 'calc(11px * var(--font-scale, 1))' }}>{normalizeCompareDataSource(hypers._effective_data_source || hypers._data_source)}</td>
@@ -239,12 +240,13 @@ function MetricBars({ items, precision, isZh, plotTextColor, plotGridColor, unit
 }
 
 function ParameterMatrix({ items, isZh, planet }) {
-  const rows = useMemo(() => buildCompareParameterRows(items), [items]);
+  const rows = useMemo(() => buildCompareParameterRows(items, planet), [items, planet]);
   const columns = [
     { key: 'modelName', label: isZh ? '模型名' : 'Model' },
     { key: 'taskId', label: 'Task ID' },
     { key: 'modelSource', label: isZh ? '模型来源' : 'Source' },
     { key: 'architecture', label: isZh ? '架构' : 'Architecture' },
+    { key: 'target', label: isZh ? '预测目标' : 'Target' },
     { key: 'selectedChannels', label: isZh ? '输入通道' : 'Channels' },
     ...(planet === 'earth' ? [] : [{ key: 'useSphere', label: 'SPHERE' }]),
     { key: 'window', label: 'Window' },
@@ -314,7 +316,8 @@ function StepCurves({ items, isZh, plotTextColor, plotGridColor, unit, metrics, 
 
       {['rmse', 'mae', 'r2', 'ssim'].includes(activeMetric) ? (
         <ResearchExportButton sources={items.filter(item => item.metrics?.per_step?.every(row => Number.isFinite(row[activeMetric]))).map((item) => item.metrics?.export_ref)}
-          sourceLabels={items.filter(item => item.metrics?.per_step?.every(row => Number.isFinite(row[activeMetric]))).map((item) => item.model_name || `Task #${item.task_id}`)} kind="step_curves" metric={activeMetric} />
+          sourceLabels={items.filter(item => item.metrics?.per_step?.every(row => Number.isFinite(row[activeMetric]))).map((item) => item.model_name || `Task #${item.task_id}`)} kind="step_curves" metric={activeMetric}
+          targetVariable={resolveEnvironmentTask(items[0], planet).target} targetUnit={unit} />
       ) : null}
 
       <Plot
@@ -493,17 +496,19 @@ export default function CompareTrainingModelsPanel({
 }) {
   const { settings } = useSettings();
   const earth = planet === 'earth';
-  const unit = earth ? 'DU' : ozoneLabel(settings.units.ozone);
   const rawItems = Array.isArray(data?.items) ? data.items : [];
-  const items = earth ? rawItems : convertCompareMetrics(rawItems, settings.units.ozone);
-  const metrics = earth ? EARTH_METRIC_META : METRIC_META.filter(metric => items.some(item => Number.isFinite(item.metrics?.overall?.[metric.key])));
+  const target = environmentDisplay(rawItems[0] || data, planet, settings.units.ozone);
+  const unit = target.unit;
+  const items = earth || target.target !== 'O3' ? rawItems : convertCompareMetrics(rawItems, settings.units.ozone);
+  const metrics = earth ? EARTH_METRIC_META.map(metric => ({ ...metric, unit: resolveEarthCompareMetricUnit(metric.key, unit, items[0]?.metrics?.metric_units, isZh) })) : METRIC_META.filter(metric => items.some(item => Number.isFinite(item.metrics?.overall?.[metric.key])));
   const convertedErrors = errorDistributionData ? { ...errorDistributionData, items: errorDistributionData.items?.map((item) => ({
     ...item, distribution: { ...item.distribution, hist_errors: { ...item.distribution?.hist_errors,
-      bin_edges: item.distribution?.hist_errors?.bin_edges?.map((v) => convertOzone(v, settings.units.ozone)),
+      bin_edges: item.distribution?.hist_errors?.bin_edges?.map(target.convertValue),
     } },
   })) } : null;
 
   if (loading) return <LoadingState isZh={isZh} />;
+  if (!sameEnvironmentTarget(rawItems, planet)) return <div role="alert">{isZh ? '请选择相同预测目标的模型进行比较。' : 'Choose models with the same prediction target.'}</div>;
   if (!items.length) return <EmptyState isZh={isZh} selectedCount={selectedCount} />;
 
   return (

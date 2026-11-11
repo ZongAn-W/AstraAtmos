@@ -1,4 +1,5 @@
 import { clearPredictCache, createUserPredictScope } from './predictCache.js';
+import { trainingTasksCache } from './trainingTasksCache.js';
 
 let activeAuthenticatedScope = null;
 
@@ -20,6 +21,7 @@ export function beginAuthenticatedPredictionSession(userId) {
 
   if (activeAuthenticatedScope && activeAuthenticatedScope !== nextScope) {
     clearPredictCache(activeAuthenticatedScope);
+    trainingTasksCache.clear(activeAuthenticatedScope);
   }
   activeAuthenticatedScope = nextScope;
   return nextScope;
@@ -27,6 +29,7 @@ export function beginAuthenticatedPredictionSession(userId) {
 
 export function endAuthenticatedPredictionSession() {
   if (activeAuthenticatedScope) clearPredictCache(activeAuthenticatedScope);
+  if (activeAuthenticatedScope) trainingTasksCache.clear(activeAuthenticatedScope);
   activeAuthenticatedScope = null;
 }
 

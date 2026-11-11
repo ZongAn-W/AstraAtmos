@@ -2,7 +2,7 @@
 
 One ``.pth`` file carries everything needed to reproduce a run without guessing:
 the complete adapter state dict, the model configuration, the dataset binding, the
-training contract, the normalization block, the run record and the DU metrics.
+training contract, independent input/target normalization, the run record and physical metrics.
 
 Two rules shape this module:
 
@@ -45,6 +45,7 @@ from services.earth_dataset import (
     release_split_codes,
     threehour_release_split_codes,
     validate_normalization,
+    target_normalization,
 )
 from services.earth_training_contract import (
     EARTH_3HOURLY_ARTIFACT_SCHEMA,
@@ -66,6 +67,8 @@ from services.earth_training_contract import (
     EARTH_WINDOW,
     earth_training_profile,
     earth_task_metrics_contract,
+    EARTH_CHANNEL_UNITS,
+    earth_variable_selection,
 )
 from services.dataset_identity import EARTH_DATASET_3HOURLY_ID, EARTH_THREE_HOURLY_DATASET_IDS, DatasetRequestError
 from services.training_split import normalize_split_ratios, TrainingSplitError
@@ -104,6 +107,19 @@ AREA_WEIGHTED_METRIC_POLICY = {
     "cell_area_formula": "sin(latitude_north) - sin(latitude_south)",
     "weight_normalization": "global_cell_weights_sum_to_one",
 }
+
+
+def metric_units_for_target(target: str = "TO3") -> dict:
+    unit = EARTH_CHANNEL_UNITS[target]
+    squared = f"({unit})^2" if " " in unit else f"{unit}^2"
+    return {**METRIC_UNITS, "mse": squared, "rmse": unit, "mae": unit}
+
+
+def metric_policy_for_target(target: str = "TO3", *, area_weighted: bool = False) -> dict:
+    policy = dict(AREA_WEIGHTED_METRIC_POLICY if area_weighted else METRIC_POLICY)
+    if target != "TO3":
+        policy.update(version="earth_variable_physical_v1", denominator_epsilon_unit=EARTH_CHANNEL_UNITS[target])
+    return policy
 LEAD_DAYS = (1, 2, 3)
 THREE_HOURLY_HORIZONS = (24, 48, 72)
 THREE_HOURLY_TIMESTAMP_RULE = "interval_center"
@@ -374,7 +390,7 @@ class ErrorAccumulator:
         if prediction.shape != target.shape or prediction.ndim != 5:
             raise EarthArtifactError("Accumulated batches must be [N, horizon, 1, lat, lon]")
         if self._three_hourly and (prediction.shape[1] != len(self._counts) or prediction.shape[2] != 1):
-            raise EarthArtifactError("Three-hourly metric leads must match the configured TO3 horizon")
+            raise EarthArtifactError("Three-hourly metric leads must match the configured forecast horizon")
         if not np.isfinite(prediction).all() or not np.isfinite(target).all():
             raise EarthArtifactError("Metrics require finite predictions and references")
         weighted = spatial_weights is not None
@@ -491,6 +507,7 @@ def build_metrics_block(
     dataset_id: str | None = None,
     horizon: int | None = None,
     aggregation: str = GRID_UNIFORM_AGGREGATION,
+    target_variable: str = "TO3",
 ) -> dict:
     """Assemble the persisted metrics block for one training run.
 
@@ -505,8 +522,8 @@ def build_metrics_block(
         "schema": (EARTH_3HOURLY_METRICS_SCHEMA_V3 if area_weighted
                    else EARTH_3HOURLY_METRICS_SCHEMA_V2 if dataset_id in EARTH_THREE_HOURLY_DATASET_IDS
                    else EARTH_METRICS_SCHEMA),
-        "target": EARTH_TARGET_CHANNEL,
-        "unit": EARTH_TARGET_UNIT,
+        "target": target_variable,
+        "unit": EARTH_CHANNEL_UNITS[target_variable],
         "aggregation": aggregation,
         "splits": {
             "validation": _checked_split_metrics(validation, validation_window_count, dataset_id, horizon,
@@ -518,8 +535,8 @@ def build_metrics_block(
         },
     }
     if dataset_id in EARTH_THREE_HOURLY_DATASET_IDS:
-        block.update(metric_units=dict(METRIC_UNITS),
-                     metric_policy=dict(AREA_WEIGHTED_METRIC_POLICY if area_weighted else METRIC_POLICY))
+        block.update(metric_units=metric_units_for_target(target_variable),
+                     metric_policy=metric_policy_for_target(target_variable, area_weighted=area_weighted))
     return block
 
 
@@ -780,8 +797,8 @@ def build_checkpoint_payload(
         raise EarthArtifactError(str(exc)) from exc
     has_manifest_ranges = bool(split_ranges)
     contract = {
-        "target": EARTH_TARGET_CHANNEL,
-        "target_unit": EARTH_TARGET_UNIT,
+        "target": profile["target"],
+        "target_unit": profile["target_unit"],
         "input_channel_order": order,
         "input_units": input_units(order),
         "tensor_layout": "BTCHW",
@@ -820,6 +837,11 @@ def build_checkpoint_payload(
         height=profile["grid_shape"][0], width=profile["grid_shape"][1],
         implementation_id=profile["implementation_id"],
     )
+    if "target_variable" in (run.get("hyperparameters") or {}) or "input_variables" in (run.get("hyperparameters") or {}):
+        model_config["target_variable"] = profile["target"]
+        model_config["input_variables"] = order
+        contract["target_variable"] = profile["target"]
+        contract["input_variables"] = order
     if three_hourly and model_source == MODEL_SOURCE_UPLOADED:
         from training_backbones.earth_3hourly_uploaded_contract import (
             CONTRACT_SCHEMA, contract_profile, derived_input_names,
@@ -1113,7 +1135,8 @@ def validate_checkpoint_payload(
         try:
             expected_config = build_config(order, uploaded.get("custom_model_params"),
                                            window=profile['window'], horizon=profile['horizon'],
-                                           contract_schema=execution["schema"])
+                                           contract_schema=execution["schema"], target_variable=profile["target"],
+                                           forecast_aliases="target_variable" in (uploaded.get("build_config") or {}))
         except ValueError as exc:
             raise EarthArtifactError(str(exc)) from exc
         if uploaded.get("build_config") != expected_config:
@@ -1148,8 +1171,9 @@ def validate_checkpoint_payload(
     contract = payload.get("training_contract")
     if not isinstance(contract, Mapping):
         raise EarthArtifactError("Checkpoint has no training contract")
-    if contract.get("target") != EARTH_TARGET_CHANNEL or contract.get("target_unit") != EARTH_TARGET_UNIT:
-        raise EarthArtifactError("Checkpoint target must be TO3 in DU")
+    target = profile["target"]
+    if contract.get("target") != target or contract.get("target_unit") != EARTH_CHANNEL_UNITS[target]:
+        raise EarthArtifactError("Checkpoint target or physical unit disagrees with its model configuration")
     if list(contract.get("input_channel_order") or []) != order:
         raise EarthArtifactError("Training contract channel order disagrees with the model")
     if list(contract.get("input_units") or []) != input_units(order):
@@ -1204,6 +1228,7 @@ def validate_checkpoint_payload(
     if not isinstance(normalization, Mapping):
         raise EarthArtifactError("Checkpoint has no normalization block")
     validate_normalization(dict(normalization), order)
+    target_normalization(dict(normalization), target)
 
     binding = payload.get("dataset_binding")
     if not isinstance(binding, Mapping):
@@ -1290,13 +1315,13 @@ def validate_checkpoint_payload(
     area_weighted_metrics = metrics["schema"] == EARTH_3HOURLY_METRICS_SCHEMA_V3
     full_metrics = metrics["schema"] in (EARTH_3HOURLY_METRICS_SCHEMA_V2,
                                           EARTH_3HOURLY_METRICS_SCHEMA_V3)
-    expected_metric_policy = AREA_WEIGHTED_METRIC_POLICY if area_weighted_metrics else METRIC_POLICY
+    expected_metric_policy = metric_policy_for_target(target, area_weighted=area_weighted_metrics)
     expected_aggregation = CELL_AREA_WEIGHTED_AGGREGATION if area_weighted_metrics else GRID_UNIFORM_AGGREGATION
-    if full_metrics and (metrics.get("metric_units") != METRIC_UNITS
+    if full_metrics and (metrics.get("metric_units") != metric_units_for_target(target)
                          or metrics.get("metric_policy") != expected_metric_policy):
         raise EarthArtifactError("Checkpoint metric units or formula policy is invalid")
-    if metrics.get("unit") != EARTH_TARGET_UNIT or metrics.get("target") != EARTH_TARGET_CHANNEL:
-        raise EarthArtifactError("Checkpoint metrics must be TO3 in DU")
+    if metrics.get("unit") != EARTH_CHANNEL_UNITS[target] or metrics.get("target") != target:
+        raise EarthArtifactError("Checkpoint metrics target or physical unit is invalid")
     if three_hourly and metrics.get("aggregation") != expected_aggregation:
         raise EarthArtifactError("Three-hourly metrics aggregation disagrees with its schema")
     if three_hourly:
@@ -1355,7 +1380,7 @@ def validate_checkpoint_payload(
                                      rel_tol=1e-6, abs_tol=1e-9)
                     for row in validated["metrics"]["splits"][name]["by_lead"]):
                 raise EarthArtifactError(f"{name} weighted metrics do not cover one global unit area per origin")
-        validated["metrics"].update(metric_units=dict(METRIC_UNITS),
+        validated["metrics"].update(metric_units=metric_units_for_target(target),
                                     metric_policy=dict(expected_metric_policy))
     return validated
 
@@ -1469,8 +1494,11 @@ def _validate_threehourly_binding(binding: Mapping, contract: Mapping, normaliza
             raise EarthArtifactError("Three-hourly normalization must fit the complete training interval only")
     if normalization.get("fit_step_count") != (train["step_count"] if custom else published["train"]["steps"]):
         raise EarthArtifactError("Three-hourly normalization fitted step count disagrees with the train split")
+    target = contract["target"]
+    order = contract["input_channel_order"]
+    expected_target_index = order.index(target) if target in order else -1
     if (type(normalization.get("target_channel_index")) is not int
-            or normalization["target_channel_index"] != 0
+            or normalization["target_channel_index"] != expected_target_index
             or type(normalization.get("ddof")) is not int or normalization["ddof"] != 0
             or normalization.get("epsilon") != 1e-6):
         raise EarthArtifactError("Three-hourly normalization target index or population convention is invalid")
@@ -1526,9 +1554,8 @@ def load_earth_training_artifact(
         raise EarthArtifactError(f"The Earth checkpoint could not be read: {exc}") from exc
     expected_order = None
     if expected_hyperparameters is not None:
-        selected = expected_hyperparameters.get("selected_channels")
-        if selected is not None:
-            expected_order = canonical_input_channels(selected)
+        if expected_hyperparameters.get("selected_channels") is not None or "input_variables" in expected_hyperparameters:
+            _, expected_order = earth_variable_selection(expected_hyperparameters)
     validated = validate_checkpoint_payload(
         payload,
         expected_binding=expected_binding,
@@ -1536,6 +1563,9 @@ def load_earth_training_artifact(
         expected_channel_order=expected_order,
     )
     if expected_hyperparameters is not None:
+        expected_target, _ = earth_variable_selection(expected_hyperparameters)
+        if expected_target != validated["training_contract"]["target"]:
+            raise EarthArtifactError("Checkpoint target does not match the task")
         try:
             expected_metrics_contract = earth_task_metrics_contract(expected_hyperparameters, executable=True)
         except ValueError as exc:
@@ -1679,6 +1709,7 @@ def build_earth_model_from_checkpoint(
                     width=int(checkpoint.model_config.get("width", 72)),
                     dataset_id=checkpoint.dataset_binding.get("dataset_id"),
                     contract_schema=checkpoint.model_config.get("contract_schema"),
+                    target_variable=checkpoint.training_contract.get("target", "TO3"),
                     derived_inputs=(checkpoint.model_config.get("derived_inputs", [])
                                     if checkpoint.dataset_binding.get("dataset_id") in EARTH_THREE_HOURLY_DATASET_IDS
                                     else None),
@@ -1909,6 +1940,7 @@ def _reference_model_from_payload(payload: Mapping[str, Any]) -> torch.nn.Module
                 else None
             ),
             contract_schema=payload["model_config"].get("contract_schema"),
+            target_variable=payload["training_contract"].get("target", "TO3"),
             derived_inputs=(payload["model_config"].get("derived_inputs", [])
                             if payload.get("artifact_schema") == EARTH_3HOURLY_ARTIFACT_SCHEMA else None),
         )

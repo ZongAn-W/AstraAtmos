@@ -99,7 +99,7 @@ export default function AnalysisBoard({ panels = [], note = null, isZh = true })
           </section>
         ))}
       </div>
-      {note ? <p className="analysis-board-note">{note}</p> : null}
+      {note ? <div className="analysis-board-note">{note}</div> : null}
     </div>
   );
 }

@@ -95,6 +95,8 @@ class DatasetTrainingProfile(BaseModel):
     model_sources: list[str] = Field(default_factory=list)
     target: str
     target_unit: str
+    supported_targets: list[str] = Field(default_factory=list)
+    input_variables: list[str] = Field(default_factory=list)
     window: int
     horizon: int
     step_unit: str
@@ -134,6 +136,7 @@ class DatasetDescriptor(BaseModel):
     grid_shape: Optional[list[int]] = None
     grid: Optional[DatasetGrid] = None
     channel_order: list[str] = Field(default_factory=list)
+    supported_targets: list[str] = Field(default_factory=list)
     variables: list[DatasetVariable] = Field(default_factory=list)
     splits: Optional[dict[str, DatasetSplit]] = None
     training_profile: Optional[DatasetTrainingProfile] = None

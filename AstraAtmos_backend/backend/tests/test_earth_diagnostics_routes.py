@@ -42,6 +42,7 @@ def test_context_dispatch_and_cache_are_shared_with_task_action(threehour_app, m
     context = client.get("/api/earth/predict/diagnostics/context", params={"training_task_id": task_id})
     assert context.status_code == 200, context.text
     assert context.json()["available"] and context.json()["target_unit"] == "DU"
+    assert context.json()["input_variables"] == context.json()["input_channel_order"]
     calls = []
 
     def compute(task, registry, **parameters):

@@ -4,6 +4,10 @@
 
 ## 组件职责
 
+训练与预测列表使用 `GET /api/training/tasks?summary=true`：元数据、目标/输入变量、可用性、数据指纹与私有标签保留，`dataset_snapshot` 为 `null`，避免重复传输完整空间归一化数组；省略参数或传 `summary=false` 仍返回完整快照。预测执行的服务端权重与数据身份校验不依赖前端快照。
+
+模型目录由 [trainingTasksCache.js](../frontend/src/stores/trainingTasksCache.js) 按登录账号保存在内存 60 秒。有效缓存直接显示，过期后重新获取；同账号并发读取复用同一个请求，离开预测页只取消当前订阅，未完成请求仍可供返回页面复用。失败不缓存；登出、切账号和 401 清空并取消旧请求。训练相关写操作及 WebSocket 状态变化使缓存失效，训练页的五秒轮询强制获取最新目录并更新共享缓存。缓存不写入浏览器持久化存储，其他设备的更改至多在下次过期读取时更新。
+
 | 入口或组件 | 共用职责与保留差异 |
 | --- | --- |
 | [PredictPage.jsx](../frontend/src/pages/PredictPage.jsx) | 行星/单模型/多模型模式、账号作用域、任务选择、请求取消与结果身份；Earth/Mars 请求状态分别保留 |
@@ -18,7 +22,7 @@
 | [EarthPredictPanel.jsx](../frontend/src/pages/PredictPage/EarthPredictPanel.jsx) | Earth 上下文与模型身份、结果适配、完整测试集指标配置和诊断装配；不添加任何引言面板，区块顺序与 Mars 一致 |
 | [EarthDiagnosticPanel.jsx](../frontend/src/pages/PredictPage/EarthDiagnosticPanel.jsx) | Earth 独立手动诊断、抽样参数、实际窗口范围及 PFI 明细；指标和图表引用共用组件 |
 
-样式由 [singleModelWorkbench.css](../frontend/src/pages/PredictPage/singleModelWorkbench.css)、[predictionDisplay.css](../frontend/src/pages/PredictPage/predictionDisplay.css) 和 [predictionCharts.css](../frontend/src/pages/PredictPage/predictionCharts.css) 提供。桌面模型侧栏与结果并排，窄屏上下排列；三联图在空间不足时纵向显示，时间步区和详细指标表分别滚动，全屏在移动端纵向布局。主题、色带、单位偏好和数值精度来自现有设置；Earth 的目标单位始终固定 DU。
+样式由 [singleModelWorkbench.css](../frontend/src/pages/PredictPage/singleModelWorkbench.css)、[predictionDisplay.css](../frontend/src/pages/PredictPage/predictionDisplay.css) 和 [predictionCharts.css](../frontend/src/pages/PredictPage/predictionCharts.css) 提供。桌面模型侧栏与结果并排，窄屏上下排列；三联图在空间不足时纵向显示，时间步区和详细指标表分别滚动，全屏在移动端纵向布局。主题、色带、单位偏好和数值精度来自现有设置；Earth 的单位来自任务目标；只有 TO3 固定为 DU，T2M 为 K，其他变量保留原生单位。
 
 深色预测分析页复用首页 `--bg-gradient` 与既有 `StarField`，侧栏、准备面板、输入和图表保留实色；浅色主题不显示星点，首页鼠标视差与地球交互不延伸到预测页。
 
@@ -44,10 +48,10 @@
 | 起点 | UTC `datetime-local`，输入转明确 UTC ISO 时间，须在服务端可选起点中 | Ls 滑块，保留当前可选范围与实际输出 Ls 标签 |
 | 运行窗口 | 请求只带任务与起点，每次完整运行任务 horizon | 请求步长 1–30，且不得超过训练 horizon |
 | 展示步 | 提前小时 + 对应 UTC 时间；仅改变查看内容 | 步序 + 服务端实际 Ls；仅改变查看内容 |
-| 坐标与单位 | `grid.latitude/longitude` 与场行列一致；TO3 原始 DU，无 Mars 换算 | 各帧真实 `lat/lon`；μm-atm / DU 按现有显示偏好换算 |
-| 指标 | MSE（DU²）、RMSE/MAE（DU）、R²（无量纲）、MAPE/SMAPE（%）；旧三小时缺项显示未提供；完整测试集分区行与 Mars 同格式 | RMSE/MAE、SSIM、R²，保留现有公式与聚合信息 |
+| 坐标与单位 | `grid.latitude/longitude` 与场行列一致；所选目标原生单位，无 Mars 臭氧换算 | 各帧真实 `lat/lon`；O3 按现有 μm-atm / DU 显示偏好换算，其他目标保持原生单位 |
+| 指标 | MSE（目标单位²）、RMSE/MAE（目标原生单位）、R²（无量纲）、MAPE/SMAPE（%）；旧三小时缺项显示未提供；完整测试集分区行与 Mars 同格式 | RMSE/MAE、SSIM、R²，臭氧仅按现有设置换算，其他目标保留原生单位与聚合信息 |
 | 诊断触发 | 独立手动测试分区诊断；默认 4 窗口、5,000 对散点、40 分箱、seed 42、PFI 3 次 | 保留现有预测流程中的测试集误差分布与抽样 PFI |
-| PFI | 置换后 RMSE − 基线 RMSE，即 ΔRMSE（DU）；保留负值与不可计算原因 | 基线 R² − 置换后 R²，即 ΔR²；保留负值 |
+| PFI | 置换后 RMSE − 基线 RMSE，即 ΔRMSE（目标原生单位）；保留负值与不可计算原因 | 基线 R² − 置换后 R²，即 ΔR²；保留负值 |
 | 全屏主视图 | 地球二维地图；不加载火星纹理、Ls 标签或火星单位 | 既有火星球面；共用真实坐标读数、二维展开与纬向剖面 |
 | 科研导出 | 当前步三联图可用；诊断散点/残差直方图/PFI 不开放 | 当前步三联图、当前步普通散点与抽样 PFI 按已有快照可用 |
 
@@ -80,11 +84,11 @@ Earth 工作台同时提供本次窗口指标和上下文 checkpoint 的完整 t
 
 Earth/Mars API、数据准备与服务端缓存保持各自业务路径；组件共用不让 Earth 请求进入 Mars 推理。Earth 仍使用独立进程内预测缓存及诊断缓存，Mars 仍使用既有账号作用域内存缓存和服务端分析缓存。
 
-切换行星、任务、起点或账号会取消旧请求、清空旧结果及全屏。Mars 请求协调器校验通道 token、当前条件与账号 scope；Earth 预测回包同时匹配冻结任务、起点、完整 window/horizon、数据版本/指纹、模型身份及真实坐标，诊断使用独立请求 guard。即使底层请求忽略 abort，晚到结果也不能覆盖当前身份。服务器缓存命中前继续检查实际权重、数据及任务契约，权限不依赖浏览器缓存。
+切换行星、任务、起点或账号会取消旧请求、清空旧结果及全屏。Mars 单模型预测、指标、误差分布、PFI 和模型测试回包按任务校验目标、单位及完整输入顺序；多模型指标、误差分布与 PFI 按任务 ID 和各自变量身份核验。Earth 预测回包同时匹配冻结任务、起点、完整 window/horizon、目标/单位/输入、数据版本/指纹、模型身份及真实坐标，训练后诊断的缓存键与响应守卫也纳入目标/单位/输入；Earth 比较在展示前核验每个任务的身份。即使底层请求忽略 abort，晚到结果也不能覆盖当前身份。服务器缓存命中前继续检查实际权重、数据及任务契约，权限不依赖浏览器缓存。
 
 ## 验证入口与边界
 
-前端从 `frontend/` 执行 `node --test` 和 `npm run build`。适配与交互纯函数入口为 `singleModelAdapters.test.js`、`predictionPresentation.test.js`、`predictionDisplayModel.test.js`，并保留 `earthPredictModel.test.js`、`earthDiagnosticsModel.test.js`、`predictRequestCoordinator.test.js` 和既有账号/缓存隔离回归。
+前端从 `frontend/` 执行 `node --test` 和 `npm run build`。适配与交互纯函数入口为 `singleModelAdapters.test.js`、`predictionPresentation.test.js`、`predictionDisplayModel.test.js`、`earthPredictModel.test.js`、`earthDiagnosticsModel.test.js`、`compareTrainingModelsData.test.js`、`modelTestModel.test.js`，并保留 `predictRequestCoordinator.test.js` 和既有账号/缓存隔离回归。
 
 合成浏览器入口为 [browser-check.js](../scripts/audit/shared-prediction/browser-check.js)。该脚本只在隔离浏览器页面中替换 API，模型和数据均标为合成；不创建训练任务或启动真实推理。从仓库根目录、已有独立 Playwright CLI 会话中执行：
 

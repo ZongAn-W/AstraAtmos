@@ -40,6 +40,7 @@ from services.mars_data_service import (
     resolve_forecast_window,
 )
 from services.mars_dataset_identity import has_mars_file_identity
+from services.mars_variables import resolve_mars_variables, mars_variable_metadata
 from services.prediction_analysis_cache import PredictionAnalysisCacheService
 from services.training_split import (
     LEGACY_SPLIT_RATIOS,
@@ -144,6 +145,7 @@ class InferenceService:
         overall_aggregation: str = "pooled_test_set_pixels",
     ) -> dict:
         result = dict(metrics)
+        result.update(mars_variable_metadata(hypers))
         split_meta = cls._task_split_metadata(hypers)
         result["split_meta"] = split_meta
         result["aggregation"] = {
@@ -198,7 +200,11 @@ class InferenceService:
     def _mars_normalization_cache_key(normalization, selected_channels) -> str:
         if normalization is None:
             return "legacy_refit"
-        if not isinstance(normalization, dict) or normalization.get("input_channel_order") != mars_input_channel_order(selected_channels):
+        expected = mars_input_channel_order(
+            selected_channels,
+            normalization.get("input_variables") if isinstance(normalization, dict) else None,
+        )
+        if not isinstance(normalization, dict) or normalization.get("input_channel_order") != expected:
             raise ValueError("Mars checkpoint input_channel_order does not match the model inputs")
         # Different trained tasks can share files/channels but have different
         # input and target statistics. Their scaled volumes must stay separate.
@@ -298,6 +304,8 @@ class InferenceService:
             )
             try:
                 validate_prediction_horizon(hypers, horizon)
+                if items and items[0]["target_variable"] != resolve_mars_variables(hypers)[0]:
+                    raise ValueError("Models with different prediction target variables cannot be compared")
                 metrics = await self._cached_test_set_metrics(
                     task,
                     hypers,
@@ -311,7 +319,7 @@ class InferenceService:
                 })
             finally:
                 self._cleanup_temp_data_root(temp_data_root)
-        return {"items": items}
+        return {"items": items, "target_variable": items[0]["target_variable"], "target_unit": items[0]["target_unit"]}
 
     async def task_error_distribution(
         self,
@@ -359,6 +367,8 @@ class InferenceService:
             )
             try:
                 validate_prediction_horizon(hypers, horizon)
+                if items and items[0]["target_variable"] != resolve_mars_variables(hypers)[0]:
+                    raise ValueError("Models with different prediction target variables cannot be compared")
                 distribution = await self._cached_error_distribution(
                     task,
                     hypers,
@@ -367,13 +377,14 @@ class InferenceService:
                     horizon,
                 )
                 items.append({
+                    **mars_variable_metadata(hypers),
                     "task_id": int(task.id),
                     "model_name": self._task_model_name(task),
                     "distribution": distribution,
                 })
             finally:
                 self._cleanup_temp_data_root(temp_data_root)
-        return {"items": items}
+        return {"items": items, "target_variable": items[0]["target_variable"], "target_unit": items[0]["target_unit"]}
 
     async def task_permutation_importance(
         self,
@@ -423,6 +434,8 @@ class InferenceService:
             )
             try:
                 validate_prediction_horizon(hypers, horizon)
+                if items and items[0]["target_variable"] != resolve_mars_variables(hypers)[0]:
+                    raise ValueError("Models with different prediction target variables cannot be compared")
                 selected_variables = self._channels_to_variable_names(self._task_selected_channels(task, hypers))
                 pfi = await self._cached_permutation_importance(
                     task,
@@ -433,13 +446,14 @@ class InferenceService:
                     selected_variables,
                 )
                 items.append({
+                    **mars_variable_metadata(hypers),
                     "task_id": int(task.id),
                     "model_name": self._task_model_name(task),
                     **pfi,
                 })
             finally:
                 self._cleanup_temp_data_root(temp_data_root)
-        return {"items": items}
+        return {"items": items, "target_variable": items[0]["target_variable"], "target_unit": items[0]["target_unit"]}
 
     async def _prepare_task_prediction_context(
         self,
@@ -479,6 +493,9 @@ class InferenceService:
             except Exception:
                 hypers = {}
 
+            if hypers.get("input_variables") is None:
+                hypers["selected_channels"] = self._task_selected_channels(task, hypers)
+
             # The task identity column wins over any legacy hyperparameter. This
             # prevents a caller from selecting a different source at prediction
             # time; the legacy marker is retained only when no snapshot exists.
@@ -492,9 +509,13 @@ class InferenceService:
                         selected_channels=list(hypers.get("selected_channels") or []),
                         window=int(hypers.get("window", 3)),
                         horizon=int(hypers.get("horizon", 3)),
+                        target_variable=resolve_mars_variables(hypers)[0],
+                        input_variables=resolve_mars_variables(hypers)[1],
                     )
                 except MarsCheckpointIdentityError as exc:
                     raise DatasetRequestError("dataset_version_changed", "The Mars checkpoint data identity is incomplete or inconsistent; retrain the model", status_code=409) from exc
+            elif resolve_mars_variables(hypers)[0] != "O3" or hypers.get("input_variables") is not None:
+                raise ValueError("Legacy bare Mars weights only support the original O3 input/target contract")
 
             data_dirs, temp_data_root = await self._prepare_task_data_env(
                 task=task,
@@ -544,7 +565,7 @@ class InferenceService:
                 overall_aggregation="mean_over_forecast_steps",
             )
         from services.research_export_sources import register_mars
-        return register_mars(result, task=task, hypers=hypers, data_dirs=data_dirs,
+        return register_mars({**result, **mars_variable_metadata(hypers)}, task=task, hypers=hypers, data_dirs=data_dirs,
                              user_id=user_id, analysis="prediction", horizon=horizon,
                              origin=str(float(ls_start)), variables=result.get("selected_variables", []), expected_guard=export_guard)
 
@@ -604,7 +625,7 @@ class InferenceService:
                 pred_raw[:, :actual_horizon],
             )
 
-        return await self.analysis_cache.get_or_compute(
+        result = await self.analysis_cache.get_or_compute(
             user_id=user_id,
             task=task,
             analysis_type="error_distribution",
@@ -612,6 +633,7 @@ class InferenceService:
             data_dirs=data_dirs,
             compute=compute,
         )
+        return {**result, **mars_variable_metadata(hypers)}
 
     async def _cached_permutation_importance(
         self,
@@ -645,7 +667,7 @@ class InferenceService:
             compute=compute,
         )
         from services.research_export_sources import register_mars
-        return register_mars(result, task=task, hypers=hypers, data_dirs=data_dirs, user_id=user_id,
+        return register_mars({**result, **mars_variable_metadata(hypers)}, task=task, hypers=hypers, data_dirs=data_dirs, user_id=user_id,
                              analysis="pfi", horizon=horizon, variables=sorted(set(selected_variables)), expected_guard=export_guard)
 
     async def _prepare_task_data_env(
@@ -733,6 +755,8 @@ class InferenceService:
 
     def _task_selected_channels(self, task, hypers: dict) -> list[str]:
         channels = get_channels_from_hyperparameters(hypers)
+        if hypers.get("input_variables") is not None:
+            return channels
         if channels:
             return channels
         return [channel for channel in get_task_channel_suffix(task) if channel]
@@ -760,9 +784,11 @@ class InferenceService:
             "model_source": model_source,
             "selected_channels": selected_channels,
             "_data_source": data_source,
+            **mars_variable_metadata(hypers),
         })
         return {
             "task_id": int(task.id),
+            **mars_variable_metadata(hypers),
             "model_name": self._task_model_name(task),
             "model_source": model_source,
             "architecture": architecture,
@@ -778,6 +804,8 @@ class InferenceService:
         horizon: int,
         data_dirs: dict[str, str] | None = None,
     ) -> dict:
+        if hypers.get("input_variables") is None:
+            hypers = {**hypers, "selected_channels": self._task_selected_channels(task, hypers)}
         checkpoint_payload = self._load_task_checkpoint(task)
         legacy_normalization = not bool(checkpoint_normalization(checkpoint_payload))
         if getattr(task, "model_source", "official") == "uploaded":
@@ -842,10 +870,12 @@ class InferenceService:
         ls_values = [float(value) for value in target_ls[:actual_horizon]]
         selected_variables = self._channels_to_variable_names(selected_channels)
         model_info["requested_ls_start"] = float(ls_start)
+        model_info.update(mars_variable_metadata(hypers))
         model_info.update({key: value for key, value in window_meta.items() if value is not None})
 
         return {
             "ground_truth": self._fields_to_dicts(truth_raw, lat_arr, lon_arr, include_points=False),
+            **mars_variable_metadata(hypers),
             "prediction": self._fields_to_dicts(pred_raw, lat_arr, lon_arr, include_points=False),
             "residual": self._fields_to_dicts(residual_raw, lat_arr, lon_arr, include_points=False),
             "selected_variables": selected_variables,
@@ -977,7 +1007,7 @@ class InferenceService:
         model, uses_legacy_loader = self._load_official_task_model(
             task=task,
             model_architecture=model_architecture,
-            input_channels=1 + len(used_mcd_vars),
+            input_channels=int(x_sample.shape[2]),
             selected_channels=list(active_vars),
             hidden_dims=hidden_dims,
             height=data_height,
@@ -1123,12 +1153,13 @@ class InferenceService:
             volume_signature,
         )
         from training_backbones.user_model_runner import (
-            parse_selected_channels,
             prepare_tensors,
         )
 
         directories = data_dirs or {}
-        selected_channels = parse_selected_channels(hypers.get("selected_channels", []))
+        selected_channels = get_channels_from_hyperparameters(hypers)
+        variable_kwargs = {"target_variable": resolve_mars_variables(hypers)[0],
+                           "input_variables": resolve_mars_variables(hypers)[1]} if "input_variables" in hypers or "target_variable" in hypers else {}
         training_dataset = hypers.get("training_dataset", "openmars_mcd")
         openmars_dir = Path(directories.get("ASTRAATMOS_OPENMARS_DIR") or self.openmars_dir)
         mcd_dir = Path(directories.get("ASTRAATMOS_MCD_DIR") or self.mcd_dir)
@@ -1156,6 +1187,7 @@ class InferenceService:
                 train_ratio=split_ratios["train_ratio"],
                 validation_ratio=split_ratios["validation_ratio"],
                 test_ratio=split_ratios["test_ratio"],
+                **variable_kwargs,
             )
 
         signature = volume_signature(
@@ -1164,7 +1196,8 @@ class InferenceService:
             selected_channels=selected_channels,
             training_dataset=str(training_dataset),
             mcd_overview_dir=mcd_overview_dir,
-            cache_prefix="uploaded:" + self._mars_normalization_cache_key(normalization, selected_channels),
+            cache_prefix="uploaded:" + json.dumps(mars_variable_metadata(hypers), sort_keys=True)
+                         + ":" + self._mars_normalization_cache_key(normalization, selected_channels),
             split_ratios=split_ratios,
             window=window,
             horizon=horizon,
@@ -1248,6 +1281,8 @@ class InferenceService:
             selected_channels=selected_channels,
             custom_model_params=hypers.get("custom_model_params", {}),
             param_schema=hypers.get("_uploaded_model_param_schema", {}),
+            target_variable=resolve_mars_variables(hypers)[0],
+            input_variables=resolve_mars_variables(hypers)[1],
         )
         model_path = hypers.get("_uploaded_model_path")
         if not model_path:
@@ -1347,7 +1382,7 @@ class InferenceService:
         model, uses_legacy_loader = self._load_official_task_model(
             task=task,
             model_architecture=model_architecture,
-            input_channels=1 + len(used_mcd_vars),
+            input_channels=int(x_torch.shape[2]),
             selected_channels=list(active_vars),
             hidden_dims=hidden_dims,
             height=int(x_torch.shape[-2]),
@@ -1438,6 +1473,8 @@ class InferenceService:
             selected_channels=selected_channels,
             custom_model_params=hypers.get("custom_model_params", {}),
             param_schema=hypers.get("_uploaded_model_param_schema", {}),
+            target_variable=resolve_mars_variables(hypers)[0],
+            input_variables=resolve_mars_variables(hypers)[1],
         )
         model_path = hypers.get("_uploaded_model_path")
         if not model_path:
@@ -1546,7 +1583,7 @@ class InferenceService:
         model, uses_legacy_loader = self._load_official_task_model(
             task=task,
             model_architecture=model_architecture,
-            input_channels=1 + len(used_mcd_vars),
+            input_channels=int(x_torch.shape[2]),
             selected_channels=active_channels,
             hidden_dims=hidden_dims,
             height=int(x_torch.shape[-2]),
@@ -1600,6 +1637,7 @@ class InferenceService:
 
         baseline = score(x_sample)
         name_by_channel = {
+            "O3": "Ozone",
             "U": "U_Wind",
             "V": "V_Wind",
             "D": "Dust_Optical_Depth",
@@ -1609,11 +1647,8 @@ class InferenceService:
         selected_set = set(selected_variables or self._channels_to_variable_names(active_channels))
         selected_set.add("Ozone")
         items = []
-        feature_pairs = [(0, "Ozone")] + [
-            (index, name_by_channel[channel])
-            for index, channel in enumerate(active_channels, start=1)
-            if channel in name_by_channel
-        ]
+        feature_pairs = [(index, name_by_channel[channel])
+                         for index, channel in enumerate(resolve_mars_variables(hypers)[1])]
         for channel_index, name in feature_pairs:
             if name not in selected_set:
                 continue
@@ -1657,6 +1692,8 @@ class InferenceService:
             selected_channels=selected_channels,
             custom_model_params=hypers.get("custom_model_params", {}),
             param_schema=hypers.get("_uploaded_model_param_schema", {}),
+            target_variable=resolve_mars_variables(hypers)[0],
+            input_variables=resolve_mars_variables(hypers)[1],
         )
         model_path = hypers.get("_uploaded_model_path")
         if not model_path:
@@ -1705,6 +1742,7 @@ class InferenceService:
 
         baseline = score(x_sample)
         name_by_channel = {
+            "O3": "Ozone",
             "U": "U_Wind",
             "V": "V_Wind",
             "D": "Dust_Optical_Depth",
@@ -1714,11 +1752,8 @@ class InferenceService:
         selected_set = set(selected_variables or self._channels_to_variable_names(selected_channels))
         selected_set.add("Ozone")
         items = []
-        feature_pairs = [(0, "Ozone")] + [
-            (index, name_by_channel[channel])
-            for index, channel in enumerate(selected_channels, start=1)
-            if channel in name_by_channel
-        ]
+        feature_pairs = [(index, name_by_channel[channel])
+                         for index, channel in enumerate(resolve_mars_variables(hypers)[1])]
         for channel_index, name in feature_pairs:
             if name not in selected_set:
                 continue
@@ -1883,8 +1918,20 @@ class InferenceService:
 
             # 1. 解析任务参数
             hypers = json.loads(task.hyperparameters)
+            if hypers.get("input_variables") is None:
+                hypers["selected_channels"] = self._task_selected_channels(task, hypers)
+            checkpoint = self._load_task_checkpoint(task)
+            target_variable, input_variables = resolve_mars_variables(hypers)
+            if isinstance(checkpoint, dict) and checkpoint.get("schema"):
+                validate_mars_checkpoint(
+                    checkpoint, selected_channels=get_channels_from_hyperparameters(hypers),
+                    target_variable=target_variable, input_variables=input_variables,
+                    window=int(hypers.get("window", 3)), horizon=int(hypers.get("horizon", 3)),
+                )
+            elif target_variable != "O3" or hypers.get("input_variables") is not None:
+                raise ValueError("Legacy bare Mars weights only support the original O3 input/target contract")
             hypers["training_dataset"] = str(getattr(task, "dataset_id", None) or hypers.get("training_dataset") or "openmars_mcd").strip().lower()
-            verified_dirs, _ = await self._prepare_task_data_env(task, hypers)
+            verified_dirs, _ = await self._prepare_task_data_env(task, hypers, checkpoint=checkpoint)
             data_dirs = {**(data_dirs or {}), **verified_dirs}
             if getattr(task, "model_source", "official") == "uploaded":
                 return await self._get_uploaded_model_test_results(task, hypers, data_dirs=data_dirs)
@@ -1907,7 +1954,6 @@ class InferenceService:
                 'T': ('Temperature', 'temp')
             }
             used_mcd_vars = [mcd_vars_map[c] for c in active_vars if c in mcd_vars_map]
-            base_input_dim = 1 + len(used_mcd_vars)
 
             # 3. 加载并预处理数据 (简化版，复用脚本逻辑)
             split_ratios = self._task_split_ratios_for_loading(hypers)
@@ -1928,7 +1974,7 @@ class InferenceService:
             model, uses_legacy_loader = self._load_official_task_model(
                 task=task,
                 model_architecture=model_architecture,
-                input_channels=base_input_dim,
+                input_channels=int(X_torch.shape[2]),
                 selected_channels=list(active_vars),
                 hidden_dims=hidden_dims,
                 height=int(X_torch.shape[-2]),
@@ -1978,6 +2024,7 @@ class InferenceService:
             metric_meta = self._with_test_set_contract({}, hypers)
             return {
                 "y_true": y_true_flat.tolist(),
+                **mars_variable_metadata(hypers),
                 "y_pred": y_pred_flat.tolist(),
                 "metrics": json.loads(task.metrics) if task.metrics else {},
                 "metric_meta": {
@@ -2013,6 +2060,8 @@ class InferenceService:
             selected_channels=selected_channels,
             custom_model_params=hypers.get("custom_model_params", {}),
             param_schema=hypers.get("_uploaded_model_param_schema", {}),
+            target_variable=resolve_mars_variables(hypers)[0],
+            input_variables=resolve_mars_variables(hypers)[1],
         )
 
         model_path = hypers.get("_uploaded_model_path")
@@ -2070,6 +2119,7 @@ class InferenceService:
         metric_meta = self._with_test_set_contract({}, hypers)
         return {
             "y_true": y_true_flat.tolist(),
+            **mars_variable_metadata(hypers),
             "y_pred": y_pred_flat.tolist(),
             "metrics": json.loads(task.metrics) if task.metrics else {},
             "metric_meta": {
@@ -2178,4 +2228,5 @@ class InferenceService:
             split_ranges=volume.split_ranges,
             split_window_starts=volume.split_window_starts,
             split_policy=volume.split_policy,
+            target_variable=volume.target_variable, input_variables=volume.input_variables,
         )

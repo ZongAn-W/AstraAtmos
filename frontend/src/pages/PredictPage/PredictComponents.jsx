@@ -12,12 +12,13 @@ export function fmtVal(v, precision = 3) { return fmtNum(v, precision); }
 
 // ─── Canvas 场热力图（带坐标轴 + Colorbar） ───
 
-export function FieldCanvas({ fieldData, colorMode = 'inferno', h = 240, colorRange }) {
+export function FieldCanvas({ fieldData, colorMode = 'inferno', h = 240, colorRange, presentation }) {
   const canvasRef = useRef(null);
   const t = useT();
   const { settings } = useSettings();
   const colormapName = settings.colormap;
   const ozoneUnit = settings.units.ozone;
+  const convertValue = presentation?.convertValue || (value => convertOzone(value, ozoneUnit));
   const precision = settings.precision;
   const theme = settings.theme;
   const fontScale = normalizeFontScale(settings.appearance?.uiScale);
@@ -168,9 +169,9 @@ export function FieldCanvas({ fieldData, colorMode = 'inferno', h = 240, colorRa
     ctx.textAlign = 'left';
     ctx.fillStyle = cbLabelColor;
     ctx.font = buildCanvasFont(11, { scale: fontScale });
-    const topLabel = colorMode === 'rdbu' ? `+${fmtVal(convertOzone(absMax, ozoneUnit), precision)}` : fmtVal(convertOzone(dMax, ozoneUnit), precision);
-    const midLabel = colorMode === 'rdbu' ? fmtVal(0, precision) : fmtVal(convertOzone((dMin + dMax) / 2, ozoneUnit), precision);
-    const botLabel = colorMode === 'rdbu' ? `-${fmtVal(convertOzone(absMax, ozoneUnit), precision)}` : fmtVal(convertOzone(dMin, ozoneUnit), precision);
+    const topLabel = colorMode === 'rdbu' ? `+${fmtVal(convertValue(absMax), precision)}` : fmtVal(convertValue(dMax), precision);
+    const midLabel = colorMode === 'rdbu' ? fmtVal(0, precision) : fmtVal(convertValue((dMin + dMax) / 2), precision);
+    const botLabel = colorMode === 'rdbu' ? `-${fmtVal(convertValue(absMax), precision)}` : fmtVal(convertValue(dMin), precision);
     ctx.fillText(topLabel, lbX, MT + 8);
     ctx.fillText(midLabel, lbX, MT + cbH / 2 + 3);
     ctx.fillText(botLabel, lbX, MT + cbH);
@@ -182,10 +183,10 @@ export function FieldCanvas({ fieldData, colorMode = 'inferno', h = 240, colorRa
     ctx.textAlign = 'center';
     ctx.fillStyle = cbTitleColor;
     ctx.font = buildCanvasFont(11, { scale: fontScale });
-    ctx.fillText(colorMode === 'rdbu' ? ozoneDeltaLabel(ozoneUnit) : ozoneLabel(ozoneUnit), 0, 0);
+    ctx.fillText(colorMode === 'rdbu' ? (presentation?.deltaUnit || ozoneDeltaLabel(ozoneUnit)) : (presentation?.unit || ozoneLabel(ozoneUnit)), 0, 0);
     ctx.restore();
 
-  }, [fieldData, colorMode, h, colormapName, ozoneUnit, precision, theme, fontScale, colorRange?.min, colorRange?.max, t]);
+  }, [fieldData, colorMode, h, colormapName, ozoneUnit, precision, theme, fontScale, colorRange?.min, colorRange?.max, t, presentation]);
 
   return (
     <div style={{ borderRadius: isLight ? 10 : 0, overflow: 'hidden', background: 'transparent', display: 'flex', justifyContent: 'center' }}>

@@ -157,6 +157,8 @@ export function readTransferSourceTaskConfig(task, { channelOrder = [], uploaded
   const base = {
     modelSource,
     selectedChannels: readChannels(hyperparameters.selected_channels, channelOrder),
+    targetVariable: hyperparameters.target_variable || 'O3',
+    inputVariables: Array.isArray(hyperparameters.input_variables) ? [...hyperparameters.input_variables] : ['O3', ...readChannels(hyperparameters.selected_channels, channelOrder)],
     useSphere: readBoolean(hyperparameters.use_sphere, 'use_sphere'),
     windowValue: requirePositiveInteger(hyperparameters.window, 'window'),
     horizon: requirePositiveInteger(hyperparameters.horizon, 'horizon'),
@@ -188,6 +190,8 @@ export function applyTransferStructureConfig(structureState, sourceConfig) {
   next.selectedUploadedModelId = sourceConfig.selectedUploadedModelId;
   next.customModelParams = cloneValue(sourceConfig.customModelParams);
   next.selectedChannels = [...sourceConfig.selectedChannels];
+  next.targetVariable = sourceConfig.targetVariable || 'O3';
+  next.inputVariables = sourceConfig.inputVariables || ['O3', ...sourceConfig.selectedChannels];
   next.useSphere = sourceConfig.useSphere;
   next.windowValue = sourceConfig.windowValue;
   next.horizon = sourceConfig.horizon;

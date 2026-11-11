@@ -1189,6 +1189,11 @@ const SphericalFieldCanvas = forwardRef(({
 
     const globeGroup = sphereMeshRef.current;
 
+    // Legacy local coordinates put east at +Z. Reflect the whole Earth frame so
+    // north-up views show east on the right, keeping every layer aligned.
+    // worldToLocal() also undoes this reflection before geographic picking.
+    globeGroup.scale.z = isEarth ? -1 : 1;
+
     if (isEarth) {
       // Earth particles keep their true coordinates; only visual height/colour interpolate.
       removeMarsMesh(globeGroup);

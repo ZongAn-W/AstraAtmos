@@ -1,5 +1,6 @@
 """Mars runner, checkpoint and inference normalization regressions."""
 
+import asyncio
 import copy
 import importlib.util
 import json
@@ -317,3 +318,162 @@ def test_prediction_response_denormalizes_o3_with_target_statistics(mars_data, m
         np.testing.assert_allclose(step["field"], mars_data.fields["O3"][2 + index], atol=1e-5)
     assert result["model_info"]["normalization_source"] == "checkpoint"
     assert result["model_info"]["selected_channels"] == channels
+
+
+@pytest.mark.parametrize("inputs", [["O3", "U"], ["U"], ["T"]])
+def test_temperature_target_is_independent_from_input_channels(mars_data, inputs):
+    channels = [channel for channel in inputs if channel != "O3"]
+    volume = prepare_scaled_volume(**mars_data.kwargs, selected_channels=channels,
+                                   target_variable="T", input_variables=inputs)
+    assert volume.values.shape[-1] == len(inputs)
+    np.testing.assert_allclose(volume.y_scaled * (volume.y_std + 1e-6) + volume.y_mean,
+                               mars_data.fields["T"], rtol=1e-6, atol=1e-4)
+    checkpoint = _checkpoint(volume, channels)
+    assert checkpoint["training_contract"]["target_variable"] == "T"
+    assert checkpoint["training_contract"]["target_unit"] == "K"
+    assert checkpoint["normalization"]["input_channel_order"] == inputs
+    validate_mars_checkpoint(checkpoint, target_variable="T", input_variables=inputs)
+    with pytest.raises(ValueError, match="loaded training volume"):
+        build_mars_checkpoint(model_state_dict={"bias": torch.zeros(1)}, volume=volume,
+                              selected_channels=channels, target_variable="O3", input_variables=inputs,
+                              window=2, horizon=2, split_ratios=RATIOS, seed=11)
+    with pytest.raises(ValueError, match="target variable"):
+        validate_mars_checkpoint(checkpoint, target_variable="O3")
+    restored = prepare_scaled_volume(**mars_data.kwargs, selected_channels=channels,
+                                     normalization=checkpoint["normalization"])
+    np.testing.assert_array_equal(restored.y_scaled, volume.y_scaled)
+    np.testing.assert_array_equal(restored.values, volume.values)
+
+
+def test_openmars_timeline_uses_mcd_temperature_target(mars_data):
+    import shutil
+
+    directory = mars_data.kwargs["openmars_dir"]
+    directory.mkdir()
+    shutil.copyfile(mars_data.directory / "MCD_MY27_overview.nc", directory / "openmars_MY27.nc")
+    volume = prepare_scaled_volume(**{**mars_data.kwargs, "training_dataset": "openmars_mcd"},
+                                   selected_channels=["U"], target_variable="T", input_variables=["O3", "U"])
+    assert volume.values.shape[-1] == 2
+    np.testing.assert_allclose(volume.y_scaled * (volume.y_std + 1e-6) + volume.y_mean,
+                               mars_data.fields["T"], rtol=1e-6, atol=1e-4)
+
+
+@pytest.mark.parametrize("model_source", ["official", "uploaded"])
+def test_ozone_and_wind_train_predict_temperature_round_trip(mars_data, model_source, tmp_path, monkeypatch):
+    from services.inference_service import InferenceService
+    from training_backbones import user_model_runner
+
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    monkeypatch.setenv("MCD_RAW_3H_DIR", str(mars_data.directory))
+    source = tmp_path / "temperature_probe.source"
+    source.write_text(MODEL_SOURCE, encoding="utf-8")
+    path = tmp_path / f"temperature_{model_source}.pth"
+    runner = _demo3() if model_source == "official" else user_model_runner
+    argv = [str(runner.__file__), "--epochs", "1", "--batch_size", "64",
+            "--window", "2", "--horizon", "2", "--selected_channels", "U",
+            "--target_variable", "T", "--input_variables", '["O3", "U"]',
+            "--training_dataset", "mcd_overview", "--output_path", str(path)]
+    argv += ["--model_architecture", "dlinear"] if model_source == "official" else ["--uploaded_model_path", str(source)]
+    monkeypatch.setattr(sys, "argv", argv)
+    runner.main()
+    checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+    validate_mars_checkpoint(checkpoint, target_variable="T", input_variables=["O3", "U"])
+    hypers = {"target_variable": "T", "input_variables": ["O3", "U"], "selected_channels": ["U"],
+              "window": 2, "horizon": 2, "training_dataset": "mcd_overview", "model_architecture": "dlinear",
+              "_uploaded_model_path": str(source), **RATIOS}
+    task = SimpleNamespace(id=99, model_source=model_source, custom_model_name="temperature",
+                           output_model_path=str(path), hyperparameters=json.dumps(hypers), model_script="demo3.py")
+    service = InferenceService()
+    service.device = torch.device("cpu")
+    result = service._predict_task_with_context(task, hypers, 0, 2,
+                                               {"MCD_RAW_3H_DIR": str(mars_data.directory)})
+    assert result["target_variable"] == "T" and result["target_unit"] == "K"
+    assert result["input_variables"] == ["O3", "U"]
+    assert result["metrics"]["target_unit"] == "K"
+    for index, step in enumerate(result["ground_truth"]):
+        np.testing.assert_allclose(step["field"], mars_data.fields["T"][2 + index], rtol=1e-6, atol=1e-4)
+    assert np.isfinite(np.asarray(result["prediction"][0]["field"])).all()
+    # The experiment-center test action uses a separate direct diagnostic path.
+    from services import inference_service
+    class TaskSession:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *args):
+            return False
+        async def get(self, model, task_id):
+            return task
+    task.metrics = "{}"
+    service.openmars_dir = mars_data.kwargs["openmars_dir"]
+    service.mcd_dir = mars_data.kwargs["mcd_dir"]
+    monkeypatch.setattr(inference_service, "MCD_RAW_3H_DIR", mars_data.directory)
+    monkeypatch.setattr(inference_service, "async_session_maker", lambda: TaskSession())
+    diagnostic = asyncio.run(service.get_test_results(task.id))
+    assert diagnostic["target_variable"] == "T" and diagnostic["target_unit"] == "K"
+    assert diagnostic["input_variables"] == ["O3", "U"]
+    assert np.isfinite(diagnostic["y_true"]).all()
+    assert np.min(diagnostic["y_true"]) >= 300  # Kelvin target, not the O3 field.
+
+
+@pytest.mark.parametrize("method,cache_method", [
+    ("compare_task_test_set_metrics", "_cached_test_set_metrics"),
+    ("compare_task_error_distributions", "_cached_error_distribution"),
+    ("compare_task_permutation_importance", "_cached_permutation_importance"),
+])
+@pytest.mark.asyncio
+async def test_compare_rejects_mixed_target_variables(method, cache_method, monkeypatch):
+    from unittest.mock import AsyncMock
+    from services.inference_service import InferenceService
+
+    service = InferenceService()
+    tasks = [SimpleNamespace(id=index, model_source="official", custom_model_name=str(index)) for index in (1, 2)]
+    contexts = [(task, {"target_variable": target, "input_variables": ["O3"], "horizon": 2}, {}, None)
+                for task, target in zip(tasks, ("T", "O3"))]
+    monkeypatch.setattr(service, "_prepare_task_prediction_context", AsyncMock(side_effect=contexts))
+    compute = AsyncMock(return_value={})
+    monkeypatch.setattr(service, cache_method, compute)
+    with pytest.raises(ValueError, match="different prediction target"):
+        await getattr(service, method)([1, 2], horizon=2, current_user=SimpleNamespace(id=7))
+    assert compute.await_count == 1
+
+
+def test_unpersisted_generic_uploaded_volumes_do_not_share_targets(mars_data, monkeypatch):
+    from services import inference_service
+    from services.inference_service import InferenceService
+
+    service = InferenceService()
+    service.openmars_dir = mars_data.kwargs["openmars_dir"]
+    service.mcd_dir = mars_data.kwargs["mcd_dir"]
+    monkeypatch.setattr(inference_service, "MCD_RAW_3H_DIR", mars_data.directory)
+    common = {"training_dataset": "mcd_overview", "input_variables": ["O3", "U"], "selected_channels": ["U"], **RATIOS}
+    clear_scaled_volumes()
+    try:
+        _, ozone = service._prepare_uploaded_task_volume({**common, "target_variable": "O3"}, 2, 2)
+        _, temperature = service._prepare_uploaded_task_volume({**common, "target_variable": "T"}, 2, 2)
+        assert ozone is not temperature
+        assert ozone.y_mean != temperature.y_mean
+    finally:
+        clear_scaled_volumes()
+
+
+@pytest.mark.parametrize("target", ["T", "O3"])
+@pytest.mark.asyncio
+async def test_uploaded_transfer_checkpoint_preserves_temperature_target(mars_data, tmp_path, target):
+    from unittest.mock import AsyncMock
+    from services.training_service import TrainingService
+
+    volume = prepare_scaled_volume(**mars_data.kwargs, selected_channels=["U"],
+                                   target_variable="T", input_variables=["O3", "U"])
+    path = tmp_path / "temperature_transfer.pth"
+    torch.save(_checkpoint(volume, ["U"]), path)
+    weight_service = SimpleNamespace(get_weight_for_user=AsyncMock(return_value=SimpleNamespace(
+        status="ready", storage_path=str(path))))
+    service = TrainingService.__new__(TrainingService)
+    hypers = {"transfer_learning": True, "transfer_source_type": "upload", "transfer_weight_id": "probe",
+              "target_variable": target, "input_variables": ["O3", "U"], "selected_channels": ["U"],
+              "window": 2, "horizon": 2}
+    if target == "O3":
+        with pytest.raises(ValueError, match="target variable"):
+            await service._resolve_transfer_source(7, hypers, weight_service)
+    else:
+        result = await service._resolve_transfer_source(7, hypers, weight_service)
+        assert result == {"ASTRAATMOS_TRANSFER_WEIGHT_PATH": str(path)}

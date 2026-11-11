@@ -114,7 +114,11 @@ def test_hidden_layers_change_the_structure():
 
 
 def test_channel_order_validation_rejects_non_canonical_input():
-    for bad in ([], ["U10M"], ["TO3", "SWGDN", "U10M"], ["TO3", "TO3"], ["TO3", "NOPE"]):
+    # The forecast target may be absent from the inputs, so a selection without
+    # TO3 is valid as long as it keeps the published relative order.
+    assert require_earth_channel_order(["U10M"]) == ["U10M"]
+    create_earth_forecaster(["U10M"])
+    for bad in ([], ["TO3", "SWGDN", "U10M"], ["TO3", "TO3"], ["TO3", "NOPE"], ["U10M", "TO3"]):
         with pytest.raises(ValueError):
             require_earth_channel_order(bad)
         with pytest.raises(ValueError):

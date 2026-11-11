@@ -210,12 +210,13 @@ test('input and prediction group is a compact payload bar', () => {
     configSource.indexOf('data-config-group="training"')
   );
   assert.match(payloadBlock, /experiment-payload-bar/);
-  assert.match(payloadBlock, /data-payload-base="true"/);
-  assert.match(payloadBlock, /copy\.inspectorBaseInput/);
+  assert.match(payloadBlock, /data-parameter="target_variable"/);
+  assert.match(payloadBlock, /onTargetVariableChange\(event\.target\.value\)/);
+  assert.doesNotMatch(payloadBlock, /data-payload-base="true"/);
   assert.match(payloadBlock, /channelOrder\.map\(\(channel\) =>/);
   assert.match(payloadBlock, /className="experiment-channel-chip"/);
   assert.match(payloadBlock, /onChannelToggle\(channel\)/);
-  assert.match(payloadBlock, /copy\.payloadCountLabel\(selectedChannels\.length, channelOrder\.length\)/);
+  assert.match(payloadBlock, /copy\.payloadCountLabel\(\(inputVariables \|\| selectedChannels\)\.length, channelOrder\.length\)/);
   // 不再把 O₃ / 驱动变量 / 计数分别扩成大块卡片。
   assert.doesNotMatch(payloadBlock, /experiment-payload-base-title/);
   assert.doesNotMatch(payloadBlock, /experiment-payload-drivers/);

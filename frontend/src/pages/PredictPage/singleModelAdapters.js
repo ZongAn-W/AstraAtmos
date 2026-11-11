@@ -1,7 +1,7 @@
-import { convertOzone, ozoneLabel, ozoneDeltaLabel } from '../../utils/units.js';
 import { predictionFieldGrid } from './predictionFieldGrid.js';
 import { buildEarthFieldPayload, earthLeadLabel, earthTimestampList, getEarthCadence, isOriginSelectable, resolveEarthColorRanges } from './earthPredictModel.js';
 import { clampPredictionHorizon } from './predictionHorizon.js';
+import { environmentDisplay, environmentIdentityMetadata, resolveEnvironmentTask } from '../../utils/environmentVariables.js';
 
 const identity = value => value;
 const fieldTitle = (kind, isZh) => ({
@@ -19,17 +19,44 @@ export function earthResponseMatchesRequest(response, { taskId, origin, context,
       buildEarthFieldPayload({ response, dayIndex, kind, colormap: 'inferno' }))));
   const sameModel = ['model_source', 'model_architecture', 'uploaded_model_id', 'uploaded_model_version', 'uploaded_model_content_hash']
     .every(key => (response?.model?.[key] ?? null) === (context?.model?.[key] ?? null));
+  const responseEnvironment = resolveEnvironmentTask(response, 'earth');
+  const contextEnvironment = resolveEnvironmentTask(context, 'earth');
+  const contextIdentity = environmentIdentityMetadata(context);
+  const responseIdentity = environmentIdentityMetadata(response);
+  const sameInputs = JSON.stringify(responseEnvironment.inputs) === JSON.stringify(contextEnvironment.inputs);
   return Boolean(scope && scope === currentScope && context
     && Number(response?.task_id) === Number(taskId)
     && response?.forecast_origin === origin
     && response?.planet === 'earth'
-    && response?.target_unit === 'DU'
+    && responseEnvironment.target === contextEnvironment.target
+    && responseEnvironment.unit === contextEnvironment.unit
+    && (!contextIdentity.complete || responseIdentity.complete)
+    && sameInputs
     && sameAxis('latitude') && sameAxis('longitude') && fieldsValid && sameModel
     && response?.dataset_id === context.dataset_id
     && response?.dataset_version === context.dataset_version
     && response?.dataset_fingerprint === context.dataset_fingerprint
     && response?.horizon === context.horizon
     && response?.window === context.window);
+}
+
+/** Validate Mars result metadata against the selected task. Only fully metadata-free legacy O3
+ * responses remain readable; partial identities cannot establish a trustworthy contract. */
+export function marsResponseMatchesTask(response, { task, selectedVariables = [] } = {}) {
+  if (!task || !response) return false;
+  const expected = resolveEnvironmentTask(task, 'mars');
+  const expectedIdentity = environmentIdentityMetadata(task);
+  const actualIdentity = environmentIdentityMetadata(response);
+  if ((expectedIdentity.declared || actualIdentity.declared) && !actualIdentity.complete) return false;
+  if (!expectedIdentity.declared && !actualIdentity.declared) return expected.target === 'O3';
+  const actual = resolveEnvironmentTask(response, 'mars');
+  const expectedInputs = JSON.stringify(expected.inputs);
+  const actualInputs = JSON.stringify(actual.inputs);
+  const requestedVariables = Array.isArray(selectedVariables) ? selectedVariables : [];
+  return actual.target === expected.target
+    && actual.unit === expected.unit
+    && actualInputs === expectedInputs
+    && (!requestedVariables.length || requestedVariables.every((value) => expected.inputs.includes(value)));
 }
 
 export function normalizeEarthPrediction(response, colormap = 'inferno') {
@@ -46,8 +73,9 @@ export function normalizeEarthPrediction(response, colormap = 'inferno') {
 
 export function createEarthPredictionAdapter({ context, isZh = true, colormap = 'inferno' } = {}) {
   const cadence = getEarthCadence(context);
+  const target = environmentDisplay(context, 'earth');
   return {
-    id: 'earth', unit: 'DU', deltaUnit: 'ΔDU', convertValue: identity, grid: predictionFieldGrid, fieldTitle,
+    id: 'earth', ...target, grid: predictionFieldGrid, fieldTitle: (kind, zh) => `${fieldTitle(kind, zh)} · ${target[zh ? 'zh' : 'en']}`,
     capabilities: { triptychExport: true, scatterExport: false, diagnosticExport: false, manualDiagnostics: true, fullscreen: 'earth-map' },
     origin: { kind: cadence.threeHourly ? 'datetime-local' : 'date', label: isZh ? '预测起点（UTC）' : 'Forecast origin (UTC)',
       toInput: cadence.threeHourly ? utcInputValue : identity, fromInput: cadence.threeHourly ? utcOriginValue : identity,
@@ -66,10 +94,10 @@ export function createEarthPredictionAdapter({ context, isZh = true, colormap = 
   };
 }
 
-export function createMarsPredictionAdapter({ ozoneUnit = 'DU', isZh = true, horizonLimit = null } = {}) {
+export function createMarsPredictionAdapter({ ozoneUnit = 'DU', isZh = true, horizonLimit = null, task = null } = {}) {
+  const target = environmentDisplay(task, 'mars', ozoneUnit);
   return {
-    id: 'mars', unit: ozoneLabel(ozoneUnit), deltaUnit: ozoneDeltaLabel(ozoneUnit),
-    convertValue: value => convertOzone(value, ozoneUnit), grid: predictionFieldGrid, fieldTitle,
+    id: 'mars', ...target, grid: predictionFieldGrid, fieldTitle: (kind, zh) => `${fieldTitle(kind, zh)} · ${target[zh ? 'zh' : 'en']}`,
     capabilities: { triptychExport: true, scatterExport: true, diagnosticExport: true, manualDiagnostics: false, fullscreen: 'mars-sphere' },
     origin: { kind: 'range', label: isZh ? '起始太阳黄经 Ls' : 'Starting solar longitude Ls', min: 0, max: 355, step: 1,
       toInput: identity, fromInput: Number, selectable: value => Number.isFinite(value) && value >= 0 && value <= 355 },

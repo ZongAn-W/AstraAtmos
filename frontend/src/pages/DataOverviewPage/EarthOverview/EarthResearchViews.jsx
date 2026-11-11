@@ -16,6 +16,7 @@ import {
   variableLabel,
 } from './earthResearchModel.js';
 import { EARTH_VARIABLE_UNITS } from './earthOverviewModel.js';
+import SpatialDiagnosticsGuide from './SpatialDiagnosticsGuide.jsx';
 import './earthAnalysisLayout.css';
 
 const PLOT_HEIGHT = 320;
@@ -688,7 +689,7 @@ export function SpatialAnomalyView({
                 reversescale: true,
                 colorbar: {
                   title: {
-                    text: `${variableLabel(variableId, isZh)}${anomaly.units ? ` (${anomaly.units})` : ''}`,
+                    text: `${variableLabel(variableId, isZh)}${isZh ? '距平' : ' anomaly'}${anomaly.units ? ` (${anomaly.units})` : ''}`,
                     font: { color: text, size: 10 },
                     side: 'top',
                   },
@@ -699,7 +700,7 @@ export function SpatialAnomalyView({
                   thickness: 10,
                   tickfont: { color: text, size: 9 },
                 },
-                hovertemplate: `${isZh ? '纬度' : 'Lat'}=%{y} ${isZh ? '经度' : 'Lon'}=%{x}<br>%{z:.2f} ${anomaly.units}<extra></extra>`,
+                hovertemplate: `${isZh ? '纬度' : 'Lat'}=%{y} ${isZh ? '经度' : 'Lon'}=%{x}<br>${isZh ? '距平' : 'Anomaly'} %{z:.2f} ${anomaly.units}<extra></extra>`,
               }]}
               layout={{
                 autosize: true,
@@ -742,11 +743,7 @@ export function SpatialAnomalyView({
           </div>
         </section>
       </div>
-      <NoteBlock>
-        {isZh
-          ? `距平＝年平均场减去同纬度经度均值（${variableLabel(variableId, isZh)}），不是多年气候距平，也不是全球行星波。RMS 使用单元面积权重，分母包含经度点数。`
-          : `Anomaly = annual mean field minus the same-latitude longitude mean (${variableLabel(variableId, isZh)}). It is not a multi-year climatological anomaly or a global planetary wave. RMS uses cell-area weights with longitude points in the denominator.`}
-      </NoteBlock>
+      <SpatialDiagnosticsGuide variableId={variableId} units={anomaly.units} isZh={isZh} />
     </div>
   );
 }

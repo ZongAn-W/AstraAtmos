@@ -61,8 +61,10 @@ class EarthCompatibility:
     dataset_id: str = "earth_merra2"
     status: str = "unavailable"
     code: str | None = None
+    forecast_configurations: list[dict[str, Any]] | None = None
 
     def report(self) -> dict[str, Any]:
+        declaration = self.datasets.get(self.dataset_id) or {}
         return {
             "compatible": self.compatible,
             "reasons": self.reasons,
@@ -75,6 +77,10 @@ class EarthCompatibility:
             "dataset_id": self.dataset_id,
             "status": "available" if self.compatible else self.status,
             "code": self.code,
+            "supported_targets": declaration.get("supported_targets", ["TO3"]),
+            "supports_independent_inputs": declaration.get("supports_independent_inputs", False),
+            "input_variable_sets": declaration.get("input_variable_sets"),
+            **({"forecast_configurations": self.forecast_configurations} if self.forecast_configurations is not None else {}),
         }
 
 
@@ -315,6 +321,7 @@ def _evaluate_three_hour_package(package, raw, validator, *, earth_probe=None):
               and block.get("output_shape") == [2, probe_horizon, 1, *(execution or {}).get('shape', ())])
     return EarthCompatibility(
         proven, list(block.get("errors") or []), warnings=list(result.warnings),
+        forecast_configurations=block.get("forecast_configurations") if proven else None,
         declares_earth=EARTH_3HOURLY_FEED_KEY in result.datasets, datasets=result.datasets,
         output_shape=block.get("output_shape"), param_schema=dict(result.param_schema),
         status="available" if proven else ("unknown" if block.get("status") == "unknown" else "unavailable"),

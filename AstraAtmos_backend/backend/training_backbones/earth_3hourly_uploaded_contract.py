@@ -42,6 +42,7 @@ RESERVED_PARAMETERS = frozenset({
     "data_directories", "data_binding", "dataset_binding", "dataset_identity_status",
     "training_dataset", "planet", "data_source",
     "in_channels", "height", "width", "selected_channels", "target_channel",
+    "target_variable", "input_variables", "out_channels", "supported_targets", "supports_independent_inputs", "input_variable_sets",
     "global_grid_shape", "device", "normalization", "contract_schema", "implementation_id",
     "derived_inputs", "topography", "topography_path", "topography_identity", "season_algorithm",
 })
@@ -195,13 +196,13 @@ def validate_forward_signature(model):
             raise ValueError("Earth forward must explicitly accept x followed by " + ", ".join(names))
 
 
-def build_config(order, params=None, *, window=56, horizon=24, contract_schema=CONTRACT_SCHEMA):
+def build_config(order, params=None, *, window=56, horizon=24, contract_schema=CONTRACT_SCHEMA, target_variable="TO3", forecast_aliases=False):
     from services.earth_training_contract import earth_training_profile
     execution = contract_profile(contract_schema)
     profile = earth_training_profile(execution['dataset_id'], {'window': window, 'horizon': horizon})
     order = list(order)
-    if not order or order[0] != "TO3" or order != [c for c in CHANNELS if c in order]:
-        raise ValueError("Earth three-hour channels must be unique and canonical with TO3 first")
+    if not order or order != [c for c in CHANNELS if c in order] or target_variable not in CHANNELS:
+        raise ValueError("Earth three-hour inputs and target must use published canonical variables")
     if len(order) != len(set(order)) or any(c not in CHANNELS for c in order):
         raise ValueError("Unsupported Earth three-hour channel order")
     params = dict(params or {})
@@ -210,7 +211,9 @@ def build_config(order, params=None, *, window=56, horizon=24, contract_schema=C
         raise ValueError("Custom parameters cannot override the server Earth contract")
     return {
         **params, "dataset_id": execution['dataset_id'], "contract_schema": contract_schema,
-        "in_channels": len(order), "selected_channels": order, "target_channel": "TO3",
+        "in_channels": len(order), "selected_channels": order, "target_channel": target_variable,
+        **({"target_variable": target_variable, "input_variables": list(order), "out_channels": 1}
+           if forecast_aliases else {}),
         "window": profile['window'], "horizon": profile['horizon'],
         "height": execution["shape"][0], "width": execution["shape"][1],
         "global_grid_shape": list(profile['grid_shape']), "spatial_tile_shape": list(execution["shape"]),
@@ -219,6 +222,37 @@ def build_config(order, params=None, *, window=56, horizon=24, contract_schema=C
 
 def channel_orders():
     return [["TO3", *subset] for count in range(5) for subset in combinations(CHANNELS[1:], count)]
+
+
+def forecast_configurations(feed):
+    """Bounded exact admission matrix; old sources keep their original 16 probes."""
+    targets = feed.get("supported_targets", ["TO3"])
+    independent = feed.get("supports_independent_inputs", False)
+    if (not isinstance(targets, list) or not targets or len(set(targets)) != len(targets)
+            or any(name not in CHANNELS for name in targets) or type(independent) is not bool):
+        raise ValueError("supported_targets must list unique Earth variables and supports_independent_inputs must be boolean")
+    orders = feed.get("input_variable_sets")
+    if orders is None:
+        orders = ([list(subset) for count in range(1, 6) for subset in combinations(CHANNELS, count)]
+                  if independent else channel_orders())
+    if not isinstance(orders, list) or not orders:
+        raise ValueError("input_variable_sets must be a nonempty list of complete input combinations")
+    seen = set()
+    for order in orders:
+        if (not isinstance(order, list) or not order or order != [name for name in CHANNELS if name in order]
+                or len(set(order)) != len(order) or (not independent and order[0] != "TO3")):
+            raise ValueError("input_variable_sets must contain unique canonical input lists; omitting TO3 requires supports_independent_inputs=true")
+        if tuple(order) in seen:
+            raise ValueError("input_variable_sets contains a duplicate combination")
+        seen.add(tuple(order))
+    if len(orders) * len(targets) > 32:
+        raise ValueError("Earth forecast admission supports at most 32 target/input configurations; narrow input_variable_sets")
+    return [{"target_variable": target, "input_variables": list(order)} for target in targets for order in orders]
+
+
+def declares_forecast_variables(feed):
+    """New declarations opt into explicit build aliases; legacy checkpoint configs stay exact."""
+    return any(key in feed for key in ("supported_targets", "supports_independent_inputs", "input_variable_sets"))
 
 
 def normalize_derived_inputs(model_spec):
@@ -387,12 +421,13 @@ def validate_eval_batch_independence(model, *, window, channels, horizon, batch_
 
 
 def dry_run(build_model, order, params, *, window=56, horizon=24, batch_size=8,
-            contract_schema=CONTRACT_SCHEMA, derived_inputs=None, topography=None):
+            contract_schema=CONTRACT_SCHEMA, derived_inputs=None, topography=None, target_variable="TO3", forecast_aliases=False):
     import torch
 
     execution = contract_profile(contract_schema)
     model = prepare_model(build_model(build_config(order, params, window=window, horizon=horizon,
-                                                   contract_schema=contract_schema)),
+                                                   contract_schema=contract_schema, target_variable=target_variable,
+                                                   forecast_aliases=forecast_aliases)),
                           window=window, contract_schema=contract_schema,
                           derived_inputs=derived_inputs)
     if not any(p.requires_grad for p in model.parameters()):

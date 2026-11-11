@@ -98,8 +98,10 @@ async def get_earth_diagnostics_context(
         context = await asyncio.to_thread(build_prediction_context, task, _registry(request))
         test_range = (context.metrics.get("split_ranges") or {}).get("test")
         return {"available": True, "planet": "earth", "task_id": task.id,
-                "target_unit": "DU", "window": context.window, "horizon": context.horizon,
+                "target": context.target, "target_variable": context.target,
+                "target_unit": context.target_unit, "window": context.window, "horizon": context.horizon,
                 "test_range": test_range, "input_channel_order": context.input_channel_order,
+                "input_variables": context.input_channel_order,
                 "defaults": EarthDiagnosticsRequest(training_task_id=task.id).model_dump(exclude={"training_task_id"})}
     except (DatasetRequestError, EarthPackageError) as exc:
         raise _error_response(exc) from exc
@@ -169,10 +171,12 @@ async def get_earth_predict_context(
         "dataset_version": context.dataset_version,
         "dataset_fingerprint": context.dataset_fingerprint,
         "target": context.target,
+        "target_variable": context.target,
         "target_unit": context.target_unit,
         "window": context.window,
         "horizon": context.horizon,
         "input_channel_order": context.input_channel_order,
+        "input_variables": context.input_channel_order,
         "input_units": context.input_units,
         "grid": {
             "shape": context.grid_shape,

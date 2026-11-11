@@ -72,6 +72,7 @@ class ModelSourcePlan:
     dataset_id: str | None = None
     window: int | None = None
     horizon: int | None = None
+    target_variable: str = "TO3"
 
 
 def _load_uploaded_module(source_text: str, filename: str):
@@ -166,6 +167,7 @@ def build_uploaded_earth_model(
     dataset_id: str | None = None,
     contract_schema: str | None = None,
     derived_inputs: Sequence[str] | None = None,
+    target_variable: str = "TO3",
 ) -> tuple[torch.nn.Module, dict[str, Any], tuple[str, ...]]:
     """Build the uploaded model for the Earth feed.
 
@@ -226,6 +228,10 @@ def build_uploaded_earth_model(
                 f"Uploaded model does not declare window={window}, horizon={horizon}",
                 code="uploaded_model_contract_invalid",
             )
+        from training_backbones.earth_3hourly_uploaded_contract import forecast_configurations, declares_forecast_variables
+        if {"target_variable": target_variable, "input_variables": order} not in forecast_configurations(feed):
+            raise EarthModelBuildError("Uploaded source does not declare this target and input combination",
+                                       code="uploaded_model_forecast_configuration_unsupported")
         from services.user_model_validator import UserModelValidator
         from training_backbones.earth_3hourly_uploaded_contract import (
             build_config, contract_schema_from_spec, normalize_derived_inputs,
@@ -272,7 +278,8 @@ def build_uploaded_earth_model(
         if errors:
             raise EarthModelBuildError("; ".join(errors), code="invalid_earth_training_parameters")
         config = build_config(order, params, window=window, horizon=horizon,
-                              contract_schema=source_contract_schema)
+                              contract_schema=source_contract_schema, target_variable=target_variable,
+                              forecast_aliases=declares_forecast_variables(feed))
         if reference.get("build_config") and reference["build_config"] != config:
             raise EarthModelBuildError("Stored three-hour build config disagrees with verified source",
                                        code="uploaded_model_contract_invalid")
@@ -390,6 +397,7 @@ def build_earth_model_for_plan(plan: ModelSourcePlan) -> tuple[torch.nn.Module, 
             height=height,
             width=width,
             dataset_id=plan.dataset_id,
+            target_variable=plan.target_variable,
         )
     raise EarthModelBuildError(f"Unsupported Earth model source: {plan.model_source}")
 

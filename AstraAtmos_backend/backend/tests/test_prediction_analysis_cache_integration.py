@@ -194,6 +194,9 @@ def test_comparisons_reuse_per_task_cached_primitives(monkeypatch):
             lambda task, task_hypers: {
                 "task_id": task.id,
                 "model_name": task.custom_model_name,
+                "target_variable": "O3",
+                "target_unit": "um-atm",
+                "input_variables": ["O3", "U"],
             },
         )
         user = SimpleNamespace(id=7, role="user")

@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 from services.mars_dataset_identity import normalize_mars_dataset_identity, volume_dataset_identity
 from services.training_split import STRICT_TIMELINE_SPLIT_POLICY
+from services.mars_variables import MARS_VARIABLE_UNITS, mars_input_variables, resolve_mars_variables
 
 MARS_CHECKPOINT_SCHEMA = "astraatmos_mars_forecast_checkpoint_v1"
 OPENMARS_WINDOW_POLICY = "openmars_ls_year_segments_v2"
@@ -20,8 +21,13 @@ class MarsCheckpointIdentityError(ValueError):
     """A versioned checkpoint has incomplete or inconsistent data identity."""
 
 
-def mars_input_channel_order(selected_channels: list[str]) -> list[str]:
+def mars_input_channel_order(selected_channels: list[str], input_variables: list[str] | None = None) -> list[str]:
     """Keep O3 first; selected_channels contains only auxiliary inputs."""
+    if input_variables is not None:
+        inputs = mars_input_variables(input_variables)
+        if inputs != input_variables:
+            raise ValueError("Mars input_variables must use canonical variable order")
+        return inputs
     if (
         not isinstance(selected_channels, list)
         or any(not isinstance(channel, str) or channel == "O3" for channel in selected_channels)
@@ -36,13 +42,19 @@ def validate_mars_normalization(
     *,
     selected_channels: list[str],
     grid_shape: tuple[int, int],
+    input_variables: list[str] | None = None,
+    target_variable: str = "O3",
 ) -> dict[str, Any]:
     """Validate statistics in exactly the order of the model input tensor."""
-    expected_order = mars_input_channel_order(selected_channels)
+    expected_order = mars_input_channel_order(selected_channels, input_variables)
     if not isinstance(normalization, dict):
         raise ValueError("Mars checkpoint input normalization metadata is invalid")
     if normalization.get("input_channel_order") != expected_order:
         raise ValueError("Mars checkpoint input_channel_order does not match O3 and selected_channels")
+    if normalization.get("input_variables", expected_order) != expected_order:
+        raise ValueError("Mars checkpoint input variables do not match the training contract")
+    if normalization.get("target_variable", "O3") != target_variable:
+        raise ValueError("Mars checkpoint target variable does not match the training task")
     if len(grid_shape) != 2 or any(type(size) is not int or size <= 0 for size in grid_shape):
         raise ValueError("Mars checkpoint grid shape is invalid")
     means = normalization.get("input_mean")
@@ -90,6 +102,8 @@ def build_mars_checkpoint(
     horizon: int,
     split_ratios: dict[str, Any],
     seed: int,
+    target_variable: str | None = None,
+    input_variables: list[str] | None = None,
 ) -> dict[str, Any]:
     if not hasattr(volume, "input_means"):
         # Unit-test doubles and legacy runner integrations may only return the
@@ -100,13 +114,24 @@ def build_mars_checkpoint(
     input_scale = [_json_array(value) for value in volume.input_stds]
     grid_shape = [int(volume.height), int(volume.width)]
     identity = volume_dataset_identity(volume)
+    mars_input_channel_order(selected_channels)
+    target, inputs = resolve_mars_variables({
+        "target_variable": target_variable if target_variable is not None else getattr(volume, "target_variable", "O3"),
+        "input_variables": input_variables if input_variables is not None else (getattr(volume, "input_variables", None) or None),
+        "selected_channels": selected_channels,
+    })
+    volume_inputs = list(getattr(volume, "input_variables", ()) or mars_input_channel_order(selected_channels))
+    if target != getattr(volume, "target_variable", "O3") or inputs != volume_inputs:
+        raise ValueError("Mars checkpoint variables do not match the loaded training volume")
     payload = {
         "schema": MARS_CHECKPOINT_SCHEMA,
         "model_state_dict": model_state_dict,
         "normalization": {
             "method": "spatial_standard",
             "fit_split": "train",
-            "input_channel_order": mars_input_channel_order(selected_channels),
+            "input_channel_order": inputs,
+            "input_variables": inputs,
+            "target_variable": target,
             "input_mean": input_mean,
             "input_scale": input_scale,
             "target_mean": float(volume.y_mean),
@@ -119,6 +144,9 @@ def build_mars_checkpoint(
         "training_contract": {
             "training_dataset": str(volume.dataset_id),
             "selected_channels": list(selected_channels),
+            "target_variable": target,
+            "target_unit": MARS_VARIABLE_UNITS[target],
+            "input_variables": inputs,
             "window": int(window),
             "horizon": int(horizon),
             "train_ratio": float(split_ratios["train_ratio"]),
@@ -186,6 +214,8 @@ def validate_mars_checkpoint(
     window: int | None = None,
     horizon: int | None = None,
     grid_shape: tuple[int, int] | None = None,
+    target_variable: str | None = None,
+    input_variables: list[str] | None = None,
 ) -> dict[str, Any]:
     if not isinstance(payload, dict) or payload.get("schema") != MARS_CHECKPOINT_SCHEMA:
         raise ValueError("Mars checkpoint schema is missing or unsupported")
@@ -197,6 +227,16 @@ def validate_mars_checkpoint(
         raise ValueError("Mars checkpoint is missing model, normalization, contract, or data binding metadata")
     channels = contract.get("selected_channels")
     mars_input_channel_order(channels)
+    target, inputs = resolve_mars_variables(contract)
+    mars_input_channel_order(channels, contract.get("input_variables"))
+    if channels != [channel for channel in inputs if channel != "O3"]:
+        raise ValueError("Mars checkpoint selected_channels disagree with input variables")
+    if target_variable is not None and target != target_variable:
+        raise ValueError("Mars checkpoint target variable does not match the training task")
+    if input_variables is not None and inputs != input_variables:
+        raise ValueError("Mars checkpoint input variables do not match the training task")
+    if contract.get("target_unit", MARS_VARIABLE_UNITS[target]) != MARS_VARIABLE_UNITS[target]:
+        raise ValueError("Mars checkpoint target unit is invalid")
     if selected_channels is not None and channels != list(selected_channels):
         raise ValueError("Mars checkpoint channel order does not match the training task")
     if window is not None and int(contract.get("window", -1)) != int(window):
@@ -206,7 +246,8 @@ def validate_mars_checkpoint(
     actual_shape = tuple(contract.get("grid_shape") or ())
     if grid_shape is not None and actual_shape != tuple(grid_shape):
         raise ValueError("Mars checkpoint grid shape does not match the loaded data")
-    validate_mars_normalization(normalization, selected_channels=channels, grid_shape=actual_shape)
+    validate_mars_normalization(normalization, selected_channels=channels, grid_shape=actual_shape,
+                                input_variables=contract.get("input_variables"), target_variable=target)
     split_policy = contract.get("split_policy", MARS_LEGACY_SPLIT_POLICY)
     if split_policy == STRICT_TIMELINE_SPLIT_POLICY:
         ranges = contract.get("split_ranges")
@@ -262,6 +303,8 @@ def mars_checkpoint_identity_snapshot(payload: Any) -> dict[str, Any]:
     return {
         **identity, "manifest": identity["file_manifest"],
         "selected_channels": list(contract["selected_channels"]),
+        "target_variable": contract.get("target_variable", "O3"),
+        "input_variables": list(normalization["input_channel_order"]),
         "window": contract["window"], "horizon": contract["horizon"],
         "split_ratios": {key: contract.get(key) for key in ("train_ratio", "validation_ratio", "test_ratio")},
         "version_status": "verified", "window_policy": contract.get("window_policy"),

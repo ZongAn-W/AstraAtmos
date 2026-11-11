@@ -23,6 +23,7 @@ AUXILIARY_INPUT_SPECS = {
     "topography": TOPOGRAPHY_AUXILIARY_INPUT,
 }
 CONTRACT_ATTRIBUTE = "_astraatmos_auxiliary_inputs"
+FORECAST_CONFIG_KEYS = frozenset({"target_variable", "input_variables", "out_channels"})
 
 
 def normalize_auxiliary_inputs(model_spec: Any) -> dict[str, dict[str, Any]]:

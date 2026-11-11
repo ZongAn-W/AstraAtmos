@@ -7,7 +7,13 @@ export const EARTH_METRIC_META = Object.freeze([
   { key: 'smape', name: 'SMAPE', zh: 'SMAPE 对称平均绝对百分比误差', en: 'SMAPE Symmetric mean absolute percentage error', unit: '%', color: '#d49bb7' },
 ]);
 
-export function earthMetricUnit(key, isZh = false) {
+export function earthMetricUnit(key, isZh = false, targetUnit = 'DU', metricUnits = null) {
+  if (['mse', 'rmse', 'mae'].includes(key) && metricUnits?.[key]) return metricUnits[key];
+  if (key === 'mse') {
+    if (targetUnit === '1') return isZh ? '无量纲' : 'dimensionless';
+    return /^[A-Za-zµμ]+$/.test(targetUnit) ? `${targetUnit}²` : `(${targetUnit})²`;
+  }
+  if (key === 'rmse' || key === 'mae') return targetUnit;
   const unit = EARTH_METRIC_META.find(metric => metric.key === key)?.unit || '';
   return unit === '1' ? (isZh ? '无量纲' : 'dimensionless') : unit;
 }

@@ -20,6 +20,10 @@ class UserModelEarthDatasetVerdict(UserModelEarthVerdict):
     status: str = "unknown"
     code: Optional[str] = None
     contract_schema: Optional[str] = None
+    supported_targets: Optional[List[str]] = None
+    supports_independent_inputs: bool = False
+    input_variable_sets: Optional[List[List[str]]] = None
+    forecast_configurations: Optional[List[Dict[str, Any]]] = None
 
 
 class UserModelValidationReport(BaseModel):

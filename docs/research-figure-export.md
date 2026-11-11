@@ -1,5 +1,7 @@
 # 预测分析科研图导出
 
+> 环境变量导出：结果快照固定目标变量及原生单位，温度、风、辐射和沙尘不应用臭氧换算；多模型曲线要求同一目标。只有 Mars O3 保留 μm-atm / DU 选择，详见[环境变量预测](environment-variable-forecasting.md)。
+
 第一版入口在预测分析页面各图旁的「导出科研图」。仅消费已返回的预测与分析结果；导出端点不会训练、调用模型或在结果缺失时补算。
 
 地球与火星单模型现由[共用预测工作台](shared-single-model-prediction.md)装配导出入口：`PredictDisplay` 使用当前步结果快照，`ErrorDistributionChart` 与 `PermutationImportanceChart` 通过 `predictionPresentation.js` 的配置决定能力。共用外壳不新增导出图种；Earth 当前步三联图可用，Earth 抽样诊断散点、残差直方图及 ΔRMSE PFI 继续禁用科研导出。`singleModelAdapters.js` 保留行星、时间、网格与物理单位契约，切换任务/起点/账号后旧快照不作为当前结果使用。

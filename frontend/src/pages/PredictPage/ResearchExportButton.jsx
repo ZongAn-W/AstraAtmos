@@ -5,13 +5,14 @@ import { researchExportDefaults, researchFigureSize, MAX_RESEARCH_CURVE_MODELS,
   initialResearchModelSelection, selectedResearchSources, researchSelectionError } from './researchExportModel';
 import './researchExport.css';
 
-function ExportPanel({ sources, sourceLabels, kind, step, metric, onClose }) {
+function ExportPanel({ sources, sourceLabels, kind, step, metric, onClose, targetVariable, targetUnit }) {
   const { settings } = useSettings();
   const zh = settings.language !== 'en';
   const copy = (cn, en) => zh ? cn : en;
   const dialogRef = useRef(null);
   const titleId = useId();
-  const [options, setOptions] = useState(() => ({ ...researchExportDefaults(settings, sources[0].planet), ...researchFigureSize('double', kind) }));
+  const nativeTarget = targetVariable && !['O3', 'TO3'].includes(targetVariable);
+  const [options, setOptions] = useState(() => ({ ...researchExportDefaults(settings, sources[0].planet), ...(nativeTarget ? { unit: 'native' } : {}), ...researchFigureSize('double', kind) }));
   const [preset, setPreset] = useState('double');
   const [bundle, setBundle] = useState(false);
   const [capabilities, setCapabilities] = useState(null);
@@ -128,7 +129,7 @@ function ExportPanel({ sources, sourceLabels, kind, step, metric, onClose }) {
             {field(copy('线宽 (pt)', 'Line width (pt)'), <input type="number" min="0.3" max="3" step="0.1" value={options.line_width} onChange={(e) => change('line_width', Number(e.target.value))} />)}
           </div>
           {field(copy('色带', 'Colormap'), <select value={options.colormap} onChange={(e) => change('colormap', e.target.value)}>{['viridis', 'inferno', 'cividis', 'plasma', 'magma', 'jet', 'rdbu'].map((value) => <option key={value}>{value}</option>)}</select>)}
-          {field(copy('单位', 'Unit'), <select value={options.unit} disabled={sources[0].planet === 'earth'} onChange={(e) => change('unit', e.target.value)}><option value="um-atm">μm-atm</option><option value="DU">DU</option></select>)}
+          {field(copy('单位', 'Unit'), <select value={options.unit} disabled={nativeTarget || sources[0].planet === 'earth'} onChange={(e) => change('unit', e.target.value)}>{nativeTarget ? <option value="native">{targetUnit || copy('原生单位', 'Native unit')}</option> : <><option value="um-atm">μm-atm</option><option value="DU">DU</option></>}</select>)}
           <div className="research-export-pair">
             {field(copy('文件格式', 'Format'), <select value={options.format} onChange={(e) => change('format', e.target.value)}>{['pdf', 'svg', 'png'].map((v) => <option key={v} value={v}>{v.toUpperCase()}</option>)}</select>)}
             {field('DPI', <select value={options.dpi} onChange={(e) => change('dpi', Number(e.target.value))}><option value="300">300</option><option value="600">600</option></select>)}
@@ -150,16 +151,16 @@ function ExportPanel({ sources, sourceLabels, kind, step, metric, onClose }) {
   );
 }
 
-export default function ResearchExportButton({ sources = [], sourceLabels = [], kind, step = 0, metric = 'rmse', disabled = false }) {
+export default function ResearchExportButton({ sources = [], sourceLabels = [], kind, step = 0, metric = 'rmse', disabled = false, targetVariable, targetUnit }) {
   const { settings } = useSettings();
   const [open, setOpen] = useState(false);
   const valid = sources.length > 0 && sources.every(Boolean);
-  const identity = JSON.stringify({ sources, kind, step, metric, disabled });
+  const identity = JSON.stringify({ sources, kind, step, metric, disabled, targetVariable, targetUnit });
   useEffect(() => { setOpen(false); }, [identity]);
   return <>
     <button className="research-export-button" type="button" disabled={disabled || !valid}
       title={!valid ? (settings.language === 'en' ? 'Refresh the result to enable export' : '重新获取结果后可导出') : undefined}
       onClick={() => setOpen(true)}>{settings.language === 'en' ? 'Export scientific figure' : '导出科研图'}</button>
-    {open && valid && <ExportPanel sources={sources} sourceLabels={sourceLabels} kind={kind} step={step} metric={metric} onClose={() => setOpen(false)} />}
+    {open && valid && <ExportPanel sources={sources} sourceLabels={sourceLabels} kind={kind} step={step} metric={metric} targetVariable={targetVariable} targetUnit={targetUnit} onClose={() => setOpen(false)} />}
   </>;
 }

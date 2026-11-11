@@ -6,6 +6,7 @@ import {
 } from './experimentCenterModel.js';
 import { getModelStructureConfig } from './trainingParamSanitizers.js';
 import { earthMetricUnit } from '../../utils/earthMetricMeta.js';
+import { ENVIRONMENT_VARIABLES, environmentVariableLabel, resolveEnvironmentTask } from '../../utils/environmentVariables.js';
 
 export const MATRIX_COLUMN_STORAGE_PREFIX = 'astraatmos_experiment_matrix_columns';
 
@@ -15,7 +16,7 @@ const RESERVED_HYPERPARAMETERS = new Set([
   'validation_ratio', 'test_ratio', 'seed', 'early_stopping_patience',
   'use_sphere', 'transfer_enabled', 'transfer_source_type', 'transfer_source_task_id',
   'transfer_freeze_mode', 'finetune_learning_rate', 'stlstm_layers', 'stlstm_hidden_dims',
-  'custom_model_params',
+  'custom_model_params', 'target_variable', 'input_variables',
 ]);
 const INTERNAL_KEY = /(^_|path|filepath|file_path|hash|fingerprint|snapshot|identity|source_code|script)/i;
 
@@ -38,6 +39,7 @@ const TRAINING_FIELDS = [
   ['validation_ratio', '验证集比例', 'Validation ratio'], ['test_ratio', '测试集比例', 'Test ratio'],
   ['seed', '随机种子', 'Random seed'], ['early_stopping_patience', '早停轮数', 'Early stopping'],
   ['selected_channels', '辅助通道', 'Driver channels'], ['use_sphere', '球面特征', 'Spherical features'],
+  ['target_variable', '预测目标', 'Prediction target'], ['input_variables', '输入变量', 'Input variables'],
   ['transfer_enabled', '迁移学习', 'Transfer learning'],
   ['transfer_source_type', '迁移来源类型', 'Transfer source type'],
   ['transfer_freeze_mode', '冻结策略', 'Freeze strategy'],
@@ -63,7 +65,8 @@ export const MATRIX_GROUPS = Object.freeze([
 ]);
 
 export const MATRIX_DEFAULT_COLUMNS = Object.freeze([
-  'model_name', 'tags', 'architecture', 'dataset', 'status', 'progress', 'start_time',
+  'model_name', 'tags', 'architecture', 'dataset', 'training:target_variable', 'training:input_variables',
+  'status', 'progress', 'start_time',
 ]);
 export const MATRIX_STATUS_FILTERS = Object.freeze(EXPERIMENT_STATUS_FILTERS);
 
@@ -142,6 +145,7 @@ export function serializeMatrixColumnPreferences(columns) {
 export function getMatrixValue(task, columnKey) {
   const hyperparameters = parseTaskHyperparameters(task?.hyperparameters);
   const metrics = readExperimentMetrics(task?.metrics);
+  const environmentTask = resolveEnvironmentTask(task);
   if (columnKey === 'model_name') return task?.custom_model_name ?? '';
   if (columnKey === 'tags') return Array.isArray(task?.tags) ? task.tags : [];
   if (columnKey === 'architecture') return getExperimentArchitectureLabel(hyperparameters.model_architecture) || '';
@@ -156,7 +160,12 @@ export function getMatrixValue(task, columnKey) {
     const split = hyperparameters._earth_task_split;
     return name === 'policy' ? split?.policy : split?.ranges?.[name]?.[field];
   }
-  if (columnKey.startsWith('training:')) return hyperparameters[columnKey.slice(9)];
+  if (columnKey.startsWith('training:')) {
+    const key = columnKey.slice(9);
+    if (key === 'target_variable') return environmentTask.target;
+    if (key === 'input_variables') return environmentTask.inputs;
+    return hyperparameters[key];
+  }
   if (columnKey.startsWith('architecture:')) return hyperparameters[columnKey.slice(13)];
   if (columnKey.startsWith('custom:')) return hyperparameters.custom_model_params?.[columnKey.slice(7)];
   if (columnKey.startsWith('config:')) return hyperparameters[columnKey.slice(7)];
@@ -170,6 +179,14 @@ export function formatMatrixValue(value, column, task, locale = 'zh-CN') {
       ? (locale.startsWith('zh') ? '未提供' : 'Not provided') : '—';
   }
   if (column?.key === 'tags') return value;
+  if (column?.key === 'training:target_variable') {
+    const target = resolveEnvironmentTask(task);
+    return `${environmentVariableLabel(target.target, target.planet, locale.startsWith('zh'))} · ${target.unit}`;
+  }
+  if (column?.key === 'training:input_variables') {
+    const target = resolveEnvironmentTask(task);
+    return target.inputs.join(' / ');
+  }
   if (column?.type === 'date') {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
@@ -177,7 +194,9 @@ export function formatMatrixValue(value, column, task, locale = 'zh-CN') {
   if (column?.key === 'progress') return `${Number(value).toFixed(0)}%`;
   if (column?.key?.startsWith('metric:')) {
     const dataset = String(task?.dataset_id || parseTaskHyperparameters(task?.hyperparameters).training_dataset || '');
-    const unit = dataset.startsWith('earth_') ? earthMetricUnit(column.key.slice(7), locale.startsWith('zh')) : 'μm-atm';
+    const target = resolveEnvironmentTask(task);
+    const key = column.key.slice(7);
+    const unit = dataset.startsWith('earth_') ? earthMetricUnit(key, locale.startsWith('zh'), target.unit, parseTaskHyperparameters(task?.metrics).metric_units) : ['rmse', 'mae'].includes(key) ? target.unit : key === 'mse' ? `${target.unit}²` : '';
     return `${Number.isFinite(Number(value)) ? Number(value).toFixed(4) : String(value)} ${unit}`;
   }
   if (Array.isArray(value)) return value.join(', ');
@@ -187,12 +206,28 @@ export function formatMatrixValue(value, column, task, locale = 'zh-CN') {
   return String(value);
 }
 
-export function filterMatrixTasks(tasks = [], { search = '', status = 'all', tagIds = [] } = {}) {
+export function getMatrixTargetOptions(tasks = []) {
+  const options = new Map();
+  for (const task of tasks) {
+    const target = resolveEnvironmentTask(task);
+    const key = `${target.planet}:${target.target}`;
+    if (!options.has(key)) options.set(key, { key, ...target });
+  }
+  return [...options.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
+
+export function filterMatrixTasks(tasks = [], { search = '', status = 'all', tagIds = [], target = 'all' } = {}) {
   const query = String(search || '').trim().toLocaleLowerCase();
   const wanted = (Array.isArray(tagIds) ? tagIds : []).map(Number);
   return (Array.isArray(tasks) ? tasks : []).filter((task) => {
+    const environmentTask = resolveEnvironmentTask(task);
+    if (target !== 'all' && target !== `${environmentTask.planet}:${environmentTask.target}`) return false;
     const name = String(task?.custom_model_name || '').toLocaleLowerCase();
-    if (query && !name.includes(query) && !String(task?.id ?? '').includes(query)) return false;
+    const variableText = [environmentTask.target, ...environmentTask.inputs].map((variable) => {
+      const metadata = ENVIRONMENT_VARIABLES[environmentTask.planet]?.[variable];
+      return `${variable} ${metadata?.zh || ''} ${metadata?.en || ''}`;
+    }).join(' ').toLocaleLowerCase();
+    if (query && !name.includes(query) && !String(task?.id ?? '').includes(query) && !variableText.includes(query)) return false;
     if (status !== 'all') {
       const taskStatus = String(task?.status || '').toLowerCase();
       if (status === 'running' && !['running', 'pending'].includes(taskStatus)) return false;

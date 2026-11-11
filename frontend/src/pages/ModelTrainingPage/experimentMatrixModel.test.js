@@ -4,6 +4,7 @@ import {
   filterMatrixTasks,
   formatMatrixValue,
   getMatrixPropertyDefinitions,
+  getMatrixTargetOptions,
   getMatrixStorageKey,
   getMatrixValue,
   MATRIX_DEFAULT_COLUMNS,
@@ -61,7 +62,7 @@ test('matrix preference restore filters removed columns and appends newly availa
   const restored = restoreMatrixColumnPreferences(JSON.stringify({ columns: ['model_name', 'removed', 'tags'] }), definitions);
   assert.deepEqual(restored.slice(0, 2), ['model_name', 'tags']);
   assert.ok(MATRIX_DEFAULT_COLUMNS.every((key) => restored.includes(key)));
-  assert.deepEqual(MATRIX_DEFAULT_COLUMNS, ['model_name', 'tags', 'architecture', 'dataset', 'status', 'progress', 'start_time']);
+  assert.deepEqual(MATRIX_DEFAULT_COLUMNS, ['model_name', 'tags', 'architecture', 'dataset', 'training:target_variable', 'training:input_variables', 'status', 'progress', 'start_time']);
 });
 
 test('matrix column preferences are scoped by account', () => {
@@ -75,6 +76,40 @@ test('matrix filtering and sorting keep missing values at the end', () => {
   const definitions = getMatrixPropertyDefinitions(tasks);
   const sorted = sortMatrixTasks(tasks, 'metric:rmse', 'asc', definitions);
   assert.deepEqual(sorted.map((task) => task.id), [1, 2]);
+});
+
+test('matrix shows and searches the saved target and independent input variables', () => {
+  const task = {
+    id: 8, dataset_id: 'earth_merra2_3hourly_v1',
+    hyperparameters: JSON.stringify({ target_variable: 'T2M', input_variables: ['TO3', 'SWGDN'] }),
+  };
+  assert.equal(getMatrixValue(task, 'training:target_variable'), 'T2M');
+  assert.deepEqual(getMatrixValue(task, 'training:input_variables'), ['TO3', 'SWGDN']);
+  assert.equal(formatMatrixValue('T2M', { key: 'training:target_variable' }, task), '2米气温 (T2M) · K');
+  assert.equal(formatMatrixValue(['TO3', 'SWGDN'], { key: 'training:input_variables' }, task), 'TO3 / SWGDN');
+  for (const search of ['T2M', 'SWGDN', '气温', 'shortwave']) {
+    assert.deepEqual(filterMatrixTasks([task], { search }).map((item) => item.id), [8]);
+  }
+  assert.deepEqual(filterMatrixTasks([task], { target: 'earth:T2M' }).map((item) => item.id), [8]);
+  assert.deepEqual(filterMatrixTasks([task], { target: 'earth:TO3' }), []);
+});
+
+test('legacy rows retain their ozone target and implicit complete inputs', () => {
+  const task = { id: 9, dataset_id: 'mcd_overview', hyperparameters: JSON.stringify({ selected_channels: ['U', 'D'] }) };
+  assert.equal(getMatrixValue(task, 'training:target_variable'), 'O3');
+  assert.deepEqual(getMatrixValue(task, 'training:input_variables'), ['O3', 'U', 'D']);
+  assert.equal(formatMatrixValue('O3', { key: 'training:target_variable' }, task), '臭氧 (O3) · um-atm');
+});
+
+test('matrix target options and sorting distinguish Earth and Mars experiments', () => {
+  const taskRows = [
+    { id: 1, dataset_id: 'mcd_overview', hyperparameters: { target_variable: 'T', input_variables: ['U'] } },
+    { id: 2, dataset_id: 'earth_merra2_3hourly_v1', hyperparameters: { target_variable: 'T2M', input_variables: ['TO3'] } },
+    { id: 3, dataset_id: 'mcd_overview', hyperparameters: {} },
+    { id: 4, dataset_id: 'mcd_overview', hyperparameters: { target_variable: 'T', input_variables: ['O3'] } },
+  ];
+  assert.deepEqual(getMatrixTargetOptions(taskRows).map((item) => item.key), ['earth:T2M', 'mars:O3', 'mars:T']);
+  assert.deepEqual(sortMatrixTasks(taskRows, 'training:target_variable').map((item) => item.id), [3, 1, 4, 2]);
 });
 
 test('matrix sorts saved numeric extensions by value and tags by name', () => {

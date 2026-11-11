@@ -1,9 +1,9 @@
 import { EARTH_METRIC_META, earthMetricUnit } from '../../utils/earthMetricMeta.js';
-import { convertOzone, ozoneLabel } from '../../utils/units.js';
 import { getMetricAggregationLabel, getSplitLabel } from './predictionMetricMeta.js';
 import { currentStepScatter } from './researchExportModel.js';
 import { earthDiagnosticHistogram, earthDiagnosticScatter, earthDiagnosticPfiItems } from './earthDiagnosticsModel.js';
 import { getEarthMetricPolicyLabel } from '../../utils/earthMetricMeta.js';
+import { environmentDisplay } from '../../utils/environmentVariables.js';
 
 const selectLanguage = (options) => options.isZh ?? ((options.settings || options).language !== 'en');
 const text = (isZh, zh, en) => isZh ? zh : en;
@@ -31,6 +31,7 @@ export function predictionChartTheme(settings = {}, overrides = {}) {
 export function predictionMetricCards(metrics, presentation) {
   const values = metrics?.overall || metrics || {};
   return presentation.items.map((item) => ({ ...item,
+    unit: presentation.nativeUnits && ['mse', 'rmse', 'mae'].includes(item.key) ? (metrics?.metric_units?.[item.key] || item.unit) : item.unit,
     value: Number.isFinite(values[item.key]) ? presentation.convertValue(values[item.key], item.key) : null,
   }));
 }
@@ -59,8 +60,9 @@ export function createMarsPredictionPresentation(options = {}) {
   const settings = options.settings || options;
   const isZh = selectLanguage(options);
   const unit = options.ozoneUnit || settings.units?.ozone || 'um-atm';
-  const unitLabel = ozoneLabel(unit);
-  const convert = (value) => convertOzone(value, unit);
+  const target = environmentDisplay(options.task || options.context, 'mars', unit);
+  const unitLabel = target.unit;
+  const convert = target.convertValue;
   return {
     metrics: {
       items: [
@@ -79,8 +81,9 @@ export function createMarsPredictionPresentation(options = {}) {
     },
     distribution: {
       unitLabel,
+      targetVariable: target.target,
       readData: (data, { predictionResult, step = 0 } = {}) => {
-        const pairs = currentStepScatter(predictionResult, step, unit) || { trues: [], preds: [] };
+        const pairs = currentStepScatter(predictionResult, step, target.target === 'O3' ? unit : 'native') || { trues: [], preds: [] };
         return {
           unitLabel,
           scatter: { reference: pairs.trues, prediction: pairs.preds, range: scatterRange(pairs.trues, pairs.preds),
@@ -96,6 +99,8 @@ export function createMarsPredictionPresentation(options = {}) {
       },
     },
     pfi: {
+      targetVariable: target.target,
+      targetUnit: unitLabel,
       readData: (data) => ({
         title: text(isZh, '置换特征重要性（ΔR²）', 'Permutation feature importance (ΔR²)'),
         items: (data?.items || []).map((item) => ({ name: item.name, translateKey: `predict.variables.${item.name}`, value: item.importance })),
@@ -115,28 +120,31 @@ export function createMarsPredictionPresentation(options = {}) {
 
 export function createEarthPredictionPresentation(options = {}) {
   const isZh = selectLanguage(options);
+  const target = environmentDisplay(options.context || options.task || options.identity, 'earth');
+  const targetUnit = target.unit;
   const scope = options.scope || 'current_window';
   const splitLabelSource = options.splitLabelSource || null;
   // getSplitLabel reads metrics.split_meta, so keep the shared wrapper shape.
   const splitLabelMetrics = splitLabelSource ? { split_meta: splitLabelSource } : null;
   return {
     metrics: {
+      nativeUnits: true,
       items: EARTH_METRIC_META.map((item) => ({ ...item, label: item[isZh ? 'zh' : 'en'],
-        unit: earthMetricUnit(item.key, isZh), better: item.key === 'r2' ? '↑' : '↓' })),
+        unit: earthMetricUnit(item.key, isZh, targetUnit), better: item.key === 'r2' ? '↑' : '↓' })),
       title: text(isZh, '模型评价指标', 'Model evaluation metrics'), missingLabel: text(isZh, '未提供', 'Not provided'),
       convertValue: (value) => value,
       describe: (metrics) => ({ scope, subtitle: `${predictionScopeLabel(scope, isZh)} · ${text(isZh,
-        '反归一化 TO3（DU）；', 'Physical TO3 (DU); ')}${getEarthMetricPolicyLabel(metrics, isZh)}`,
+        `反归一化 ${target.target}（${targetUnit}）；`, `Physical ${target.target} (${targetUnit}); `)}${getEarthMetricPolicyLabel(metrics, isZh)}`,
         // Same split line Mars shows; the source is the bound checkpoint test split.
         splitLabel: getSplitLabel(splitLabelMetrics, isZh) }),
     },
     distribution: {
-      unitLabel: 'DU',
+      unitLabel: targetUnit,
       readData: (data) => {
-        const pairs = earthDiagnosticScatter(data.scatter);
-        const bins = earthDiagnosticHistogram(data.histogram, data.scope?.valid_points);
+        const pairs = earthDiagnosticScatter(data.scatter, targetUnit);
+        const bins = earthDiagnosticHistogram(data.histogram, data.scope?.valid_points, targetUnit);
         return {
-          unitLabel: 'DU',
+          unitLabel: targetUnit,
           scatter: { reference: pairs.reference, prediction: pairs.prediction, range: pairs.range,
             scope: 'sampled_diagnostic', scopeText: text(isZh, '抽样诊断窗口 · 流式抽样散点', 'Diagnostic windows · streaming-sampled scatter'),
             note: text(isZh, `仅显示 ${pairs.reference.length.toLocaleString()} 对抽样点；诊断指标覆盖相同窗口全部提前步与格点。`,
@@ -154,10 +162,10 @@ export function createEarthPredictionPresentation(options = {}) {
         title: text(isZh, '置换特征重要性（ΔRMSE）', 'Permutation feature importance (ΔRMSE)'),
         items: earthDiagnosticPfiItems(data).map((item) => ({ name: item.channel, value: item.importance_mean, std: item.importance_std })),
         baseline: data?.baseline_rmse ?? data?.baseline_value, baselineLabel: text(isZh, '基线 RMSE', 'Baseline RMSE'),
-        unitLabel: 'DU', axisLabel: 'ΔRMSE (DU)', scope: 'sampled_diagnostic',
-        scopeText: `${text(isZh, '相同抽样 test 窗口、全部提前步与全球格点；', 'Identical sampled test windows, all leads and global cells; ')}${getEarthMetricPolicyLabel(data?.sample_metrics, isZh)} · ${text(isZh, '置换后 RMSE − 基线 RMSE（DU），负值保留。', 'permuted RMSE − baseline RMSE (DU), retaining negative values.')}`,
-        helpText: text(isZh, '误差条为重复置换标准差。每个输入通道整段历史窗口置换，含历史 TO3；未来目标和参考真值保持固定。PFI 表示模型输入敏感性，不能解释为因果贡献。',
-          'Error bars show the standard deviation across repeats. Each input channel, including historical TO3, is permuted as a whole window; targets and references stay fixed. PFI describes sensitivity, not causal contribution.'), exportEnabled: false,
+        unitLabel: targetUnit, axisLabel: `ΔRMSE (${targetUnit})`, scope: 'sampled_diagnostic',
+        scopeText: `${text(isZh, '相同抽样 test 窗口、全部提前步与全球格点；', 'Identical sampled test windows, all leads and global cells; ')}${getEarthMetricPolicyLabel(data?.sample_metrics, isZh)} · ${text(isZh, `置换后 RMSE − 基线 RMSE（${targetUnit}），负值保留。`, `permuted RMSE − baseline RMSE (${targetUnit}), retaining negative values.`)}`,
+        helpText: text(isZh, '误差条为重复置换标准差。每个输入通道整段历史窗口置换；未来目标和参考真值保持固定。PFI 表示模型输入敏感性，不能解释为因果贡献。',
+          'Error bars show the standard deviation across repeats. Each input channel is permuted as a whole window; targets and references stay fixed. PFI describes sensitivity, not causal contribution.'), exportEnabled: false,
         emptyLabel: text(isZh, '此抽样范围没有可计算的 PFI 通道，请查看诊断原因或调整窗口。',
           'No PFI channels are computable in this sample. Inspect the diagnostic reason or adjust the windows.'),
       }),

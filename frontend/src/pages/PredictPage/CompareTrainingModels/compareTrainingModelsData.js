@@ -1,4 +1,6 @@
-const CHANNEL_ORDER = ['U', 'V', 'D', 'S', 'T'];
+import { environmentIdentityMetadata, resolveEnvironmentTask } from '../../../utils/environmentVariables.js';
+import { earthMetricUnit } from '../../../utils/earthMetricMeta.js';
+
 const FEATURE_ORDER = ['Ozone', 'Temperature', 'Dust_Optical_Depth', 'Solar_Flux_DN', 'U_Wind', 'V_Wind'];
 
 function parseHyperparameters(raw) {
@@ -10,16 +12,6 @@ function parseHyperparameters(raw) {
   } catch {
     return {};
   }
-}
-
-function normalizeChannels(value) {
-  const rawItems = typeof value === 'string'
-    ? value.replaceAll('+', ',').split(',')
-    : Array.isArray(value)
-      ? value
-      : [];
-  const selected = new Set(rawItems.map((item) => String(item || '').trim().toUpperCase()).filter(Boolean));
-  return CHANNEL_ORDER.filter((channel) => selected.has(channel));
 }
 
 function formatValue(value) {
@@ -43,7 +35,11 @@ export function normalizeCompareDataSource() {
 export function buildCompareModelSummary(task) {
   const hypers = parseHyperparameters(task?.hyperparameters);
   const earth = task?.is_earth_task === true || String(task?.dataset_id || hypers.training_dataset || '').startsWith('earth_');
-  const selectedChannels = earth ? ['TO3', ...(Array.isArray(hypers.selected_channels) ? hypers.selected_channels.filter(c => c !== 'TO3') : [])] : normalizeChannels(hypers.selected_channels);
+  const target = resolveEnvironmentTask({
+    ...task,
+    hyperparameters: { ...hypers, selected_channels: hypers.selected_channels ?? task?.selected_channels },
+  }, earth ? 'earth' : 'mars');
+  const selectedChannels = target.inputs;
   const modelSource = String(hypers.model_source || task?.model_source || 'official').toLowerCase();
   const architecture = String(hypers.model_architecture || (modelSource === 'uploaded' ? 'uploaded' : 'predrnnv2')).toLowerCase();
   const dataSource = normalizeCompareDataSource(hypers._effective_data_source || hypers._data_source);
@@ -55,7 +51,8 @@ export function buildCompareModelSummary(task) {
     modelSource,
     architecture,
     selectedChannels,
-    inputChannelText: selectedChannels.length ? selectedChannels.join(' / ') : 'O3 only',
+    inputChannelText: selectedChannels.join(' / '),
+    targetText: `${target.target} (${target.unit})`,
     window: hypers.window,
     horizon: hypers.horizon,
     dataSource,
@@ -74,15 +71,20 @@ export function sortCompareItems(items = [], options = {}) {
   });
 }
 
-export function buildCompareParameterRows(items = []) {
+export function buildCompareParameterRows(items = [], planet = 'mars') {
   return (Array.isArray(items) ? items : []).map((item) => {
     const hypers = parseHyperparameters(item?.hyperparameters);
+    const target = resolveEnvironmentTask({
+      ...item,
+      hyperparameters: { ...hypers, selected_channels: hypers.selected_channels ?? item?.selected_channels },
+    }, planet);
     return {
       taskId: Number(item?.task_id),
       modelName: item?.model_name || `Task #${item?.task_id}`,
       modelSource: formatValue(item?.model_source || hypers.model_source),
       architecture: formatValue(item?.architecture || hypers.model_architecture),
-      selectedChannels: formatValue(item?.selected_channels || hypers.selected_channels),
+      target: `${target.target} (${target.unit})`,
+      selectedChannels: formatValue(target.inputs),
       useSphere: formatValue(Boolean(hypers.use_sphere)),
       window: formatValue(hypers.window),
       horizon: formatValue(hypers.horizon),
@@ -93,6 +95,32 @@ export function buildCompareParameterRows(items = []) {
       seed: formatValue(hypers.seed),
       dataSource: formatValue(normalizeCompareDataSource(hypers._effective_data_source || hypers._data_source)),
     };
+  });
+}
+
+export function resolveEarthCompareMetricUnit(metricKey, targetUnit, metricUnits = null, isZh = false) {
+  return earthMetricUnit(metricKey, isZh, targetUnit, metricUnits);
+}
+
+export function compareResultMatchesTasks(result, tasks = [], planet = 'mars') {
+  const items = Array.isArray(result?.items) ? result.items : [];
+  if (!Array.isArray(tasks) || tasks.length < 2 || items.length !== tasks.length) return false;
+  const expectedById = new Map(tasks.map((task) => [Number(task?.id), task]));
+  if (expectedById.size !== tasks.length) return false;
+
+  return items.every((item) => {
+    const expectedTask = expectedById.get(Number(item?.task_id));
+    if (!expectedTask) return false;
+    const expected = resolveEnvironmentTask(expectedTask, planet);
+    const actual = resolveEnvironmentTask(item, planet);
+    const expectedIdentity = environmentIdentityMetadata(expectedTask);
+    const actualIdentity = environmentIdentityMetadata(item);
+    if ((expectedIdentity.declared || actualIdentity.declared) && !actualIdentity.complete) return false;
+    if (!expectedIdentity.declared && !actualIdentity.declared
+      && expected.target !== (planet === 'earth' ? 'TO3' : 'O3')) return false;
+    return actual.target === expected.target
+      && actual.unit === expected.unit
+      && JSON.stringify(actual.inputs) === JSON.stringify(expected.inputs);
   });
 }
 

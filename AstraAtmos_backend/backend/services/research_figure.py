@@ -40,6 +40,10 @@ def prepare_figure(sources, request):
         raise ValueError("Select two to eight models for curves, or one model for other figures")
     if len({s.ref["planet"] for s in sources}) != 1:
         raise ValueError("Compared models must belong to the same planet")
+    default_target = "TO3" if sources[0].ref["planet"] == "earth" else "O3"
+    target = sources[0].metadata.get("target_variable", default_target)
+    if any(source.metadata.get("target_variable", default_target) != target for source in sources):
+        raise ValueError("Compared models must predict the same target variable")
     if kind not in ("triptych", "step_curves") and any(s.ref["planet"] != "mars" for s in sources):
         raise ValueError("Earth supports triptych and test-set step curves")
     if kind == "step_curves" and sources[0].ref["planet"] == "earth":
@@ -50,15 +54,22 @@ def prepare_figure(sources, request):
         raise ValueError("Duplicate models are not allowed")
     if len({s.ref["horizon"] for s in sources}) != 1:
         raise ValueError("Compared results must have the same forecast horizon")
-    unit = "DU" if sources[0].ref["planet"] == "earth" else opt.unit
-    factor = 0.1 if sources[0].ref["planet"] == "mars" and unit == "DU" else 1.0
+    source_unit = sources[0].metadata.get("source_unit", "DU" if default_target == "TO3" else "um-atm")
+    if any(source.metadata.get("source_unit", source_unit) != source_unit for source in sources):
+        raise ValueError("Compared models must use the same physical units")
+    # Only Mars ozone has a selectable conversion. Other fields retain native units.
+    mars_ozone = sources[0].ref["planet"] == "mars" and target == "O3"
+    unit = ("um-atm" if opt.unit == "native" else opt.unit) if mars_ozone else source_unit
+    if mars_ozone and unit not in ("um-atm", "DU"):
+        raise ValueError("Mars ozone export requires um-atm or DU")
+    factor = 0.1 if mars_ozone and unit == "DU" else 1.0
     zh = opt.language == "zh"
     labels = dict(longitude="经度 (°)" if zh else "Longitude (°)", latitude="纬度 (°)" if zh else "Latitude (°)",
                   reference="参考" if zh else "Reference", prediction="预测" if zh else "Prediction",
                   residual="预测减参考" if zh else "Prediction - reference", step="预测步" if zh else "Forecast step",
-                  unit="μm-atm" if unit == "um-atm" else "DU")
+                  unit="μm-atm" if unit == "um-atm" else unit)
     value_unit = "dimensionless" if kind == "pfi" or (kind == "step_curves" and request.metric in ("r2", "ssim")) else unit
-    result = dict(kind=kind, unit=unit, value_unit=value_unit, labels=labels, metadata=[s.metadata for s in sources],
+    result = dict(kind=kind, unit=unit, target_variable=target, value_unit=value_unit, labels=labels, metadata=[s.metadata for s in sources],
                   options=opt.model_dump(), step=step + 1, metric=request.metric)
     source = sources[0]
     if kind in ("triptych", "scatter"):

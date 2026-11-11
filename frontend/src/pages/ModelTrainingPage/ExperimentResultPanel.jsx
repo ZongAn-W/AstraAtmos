@@ -16,6 +16,7 @@ import {
   readExperimentMetrics,
 } from './experimentCenterModel';
 import { EARTH_METRIC_META, earthMetricUnit, getEarthMetricPolicyLabel } from '../../utils/earthMetricMeta.js';
+import { resolveEnvironmentTask, environmentVariableLabel } from '../../utils/environmentVariables.js';
 import AnimatedNumber from '../../components/ui/AnimatedNumber';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -140,10 +141,9 @@ export default function ExperimentResultPanel({
   }
 
   const statusMeta = getTrainingStatusMeta(activeTask.status, t);
-  const channels = normalizeTaskChannels(activeTask, channelOrder);
-  const channelLabel = channels.length > 0
-    ? channels.map((channel) => channelMap[channel]?.name || channel).join(', ')
-    : baselineLabel;
+  const target = resolveEnvironmentTask(activeTask);
+  const metricUnits = parseTaskHyperparameters(activeTask.metrics).metric_units;
+  const channelLabel = target.inputs.map(channel => environmentVariableLabel(channel, target.planet, isZh)).join(', ');
   const lossHistory = progress?.loss_history || { train: [], val: [] };
   const hasLossHistory = Array.isArray(lossHistory.train) && lossHistory.train.length > 0;
   const modelAvailable = activeTask.status === 'completed' && activeTask.model_available === true;
@@ -234,7 +234,7 @@ export default function ExperimentResultPanel({
                     ? <AnimatedNumber value={metric.raw} format={formatExperimentMetricValue} />
                     : metric.value}
                 </div>
-                {earth ? <small>{earthMetricUnit(metric.key, isZh)}</small> : null}
+                <small>{earth ? earthMetricUnit(metric.key, isZh, target.unit, metricUnits) : ['rmse', 'mae'].includes(metric.key) ? target.unit : ''}</small>
               </div>
             ))}
           </div>
@@ -250,7 +250,7 @@ export default function ExperimentResultPanel({
                   <div className="experiment-result-metric-label">{EARTH_METRIC_META.find(metric => metric.key === key)[isZh ? 'zh' : 'en']}</div>
                   <div className="experiment-result-metric-value">{validationMetrics[key] === undefined
                     ? t('experimentCenter.metricNotProvided') : formatExperimentMetricValue(validationMetrics[key])}</div>
-                  <small>{earthMetricUnit(key, isZh)}</small>
+                  <small>{earthMetricUnit(key, isZh, target.unit, metricUnits)}</small>
                 </div>
               ))}
             </div>
@@ -300,6 +300,7 @@ export default function ExperimentResultPanel({
           {uploadedModel?.version ? <DetailField label={copy.customModelVersionLabel} value={uploadedModel.version} /> : null}
           {uploadedModel?.filename ? <DetailField label={copy.customModelFileLabel} value={uploadedModel.filename} /> : null}
           <DetailField label={copy.inputChannelsLabel} value={channelLabel} />
+          <DetailField label={isZh ? '预测目标' : 'Prediction target'} value={`${environmentVariableLabel(target.target, target.planet, isZh)} · ${target.unit}`} />
           <DetailField label={copy.windowLabel} value={hyperparameters.window != null ? String(hyperparameters.window) : ''} />
           <DetailField label={copy.horizonLabel} value={hyperparameters.horizon != null ? String(hyperparameters.horizon) : ''} />
           <DetailField label={copy.epochsLabel} value={hyperparameters.epochs != null ? String(hyperparameters.epochs) : ''} />

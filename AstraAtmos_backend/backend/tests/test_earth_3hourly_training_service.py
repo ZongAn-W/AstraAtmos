@@ -104,6 +104,26 @@ def test_start_queues_56_to_24_with_only_the_server_data_path(service_environmen
     assert registry.lookups == [(EARTH_DATASET_3HOURLY_ID, "a" * 64)] * 2
 
 
+def test_temperature_task_and_queue_restart_keep_independent_inputs(service_environment):
+    module, registry = service_environment
+    service = module.TrainingService()
+    service._scheduler_started = True
+    task = asyncio.run(service.start_training(
+        user_id=1, custom_model_name="Predict temperature from ozone and wind", model_script="ignored.py",
+        hyperparameters={"epochs": 1, "batch_size": 1, "target_variable": "T2M",
+                         "input_variables": ["U10M", "TO3"]},
+        dataset_id=EARTH_DATASET_3HOURLY_ID, dataset_registry=registry,
+    ))
+    hypers = json.loads(task.hyperparameters)
+    assert hypers["target_variable"] == "T2M"
+    assert hypers["input_variables"] == ["TO3", "U10M"]
+    restarted = module.TrainingService()
+    spec = restarted._restore_3hourly_training_spec(task, dataset_registry=registry)
+    assert spec["training_profile"]["target"] == "T2M"
+    assert spec["training_profile"]["target_unit"] == "K"
+    assert spec["hyperparameters"]["input_variables"] == ["TO3", "U10M"]
+
+
 @pytest.mark.parametrize("source,upload_id,hypers", [
     ("official", None, {"model_architecture": "uploaded"}),
     ("official", None, {"model_source": "uploaded"}),

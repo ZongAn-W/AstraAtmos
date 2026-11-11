@@ -69,6 +69,23 @@ def test_user_model_package_response_serializes_validation_and_param_schema():
     assert serialized["param_schema"]["hidden_dim"]["default"] == 64
 
 
+def test_uploaded_temperature_capabilities_survive_public_serialization():
+    import json
+    from routers.user_models import _normalize_validation_report
+    dataset_id = "earth_merra2_3hourly_v1"
+    configuration = {"target_variable": "T2M", "input_variables": ["TO3", "U10M"]}
+    proof = {"dataset_id": dataset_id, "compatible": True, "status": "available",
+             "supported_targets": ["T2M"], "supports_independent_inputs": True,
+             "input_variable_sets": [["TO3", "U10M"]],
+             "forecast_configurations": [{**configuration, "private_source_path": "hidden"}]}
+    parsed = _normalize_validation_report(json.dumps({"ok": True, "earth_datasets": {dataset_id: proof}}))
+    result = UserModelValidationReport(**parsed).model_dump()["earth_datasets"][dataset_id]
+    assert result["supported_targets"] == ["T2M"]
+    assert result["supports_independent_inputs"] is True
+    assert result["input_variable_sets"] == [["TO3", "U10M"]]
+    assert result["forecast_configurations"] == [configuration]
+
+
 if __name__ == "__main__":
     test_training_start_request_defaults_to_official_model_source()
     test_training_start_request_accepts_uploaded_model_source_and_id()
